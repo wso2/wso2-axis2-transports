@@ -69,7 +69,7 @@
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.apache.axis2</groupId>
+            <groupId>org.apache.axis2.transport</groupId>
             <artifactId>axis2-transport-testkit</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
