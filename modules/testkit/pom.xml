@@ -43,18 +43,18 @@
         <dependency>
             <groupId>org.apache.axis2</groupId>
             <artifactId>axis2-kernel</artifactId>
- 	    <version>${project.version}</version>
+ 	    <version>${axis2.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.axis2</groupId>
             <artifactId>addressing</artifactId>
             <type>mar</type>
-            <version>${project.version}</version>
+            <version>${axis2.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.axis2</groupId>
             <artifactId>axis2-transport-base</artifactId>
-            <version>${project.version}</version>
+            <version>${axis2.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.directory.shared</groupId>
