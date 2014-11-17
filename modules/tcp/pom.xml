@@ -25,7 +25,7 @@
    <parent>
         <groupId>org.apache.axis2.transport</groupId>
         <artifactId>axis2-transports</artifactId>
-        <version>1.6.1-wso2v11-SNAPSHOT</version>
+	<version>1.1.0-wso2v10-SNAPSHOT</version>
         <relativePath>../../pom.xml</relativePath>
     </parent>
 
@@ -70,7 +70,7 @@
                             <tasks>
                                 <mkdir dir="target/test-resources/samples/modules"/>
                                 <mkdir dir="target/test-resources/samples/conf"/>
-                              	<copy file="${settings.localRepository}/org/apache/axis2/addressing/${project.version}/addressing-${project.version}.mar"
+                              	<copy file="${settings.localRepository}/org/apache/axis2/addressing/${axis2.version}/addressing-${axis2.version}.mar"
     	                              tofile="target/test-resources/samples/modules/addressing.mar"/>
                                 <copy file="conf/axis2.xml"
     	                              tofile="target/test-resources/samples/conf/axis2.xml"/>

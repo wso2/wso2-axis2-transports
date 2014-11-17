@@ -23,7 +23,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.apache.axis2.transport</groupId>
     <artifactId>axis2-transports</artifactId>
-    <version>1.6.1-wso2v11-SNAPSHOT</version>
+    <version>1.1.0-wso2v10-SNAPSHOT</version>
     <packaging>pom</packaging>
     <name>Apache Axis2 Transport</name>
     <inceptionYear>2004</inceptionYear>

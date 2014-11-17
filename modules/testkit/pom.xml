@@ -25,7 +25,7 @@
    <parent>
         <groupId>org.apache.axis2.transport</groupId>
         <artifactId>axis2-transports</artifactId>
-        <version>1.6.1-wso2v11-SNAPSHOT</version>
+	<version>1.1.0-wso2v10-SNAPSHOT</version>
         <relativePath>../../pom.xml</relativePath>
     </parent>
 
@@ -157,7 +157,7 @@
                                 <artifactItem>
                                     <groupId>org.apache.axis2</groupId>
                                     <artifactId>addressing</artifactId>
-                                    <version>${project.version}</version>
+                                    <version>${axis2.version}</version>
                                     <type>mar</type>
                                     <outputDirectory>
                                         target/generated-resources/org/apache/axis2/transport/repo/modules

@@ -26,7 +26,7 @@
    <parent>
         <groupId>org.apache.axis2.transport</groupId>
         <artifactId>axis2-transports</artifactId>
-        <version>1.6.1-wso2v11-SNAPSHOT</version>
+	<version>1.1.0-wso2v10-SNAPSHOT</version>
         <relativePath>../../pom.xml</relativePath>
     </parent>
 
@@ -124,7 +124,7 @@
                                         dir="target/test-resources/samples/repository/services/SampleService/org/apache/axis2/transport/sms"/>
                                 <mkdir
                                         dir="target/test-resources/samples/repository/services/SampleService/META-INF"/>
-                                <copy file="${settings.localRepository}/org/apache/axis2/addressing/${project.version}/addressing-${project.version}.mar"
+                                <copy file="${settings.localRepository}/org/apache/axis2/addressing/${axis2.version}/addressing-${axis2.version}.mar"
                                       tofile="target/test-resources/samples/repository/modules/addressing.mar"/>
                                 <copy file="target/test-classes/org/apache/axis2/transport/sms/SimpleInOutMessageReceiver.class"
                                       tofile="target/test-resources/samples/repository/services/SampleService/org/apache/axis2/transport/sms/SimpleInOutMessageReceiver.class"/>
