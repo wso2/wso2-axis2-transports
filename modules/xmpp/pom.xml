@@ -59,6 +59,34 @@
                         <Export-Package>
                             org.apache.axis2.transport.xmpp.*;-split-package:=merge-last,
                         </Export-Package>
+                        <Import-Package>
+                            javax.xml.namespace,
+                            javax.xml.parsers,
+                            javax.xml.stream,
+                            org.apache.axiom.om; version="${imp.pkg.version.axiom}",
+                            org.apache.axiom.soap; version="${imp.pkg.version.axiom}",
+                            org.apache.axiom.soap.impl.llom.soap11; version="${imp.pkg.version.axiom}",
+                            org.apache.axis2; version="${imp.pkg.version.axis2}",
+                            org.apache.axis2.addressing; version="${imp.pkg.version.axis2}",
+                            org.apache.axis2.builder; version="${imp.pkg.version.axis2}",
+                            org.apache.axis2.client; version="${imp.pkg.version.axis2}",
+                            org.apache.axis2.context; version="${imp.pkg.version.axis2}",
+                            org.apache.axis2.description; version="${imp.pkg.version.axis2}",
+                            org.apache.axis2.engine; version="${imp.pkg.version.axis2}",
+                            org.apache.axis2.handlers; version="${imp.pkg.version.axis2}",
+                            org.apache.axis2.transport; version="${imp.pkg.version.axis2}",
+                            org.apache.axis2.transport.xmpp; version="${imp.pkg.version.axis2}",
+                            org.apache.axis2.transport.xmpp.util; version="${imp.pkg.version.axis2}",
+                            org.apache.axis2.util; version="${imp.pkg.version.axis2}",
+                            org.apache.axis2.util.threadpool; version="${imp.pkg.version.axis2}",
+                            org.apache.commons.lang,
+                            org.apache.commons.logging; version="${imp.pkg.version.commons.logging}",,
+                            org.apache.ws.commons.schema; version="${imp.pkg.version.xmlschema}",
+                            org.apache.ws.commons.schema.constants; version="${imp.pkg.version.xmlschema}",
+                            org.jivesoftware.smack;resolution:=optional,
+                            org.jivesoftware.smack.filter;resolution:=optional,
+                            org.jivesoftware.smack.packet;resolution:=optional,
+                        </Import-Package>
                     </instructions>
                 </configuration>
             </plugin>
@@ -101,7 +129,7 @@
             <groupId>jivesoftware</groupId>
             <artifactId>smackx</artifactId>
 	    <version>3.0.4</version>
-        </dependency>        
+        </dependency>
         <dependency>
             <groupId>commons-lang</groupId>
             <artifactId>commons-lang</artifactId>
