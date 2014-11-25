@@ -60,6 +60,9 @@
                             org.apache.axis2.transport.xmpp.*;-split-package:=merge-last,
                         </Export-Package>
                         <Import-Package>
+                            !org.apache.axis2.transport.xmpp,
+                            !org.apache.axis2.transport.xmpp.util,
+                            org.apache.axis2.transport; version="${imp.pkg.version.axis2}",
                             javax.xml.namespace,
                             javax.xml.parsers,
                             javax.xml.stream,
@@ -74,9 +77,6 @@
                             org.apache.axis2.description; version="${imp.pkg.version.axis2}",
                             org.apache.axis2.engine; version="${imp.pkg.version.axis2}",
                             org.apache.axis2.handlers; version="${imp.pkg.version.axis2}",
-                            org.apache.axis2.transport; version="${imp.pkg.version.axis2}",
-                            org.apache.axis2.transport.xmpp; version="${imp.pkg.version.axis2}",
-                            org.apache.axis2.transport.xmpp.util; version="${imp.pkg.version.axis2}",
                             org.apache.axis2.util; version="${imp.pkg.version.axis2}",
                             org.apache.axis2.util.threadpool; version="${imp.pkg.version.axis2}",
                             org.apache.commons.lang,
