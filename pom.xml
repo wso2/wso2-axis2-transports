@@ -312,8 +312,8 @@
     </build>
 
     <properties>
-        <axis2.version>1.6.1-wso2v11-SNAPSHOT</axis2.version>
-        <imp.pkg.version.axis2>[1.6.1.wso2v11-SNAPSHOT, 1.7.0)</imp.pkg.version.axis2>
+        <axis2.version>1.6.1-wso2v11</axis2.version>
+        <imp.pkg.version.axis2>[1.6.1.wso2v11, 1.7.0)</imp.pkg.version.axis2>
         <imp.pkg.version.axiom>[1.2.11.wso2v5, 1.3.0)</imp.pkg.version.axiom>
         <imp.pkg.version.xmlschema>[1.4.7.wso2v3, 1.5.0)</imp.pkg.version.xmlschema>
         <imp.pkg.version.commons.logging>[1.2, 1.3)</imp.pkg.version.commons.logging>
