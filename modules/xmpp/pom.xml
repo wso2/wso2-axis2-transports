@@ -80,7 +80,7 @@
                             org.apache.axis2.util; version="${imp.pkg.version.axis2}",
                             org.apache.axis2.util.threadpool; version="${imp.pkg.version.axis2}",
                             org.apache.commons.lang,
-                            org.apache.commons.logging; version="${imp.pkg.version.commons.logging}",,
+                            org.apache.commons.logging; version="${imp.pkg.version.commons.logging}",
                             org.apache.ws.commons.schema; version="${imp.pkg.version.xmlschema}",
                             org.apache.ws.commons.schema.constants; version="${imp.pkg.version.xmlschema}",
                             org.jivesoftware.smack;resolution:=optional,
