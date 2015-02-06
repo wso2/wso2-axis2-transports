@@ -36,6 +36,11 @@ public class TCPEndpoint extends ProtocolEndpoint {
     private int port = -1;
     private int backlog = TCPConstants.TCP_DEFAULT_BACKLOG;
     private String contentType;
+    private String recordDelimiter;
+    private String recordDelimiterType;
+    private Integer recordLength;
+    private boolean clientResponseRequired;
+    private String inputType;
 
     public TCPEndpoint() {
 
@@ -63,6 +68,38 @@ public class TCPEndpoint extends ProtocolEndpoint {
         return contentType;
     }
 
+    public String getRecordDelimiter() {
+        return recordDelimiter;
+    }
+
+    public Integer getRecordLength() {
+        return recordLength;
+    }
+
+    public boolean isClientResponseRequired() {
+		return clientResponseRequired;
+	}
+
+    public void setClientResponseRequired(boolean clientResponseRequired) {
+        this.clientResponseRequired = clientResponseRequired;
+    }
+
+    public String getInputType() {
+    	return inputType;
+    }
+
+    public void setInputType(String inputType) {
+    	this.inputType = inputType;
+    }
+
+    public String getRecordDelimiterType() {
+        return recordDelimiterType;
+    }
+
+    public void setRecordDelimiterType(String recordDelimiterType) {
+        this.recordDelimiterType = recordDelimiterType;
+    }
+
     public boolean loadConfiguration(ParameterInclude params) throws AxisFault {
         port = ParamUtils.getOptionalParamInt(params, TCPConstants.PARAM_PORT, -1);
         if (port == -1) {
@@ -70,13 +107,34 @@ public class TCPEndpoint extends ProtocolEndpoint {
         }
 
         contentType = ParamUtils.getOptionalParam(params, TCPConstants.PARAM_CONTENT_TYPE);
-        if (contentType == null) {
+        if (contentType == null || contentType.isEmpty()) {
             contentType = TCPConstants.TCP_DEFAULT_CONTENT_TYPE;
         }
+        
+        recordDelimiter = ParamUtils.getOptionalParam(params, TCPConstants.PARAM_RECORD_DELIMITER);
+        if (recordDelimiter == null) {
+        	recordDelimiter = "";
+        }
+        
+        recordLength =  ParamUtils.getOptionalParamInt(params, TCPConstants.PARAM_RECORD_LENGTH);
+        if(recordLength == null){
+        	recordLength = -1;
+        }
+        
+        inputType  =  ParamUtils.getOptionalParam(params, TCPConstants.PARAM_RESPONSE_INPUT_TYPE);
+        if(inputType == null || inputType.isEmpty()){
+        	inputType = TCPConstants.BINARY_INPUT_TYPE;
+        }
+
+        recordDelimiterType  =  ParamUtils.getOptionalParam(params, TCPConstants.PARAM_RECORD_DELIMITER_TYPE);
+        if(recordDelimiterType == null || recordDelimiterType.isEmpty() ){
+            recordDelimiterType = TCPConstants.CHARACTER_DELIMITER_TYPE;
+        }
+
+        clientResponseRequired =  ParamUtils.getOptionalParamBoolean(params, TCPConstants.PARAM_RESPONSE_CLIENT, false);
 
         host = ParamUtils.getOptionalParam(params, TCPConstants.PARAM_HOST);
-        backlog = ParamUtils.getOptionalParamInt(params, TCPConstants.PARAM_BACKLOG,
-                TCPConstants.TCP_DEFAULT_BACKLOG);
+        backlog = ParamUtils.getOptionalParamInt(params, TCPConstants.PARAM_BACKLOG, TCPConstants.TCP_DEFAULT_BACKLOG);
         return true;
     }
 
@@ -100,8 +158,7 @@ public class TCPEndpoint extends ProtocolEndpoint {
         if (!contentType.equals(TCPConstants.TCP_DEFAULT_CONTENT_TYPE)) {
             url += "?contentType=" + contentType;
         }
-
         return new EndpointReference[] { new EndpointReference(url) };
     }
-    
+
 }
