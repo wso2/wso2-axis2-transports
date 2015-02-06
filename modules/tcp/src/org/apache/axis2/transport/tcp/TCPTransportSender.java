@@ -53,7 +53,7 @@ public class TCPTransportSender extends AbstractTransportSender {
             msgContext.setProperty(TCPConstants.TCP_OUTPUT_SOCKET, socket);
 
             try {
-                writeMessageOut(msgContext, socket.getOutputStream());
+                writeMessageOut(msgContext, socket.getOutputStream(), params.get("delimiter"), params.get("delimiterType"));
                 if (!msgContext.getOptions().isUseSeparateListener() && !msgContext.isServerSide()){
                     waitForReply(msgContext, socket, params.get("contentType"));
                 }
@@ -64,28 +64,41 @@ public class TCPTransportSender extends AbstractTransportSender {
         } else if (outTransportInfo != null && (outTransportInfo instanceof TCPOutTransportInfo)) {
             TCPOutTransportInfo outInfo = (TCPOutTransportInfo) outTransportInfo;
             try {
-                writeMessageOut(msgContext, outInfo.getSocket().getOutputStream());
+                writeMessageOut(msgContext, outInfo.getSocket().getOutputStream(), outInfo.getDelimiter(), outInfo.getDelimiterType());
             } catch (IOException e) {
                 handleException("Error while sending a TCP response", e);
             } finally {
-                closeConnection(outInfo.getSocket());
+                if(!outInfo.isClientResponseRequired()){
+                    closeConnection(outInfo.getSocket());
+                }
+               
             }
         }
     }
 
     /**
-     * Writting the message to the output stream of the TCP socket after applying correct message formatter
-     * @param msgContext
-     * @param outputStream
-     * @throws AxisFault
-     * @throws IOException
+     * Writing the message to the output stream of the TCP socket after applying correct message formatter
+     * This method is synchronized because there will be issue when formatter write to same output stream which causes
+     * to mixed messages
+     *
+     * @param msgContext the message context
+     * @param outputStream the socket output stream
+     * @throws AxisFault if error occurred
+     * @throws IOException if IO exception occurred
      */
-	private void writeMessageOut(MessageContext msgContext,
-			OutputStream outputStream) throws AxisFault, IOException {
+	private synchronized void writeMessageOut(MessageContext msgContext,
+			OutputStream outputStream, String delimiter, String delimiterType) throws AxisFault, IOException {
 		MessageFormatter messageFormatter = BaseUtils.getMessageFormatter(msgContext);
 		OMOutputFormat format = BaseUtils.getOMOutputFormat(msgContext);
-		
 		messageFormatter.writeTo(msgContext, format, outputStream, true);
+		if (delimiter != null && !delimiter.isEmpty()) {
+			if (TCPConstants.BYTE_DELIMITER_TYPE.equalsIgnoreCase(delimiterType)) {
+				outputStream.write((char) Integer.parseInt(delimiter.split("0x")[1], 16));
+			} else {
+				outputStream.write(delimiter.getBytes());
+			}
+		}
+		outputStream.flush();
 	}
 
     @Override
