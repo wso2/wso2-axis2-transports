@@ -135,7 +135,9 @@ public class TCPWorker implements Runnable {
 	 */
 	private void handleCharacterRecordDelimiterStringStream(MessageContext msgContext, InputStream input,
 	                                                        int delimiter) throws AxisFault {
-		log.debug("Handle message with character delimiter type string stream");
+		if(log.isDebugEnabled()) {
+			log.debug("Handle message with character delimiter type string stream");
+		}
 		StreamTokenizer tokenizer = new StreamTokenizer(new InputStreamReader(input));
 		tokenizer.resetSyntax();
 		tokenizer.wordChars('\u0000', (char) (delimiter - 1));
@@ -169,7 +171,9 @@ public class TCPWorker implements Runnable {
 	 */
 	private void handleCharacterRecordDelimiterBinaryStream(MessageContext msgContext, InputStream input,
 	                                                        int delimiter) throws AxisFault {
-		log.debug("Handle message with character delimiter type binary stream");
+		if(log.isDebugEnabled()) {
+			log.debug("Handle message with character delimiter type binary stream");
+		}
 		ByteArrayOutputStream bos = null;
 		try {
 			int next = input.read();
@@ -223,7 +227,9 @@ public class TCPWorker implements Runnable {
 	 */
 	private void handleStringRecordDelimiterStringStream(MessageContext msgContext, InputStream input,
 	                                                     String delimiter) throws AxisFault {
-		log.debug("Handle message with string delimiter type string stream");
+		if(log.isDebugEnabled()) {
+			log.debug("Handle message with string delimiter type string stream");
+		}
 		ByteArrayOutputStream bos = new ByteArrayOutputStream();
 		try {
 			int next = input.read();
@@ -263,10 +269,13 @@ public class TCPWorker implements Runnable {
 	 */
 	private void handleStringRecordDelimiterBinaryStream(MessageContext msgContext, InputStream input,
 	                                                     String delimiter) throws AxisFault {
-		log.debug("Handle message with string delimiter type binary stream");
+		if(log.isDebugEnabled()) {
+			log.debug("Handle message with string delimiter type binary stream");
+		}
 		ByteArrayOutputStream bos = new ByteArrayOutputStream();
 		ByteArrayOutputStream chunk = new ByteArrayOutputStream();
 		try {
+			byte[] delimiterBytes = delimiter.getBytes();
 			int next = input.read();
 			while(next > -1) {
 				bos.write(next);
@@ -276,7 +285,6 @@ public class TCPWorker implements Runnable {
 						bos.write(next);
 					}
 					byte[] contents = bos.toByteArray();
-					byte[] delimiterBytes = delimiter.getBytes();
 					for(int i = 0; i< (contents.length - delimiterBytes.length + 1); i++) {
 						byte[] temp = new  byte[delimiterBytes.length];
 						int count = 0;
@@ -318,12 +326,13 @@ public class TCPWorker implements Runnable {
 	private void handleRecordLength(MessageContext msgContext, InputStream input,
 			int recordLength) throws AxisFault {
 		ByteArrayOutputStream baos = null;
+		ByteArrayInputStream bais = null;
 		byte[] bytes = new byte[recordLength];
 			try {
 				for (int len; (len = input.read(bytes)) > 0;) {
 					baos = new ByteArrayOutputStream();
 					baos.write(bytes, 0, len);
-					ByteArrayInputStream bais = new ByteArrayInputStream(baos.toByteArray());
+					bais = new ByteArrayInputStream(baos.toByteArray());
 					SOAPEnvelope envelope = TransportUtils.createSOAPMessage(msgContext, bais,
 							endpoint.getContentType());
 					msgContext.setEnvelope(envelope);
@@ -340,6 +349,13 @@ public class TCPWorker implements Runnable {
 					} catch (IOException e) {
 						sendFault(msgContext, e);
 					}
+				if(bais != null) {
+					try {
+						bais.close();
+					} catch (IOException e) {
+						sendFault(msgContext, e);
+					}
+				}
 				}
 			}
 		}
