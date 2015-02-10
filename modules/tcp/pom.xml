@@ -19,13 +19,12 @@
   ~ under the License.
   -->
 
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <modelVersion>4.0.0</modelVersion>
    <parent>
         <groupId>org.apache.axis2.transport</groupId>
         <artifactId>axis2-transports</artifactId>
-	<version>1.1.0-wso2v10-SNAPSHOT</version>
+	<version>1.1.0-wso2v11-SNAPSHOT</version>
         <relativePath>../../pom.xml</relativePath>
     </parent>
 
@@ -68,14 +67,11 @@
                         <phase>test-compile</phase>
                         <configuration>
                             <tasks>
-                                <mkdir dir="target/test-resources/samples/modules"/>
-                                <mkdir dir="target/test-resources/samples/conf"/>
-                              	<copy file="${settings.localRepository}/org/apache/axis2/addressing/${axis2.version}/addressing-${axis2.version}.mar"
-    	                              tofile="target/test-resources/samples/modules/addressing.mar"/>
-                                <copy file="conf/axis2.xml"
-    	                              tofile="target/test-resources/samples/conf/axis2.xml"/>
-                                <copy file="conf/client_axis2.xml"
-    	                              tofile="target/test-resources/samples/conf/client_axis2.xml"/>
+                                <mkdir dir="target/test-resources/samples/modules" />
+                                <mkdir dir="target/test-resources/samples/conf" />
+                              	<copy file="${settings.localRepository}/org/apache/axis2/addressing/${axis2.version}/addressing-${axis2.version}.mar" tofile="target/test-resources/samples/modules/addressing.mar" />
+                                <copy file="conf/axis2.xml" tofile="target/test-resources/samples/conf/axis2.xml" />
+                                <copy file="conf/client_axis2.xml" tofile="target/test-resources/samples/conf/client_axis2.xml" />
                             </tasks>
                         </configuration>
                        <goals>
