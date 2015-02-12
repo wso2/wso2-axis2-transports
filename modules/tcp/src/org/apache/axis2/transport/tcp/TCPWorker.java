@@ -83,22 +83,22 @@ public class TCPWorker implements Runnable {
 			if (!delimiter.isEmpty() && !handled) {
 				if (inputType != null) {
 					if (TCPConstants.STRING_INPUT_TYPE.equalsIgnoreCase(inputType)) {
-						if(TCPConstants.CHARACTER_DELIMITER_TYPE.equalsIgnoreCase(delimiterType)) {
-							this.handleCharacterRecordDelimiterStringStream(msgContext, input, delimiter.charAt(0));
+						if(TCPConstants.BYTE_DELIMITER_TYPE.equalsIgnoreCase(delimiterType)) {
+							int delimiterVal = Integer.parseInt(delimiter.split("0x")[1], 16);
+							this.handleCharacterRecordDelimiterStringStream(msgContext, input, delimiterVal);
 						} else if(TCPConstants.STRING_DELIMITER_TYPE.equalsIgnoreCase(delimiterType)) {
 							this.handleStringRecordDelimiterStringStream(msgContext, input, delimiter);
 						} else {
-							int delimiterVal = Integer.parseInt(delimiter.split("0x")[1], 16);
-							this.handleCharacterRecordDelimiterStringStream(msgContext, input, delimiterVal);
+							this.handleCharacterRecordDelimiterStringStream(msgContext, input, delimiter.charAt(0));
 						}
 					} else {
-						if(TCPConstants.CHARACTER_DELIMITER_TYPE.equalsIgnoreCase(delimiterType)) {
-							this.handleCharacterRecordDelimiterBinaryStream(msgContext, input, delimiter.charAt(0));
+						if(TCPConstants.BYTE_DELIMITER_TYPE.equalsIgnoreCase(delimiterType)) {
+							int delimiterVal = Integer.parseInt(delimiter.split("0x")[1], 16);
+							this.handleCharacterRecordDelimiterBinaryStream(msgContext, input, delimiterVal);
 						} else if(TCPConstants.STRING_DELIMITER_TYPE.equalsIgnoreCase(delimiterType)) {
 							this.handleStringRecordDelimiterBinaryStream(msgContext, input, delimiter);
 						} else {
-							int delimiterVal = Integer.parseInt(delimiter.split("0x")[1], 16);
-							this.handleCharacterRecordDelimiterBinaryStream(msgContext, input, delimiterVal);
+							this.handleCharacterRecordDelimiterBinaryStream(msgContext, input, delimiter.charAt(0));
 						}
 					}
 				}
@@ -240,7 +240,7 @@ public class TCPWorker implements Runnable {
 					if(next > -1) {
 						bos.write(next);
 					}
-					String[] segments = bos.toString("UTF-8").split(delimiter);
+					String[] segments = bos.toString().split(delimiter);
 					for(String s : segments) {
 						handleEnvelope(msgContext, s.getBytes());
 					}
