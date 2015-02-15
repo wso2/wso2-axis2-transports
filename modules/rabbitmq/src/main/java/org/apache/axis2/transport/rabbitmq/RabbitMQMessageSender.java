@@ -106,8 +106,8 @@ public class RabbitMQMessageSender {
                 }
 
                 channel = connection.createChannel();
-
-                if (exchangeName != null && !exchangeName.equals("")) {
+                if(exchangeName == null) exchangeName="";
+//                if (exchangeName != null && !exchangeName.equals("")) {
                     Boolean exchangeAvailable = false;
                     try {
                         // check availability of the named exchange
@@ -198,10 +198,10 @@ public class RabbitMQMessageSender {
                             }
                         }
                     }
-                } else {
-                    throw new AxisRabbitMQException(
-                            "rabbitmq.exchange.name property not found.");
-                }
+//                } else {
+//                    throw new AxisRabbitMQException(
+//                            "rabbitmq.exchange.name property not found.");
+//                }
 
 
                 AMQP.BasicProperties.Builder builder = buildBasicProperties(message);

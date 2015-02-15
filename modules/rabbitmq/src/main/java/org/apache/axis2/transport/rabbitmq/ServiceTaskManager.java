@@ -156,8 +156,8 @@ public class ServiceTaskManager {
 				while (isActive()) {
 					try {
 						if (!channel.isOpen()) {
-							//channel = queueingConsumer.getChannel();
-							channel = connection.createChannel();
+							channel = queueingConsumer.getChannel();
+							//channel = connection.createChannel();
 						}
 						channel.txSelect();
 					} catch (IOException e) {
@@ -255,7 +255,7 @@ public class ServiceTaskManager {
 				log.info("Queue :" + queueName + " not found.Declaring queue.");
 			}
 			//Setting queue properties
-			String queueDurable = rabbitMQProperties.get(RabbitMQConstants.QUEUE_AUTO_DELETE);
+			String queueDurable = rabbitMQProperties.get(RabbitMQConstants.QUEUE_DURABLE);
 			String queueExclusive = rabbitMQProperties.get(RabbitMQConstants.QUEUE_EXCLUSIVE);
 			String queueAutoDelete = rabbitMQProperties.get(RabbitMQConstants.QUEUE_AUTO_DELETE);
 
@@ -306,11 +306,17 @@ public class ServiceTaskManager {
 						if (exchangeType != null) {
 							String durable = rabbitMQProperties
 									.get(RabbitMQConstants.EXCHANGE_DURABLE);
+							String autoDel = rabbitMQProperties
+									.get(RabbitMQConstants.EXCHANGE_AUTODELETE);
+							boolean isAutoDel = false;
+							if(autoDel != null){
+								isAutoDel=Boolean.parseBoolean(autoDel);
+							}
 							if (durable != null) {
 								channel.exchangeDeclare(exchangeName, exchangeType,
-								                        Boolean.parseBoolean(durable));
+								                        Boolean.parseBoolean(durable),isAutoDel,false,null);
 							} else {
-								channel.exchangeDeclare(exchangeName, exchangeType, true);
+								channel.exchangeDeclare(exchangeName, exchangeType, true,isAutoDel,false,null);
 							}
 						} else {
 							channel.exchangeDeclare(exchangeName, "direct", true);
