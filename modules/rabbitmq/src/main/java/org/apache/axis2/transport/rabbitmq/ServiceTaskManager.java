@@ -157,7 +157,6 @@ public class ServiceTaskManager {
 					try {
 						if (!channel.isOpen()) {
 							channel = queueingConsumer.getChannel();
-							//channel = connection.createChannel();
 						}
 						channel.txSelect();
 					} catch (IOException e) {
@@ -182,7 +181,7 @@ public class ServiceTaskManager {
 						} finally {
 							if (successful) {
 								try {
-									channel.basicAck(message.getDeliveryTag(), false);
+									if(!autoAck)    { channel.basicAck(message.getDeliveryTag(), false); }
 									channel.txCommit();
 								} catch (IOException e) {
 									log.error("Error while commiting transaction", e);
@@ -281,7 +280,6 @@ public class ServiceTaskManager {
 				         bool_queueAutoDelete);
 			}
 
-			consumer = new QueueingConsumer(channel);
 
 			if (exchangeName != null && !exchangeName.equals("")) {
 				Boolean exchangeAvailable = false;
@@ -328,9 +326,15 @@ public class ServiceTaskManager {
 					}
 
 				}
-
+				if (!channel.isOpen()) {
+					channel = connection.createChannel();
+				}
 				channel.queueBind(queueName, exchangeName, routeKey);
 			}
+			if (!channel.isOpen()) {
+				channel = connection.createChannel();
+			}
+			consumer = new QueueingConsumer(channel);
 
 			String consumerTagString = rabbitMQProperties.get(RabbitMQConstants.CONSUMER_TAG);
 			if (consumerTagString != null) {
@@ -338,7 +342,6 @@ public class ServiceTaskManager {
 			} else {
 				channel.basicConsume(queueName, autoAck, consumer);
 			}
-
 			return consumer;
 		}
 
