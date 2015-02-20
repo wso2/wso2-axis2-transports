@@ -414,10 +414,10 @@ public class JMSOutTransportInfo implements OutTransportInfo {
             cacheLevel = JMSConstants.CACHE_PRODUCER;
         } else if ("consumer".equals(cacheValue)) {
             cacheLevel = JMSConstants.CACHE_CONSUMER;
-        } else if (cacheValue.equals(null)){
-            cacheLevel = JMSConstants.CACHE_NONE;
-        }else if (cacheValue != null) {
+        } else if (cacheValue != null) {
             throw new AxisJMSException("Invalid cache level : " + cacheValue + " for JMSOutTransportInfo");
+        } else {
+            cacheLevel = JMSConstants.CACHE_NONE;
         }
         return cacheLevel;
     }
