@@ -402,7 +402,7 @@ public class JMSOutTransportInfo implements OutTransportInfo {
      */
     private int getCacheLevel(String cacheValue) {
 
-        int cacheLevel = 0;
+        int cacheLevel = JMSConstants.CACHE_NONE;
 
         if ("none".equalsIgnoreCase(cacheValue)) {
             cacheLevel = JMSConstants.CACHE_NONE;
@@ -416,8 +416,6 @@ public class JMSOutTransportInfo implements OutTransportInfo {
             cacheLevel = JMSConstants.CACHE_CONSUMER;
         } else if (cacheValue != null) {
             throw new AxisJMSException("Invalid cache level : " + cacheValue + " for JMSOutTransportInfo");
-        } else {
-            cacheLevel = JMSConstants.CACHE_NONE;
         }
         return cacheLevel;
     }
