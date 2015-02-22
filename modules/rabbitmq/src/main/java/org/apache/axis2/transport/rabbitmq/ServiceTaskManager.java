@@ -112,7 +112,7 @@ public class ServiceTaskManager {
 	/**
 	 * The actual threads/tasks that perform message polling
 	 */
-	private class MessageListenerTask implements Runnable {
+	private class MessageListenerTask implements Runnable{
 
 		private Connection connection = null;
 		private Channel channel = null;
@@ -145,7 +145,38 @@ public class ServiceTaskManager {
 		public void run() {
 			workerState = STATE_STARTED;
 			activeTaskCount++;
+			int recoveryInterval = getRecoveryInterval();
 			try {
+				while (workerState == STATE_STARTED) {
+					try {
+						startConsumer();
+					} catch (ShutdownSignalException sse) {
+						log.error("RabbitMQ Listener disconnected",sse);
+						while((workerState == STATE_STARTED) && !connection.isOpen()){
+							log.error("Retry in Process to connect to RabbitMQ Server in "+recoveryInterval/1000+" seconds");
+							try {
+								Thread.sleep(recoveryInterval);
+							} catch (InterruptedException e) {
+								log.error("Error while waiting for re-connection",e);
+							}
+						}
+					}
+
+				}
+			} catch (Exception e) {
+				handleException("Error while receiving message from queue", e);
+			} finally {
+				closeConnection();
+				workerState = STATE_STOPPED;
+				activeTaskCount--;
+				synchronized (pollingTasks) {
+					pollingTasks.remove(this);
+				}
+			}
+		}
+
+		private void startConsumer() throws ShutdownSignalException,IOException{
+
 				connection = getConnection();
 				if (channel == null || !channel.isOpen()) {
 					channel = connection.createChannel();
@@ -184,7 +215,7 @@ public class ServiceTaskManager {
 									if(!autoAck)    { channel.basicAck(message.getDeliveryTag(), false); }
 									channel.txCommit();
 								} catch (IOException e) {
-									log.error("Error while commiting transaction", e);
+									log.error("Error while committing transaction", e);
 								}
 							} else {
 								try {
@@ -199,18 +230,8 @@ public class ServiceTaskManager {
 					}
 				}
 
-			} catch (Exception e) {
-				handleException("Error while receiving message from queue", e);
-			} finally {
-				closeConnection();
-				workerState = STATE_STOPPED;
-				activeTaskCount--;
-				synchronized (pollingTasks) {
-					pollingTasks.remove(this);
-				}
-			}
-		}
 
+		}
 		/**
 		 * Create a queue consumer using the properties form transport listener configuration
 		 *
@@ -353,15 +374,15 @@ public class ServiceTaskManager {
 		 * @throws InterruptedException on error
 		 */
 		private RabbitMQMessage getConsumerDelivery(QueueingConsumer consumer)
-				throws InterruptedException {
+				throws InterruptedException,ShutdownSignalException {
 			RabbitMQMessage message = new RabbitMQMessage();
 			QueueingConsumer.Delivery delivery = null;
 			try {
 				delivery = consumer.nextDelivery();
-			} catch (ShutdownSignalException e) {
-				//ignore
-				return null;
+			}catch (ShutdownSignalException sse){
+				throw sse;
 			}
+
 			if (delivery != null) {
 				AMQP.BasicProperties properties = delivery.getProperties();
 				Map<String, Object> headers = properties.getHeaders();
@@ -447,6 +468,18 @@ public class ServiceTaskManager {
 		}
 	}
 
+	public int getRecoveryInterval(){
+		String recoveryInterval = connectionFactory.getParameters().get(RabbitMQConstants.RECOVERY_INTERVAL);
+		int recoveryIntervalValue=5000;
+		if(recoveryInterval != null && !("").equals(recoveryInterval)) {
+			try {
+				recoveryIntervalValue = Integer.parseInt(recoveryInterval);
+			} catch (NumberFormatException e) {
+				log.error("Number format error in reading recovery interval value. Proceeding with default value (5000ms)");
+			}
+		}
+		return recoveryIntervalValue;
+	}
 	public String getServiceName() {
 		return serviceName;
 	}

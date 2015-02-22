@@ -147,6 +147,37 @@ public class ConnectionFactory {
         connectionFactory = new com.rabbitmq.client.ConnectionFactory();
         String hostName = parameters.get(RabbitMQConstants.SERVER_HOST_NAME);
         String portValue = parameters.get(RabbitMQConstants.SERVER_PORT);
+        String recoveryInterval = parameters.get(RabbitMQConstants.RECOVERY_INTERVAL);
+        String heartbeat = parameters.get(RabbitMQConstants.HEARTBEAT);
+        String connectionTimeout = parameters.get(RabbitMQConstants.CONNECTION_TIMEOUT);
+
+        if(heartbeat != null && !("").equals(heartbeat)){
+            try{
+                int heartbeatValue = Integer.parseInt(heartbeat);
+                connectionFactory.setRequestedHeartbeat(heartbeatValue);
+            }catch (NumberFormatException e){
+                log.error("Number format error in reading heartbeat value. Proceeding with default");
+            }
+        }
+        if(connectionTimeout != null && !("").equals(connectionTimeout)){
+            try{
+                int connectionTimeoutValue = Integer.parseInt(connectionTimeout);
+                connectionFactory.setConnectionTimeout(connectionTimeoutValue);
+            }catch (NumberFormatException e){
+                log.error("Number format error in reading connection timeout value. Proceeding with default");
+            }
+        }
+        int recoveryIntervalValue=5000;
+        if(recoveryInterval != null && !("").equals(recoveryInterval)) {
+            try {
+                recoveryIntervalValue = Integer.parseInt(recoveryInterval);
+            } catch (NumberFormatException e) {
+                log.error("Number format error in reading recovery interval value. Proceeding with default value (5000ms)");
+            }
+        }
+        connectionFactory.setNetworkRecoveryInterval(recoveryIntervalValue);
+        connectionFactory.setAutomaticRecoveryEnabled(true);
+        connectionFactory.setTopologyRecoveryEnabled(false);
         if (hostName != null && !hostName.equals("")) {
             connectionFactory.setHost(hostName);
         } else {
