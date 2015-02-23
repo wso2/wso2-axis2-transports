@@ -151,14 +151,18 @@ public class ServiceTaskManager {
 					try {
 						startConsumer();
 					} catch (ShutdownSignalException sse) {
-						log.error("RabbitMQ Listener disconnected",sse);
-						while((workerState == STATE_STARTED) && !connection.isOpen()){
-							log.error("Retry in Process to connect to RabbitMQ Server in "+recoveryInterval/1000+" seconds");
-							try {
-								Thread.sleep(recoveryInterval);
-							} catch (InterruptedException e) {
-								log.error("Error while waiting for re-connection",e);
+						if(!sse.isInitiatedByApplication()) {
+							log.error("RabbitMQ Listener of the service  "+serviceName+"  was disconnected", sse);
+							while ((workerState == STATE_STARTED) && !connection.isOpen()) {
+								log.error("Retry in process of the service  "+serviceName+" to connect to RabbitMQ Server in " +
+								          recoveryInterval / 1000 + " seconds");
+								try {
+									Thread.sleep(recoveryInterval);
+								} catch (InterruptedException e) {
+									log.error("Error while waiting for re-connection", e);
+								}
 							}
+							log.info("Reconnection attempt of the service "+serviceName+" was successful. ");
 						}
 					}
 
@@ -342,7 +346,7 @@ public class ServiceTaskManager {
 						}
 					} catch (java.io.IOException e) {
 						handleException(
-								"Error occured while declaring the exchange: " + exchangeName, e);
+								"Error occurred while declaring the exchange: " + exchangeName, e);
 
 					}
 
