@@ -18,13 +18,12 @@
   ~  under the License.
   -->
 
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <parent>
         <groupId>org.apache.axis2.transport</groupId>
         <artifactId>axis2-transports</artifactId>
-        <version>1.1.0-wso2v11-SNAPSHOT</version>
+        <version>1.1.0-wso2v11</version>
         <relativePath>../../pom.xml</relativePath>
     </parent>
 
@@ -112,20 +111,16 @@
                         <phase>test-compile</phase>
                         <configuration>
                             <tasks unless="maven.test.skip">
-                                <mkdir dir="target/test-resources/samples/conf"/>
-                                <mkdir dir="target/test-resources/samples/repository/modules"/>
-                                <mkdir dir="target/test-resources/samples/repository/services"/>
-                                <mkdir dir="target/test-resources/samples/repository/services/SampleService/org/apache/axis2/transport/sms"/>
-                                <mkdir dir="target/test-resources/samples/repository/services/SampleService/META-INF"/>
-                                <copy file="${settings.localRepository}/org/apache/axis2/addressing/${axis2.version}/addressing-${axis2.version}.mar"
-                                      tofile="target/test-resources/samples/repository/modules/addressing.mar"/>
-                                <copy file="target/test-classes/org/apache/axis2/transport/sms/SimpleInOutMessageReceiver.class"
-                                      tofile="target/test-resources/samples/repository/services/SampleService/org/apache/axis2/transport/sms/SimpleInOutMessageReceiver.class"/>
-                                <copy file="conf/axis2.xml" tofile="target/test-resources/samples/conf/axis2.xml"/>
-                                <copy file="repository/services/SampleService/META-INF/MANIFEST.MF"
-                                      tofile="target/test-resources/samples/repository/services/SampleService/META-INF/MANIFEST.MF"/>
-                                <copy file="repository/services/SampleService/META-INF/services.xml"
-                                      tofile="target/test-resources/samples/repository/services/SampleService/META-INF/services.xml"/>
+                                <mkdir dir="target/test-resources/samples/conf" />
+                                <mkdir dir="target/test-resources/samples/repository/modules" />
+                                <mkdir dir="target/test-resources/samples/repository/services" />
+                                <mkdir dir="target/test-resources/samples/repository/services/SampleService/org/apache/axis2/transport/sms" />
+                                <mkdir dir="target/test-resources/samples/repository/services/SampleService/META-INF" />
+                                <copy file="${settings.localRepository}/org/apache/axis2/addressing/${axis2.version}/addressing-${axis2.version}.mar" tofile="target/test-resources/samples/repository/modules/addressing.mar" />
+                                <copy file="target/test-classes/org/apache/axis2/transport/sms/SimpleInOutMessageReceiver.class" tofile="target/test-resources/samples/repository/services/SampleService/org/apache/axis2/transport/sms/SimpleInOutMessageReceiver.class" />
+                                <copy file="conf/axis2.xml" tofile="target/test-resources/samples/conf/axis2.xml" />
+                                <copy file="repository/services/SampleService/META-INF/MANIFEST.MF" tofile="target/test-resources/samples/repository/services/SampleService/META-INF/MANIFEST.MF" />
+                                <copy file="repository/services/SampleService/META-INF/services.xml" tofile="target/test-resources/samples/repository/services/SampleService/META-INF/services.xml" />
                             </tasks>
                         </configuration>
                         <goals>
