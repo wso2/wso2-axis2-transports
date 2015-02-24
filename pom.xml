@@ -42,24 +42,52 @@
         <tag>HEAD</tag>
     </scm>
 
-    <modules>
-        <!--transport-base module resides with wso2-axis2 repository-->
-        <!--module>modules/base</module-->
-        <module>modules/tcp</module>
-        <module>modules/udp</module>
-        <module>modules/xmpp</module>
-        <module>modules/mail</module>
-        <module>modules/jms</module>
-        <module>modules/rabbitmq</module>
-        <module>modules/sms</module>
-        <module>modules/testkit</module>
+    <profiles>
+        <profile>
+            <id>default</id>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+            </activation>
+            <modules>
+                <!--transport-base module resides with wso2-axis2 repository-->
+                <!--module>modules/base</module-->
+                <module>modules/tcp</module>
+                <module>modules/udp</module>
+                <module>modules/xmpp</module>
+                <module>modules/mail</module>
+                <module>modules/jms</module>
+                <module>modules/rabbitmq</module>
+                <module>modules/sms</module>
+                <module>modules/testkit</module>
 
-        <module>features/org.apache.axis2.transport.jms.feature</module>
-        <module>features/org.apache.axis2.transport.mail.feature</module>
-        <module>features/org.apache.axis2.transport.tcp.feature</module>
-        <module>features/org.apache.axis2.transport.udp.feature</module>
-        <module>features/org.apache.axis2.transport.xmpp.feature</module>
-    </modules>
+                <module>features/org.apache.axis2.transport.jms.feature</module>
+                <module>features/org.apache.axis2.transport.mail.feature</module>
+                <module>features/org.apache.axis2.transport.tcp.feature</module>
+                <module>features/org.apache.axis2.transport.udp.feature</module>
+                <module>features/org.apache.axis2.transport.xmpp.feature</module>
+            </modules>
+        </profile>
+        <profile>
+            <id>sonar-profile</id>
+            <activation>
+                <property>
+                    <name>bamboo</name>
+                    <value>sonar</value>
+                </property>
+            </activation>
+            <modules>
+                <module>modules/tcp</module>
+                <module>modules/udp</module>
+                <module>modules/xmpp</module>
+                <module>modules/mail</module>
+                <module>modules/jms</module>
+                <module>modules/rabbitmq</module>
+                <module>modules/sms</module>
+                <module>modules/testkit</module>
+            </modules>
+        </profile>
+    </profiles>
+
 
     <dependencyManagement>
         <dependencies>
