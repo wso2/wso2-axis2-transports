@@ -103,6 +103,9 @@ public class ConnectionFactory {
         if (connection == null) {
             connection = connectionFactory.newConnection(es);
         }
+        if(!connection.isOpen()){
+            connection = connectionFactory.newConnection(es);
+        }
         return connection;
     }
 
