@@ -32,17 +32,7 @@
     <name>Apache Axis2 - Transport - RabbitMQ AMQP</name>
     <description>Apache Axis2 - RabbitMQ AMQP Transport</description>
     <packaging>bundle</packaging>
-    <repositories>
-        <repository>
-            <id>central</id>
-            <name>Maven Repository Switchboard</name>
-            <layout>default</layout>
-            <url>http://repo1.maven.org/maven2</url>
-            <snapshots>
-                <enabled>false</enabled>
-            </snapshots>
-        </repository>
-    </repositories>
+
     <build>
         <plugins>
             <plugin>
@@ -97,6 +87,6 @@
         </dependency>
     </dependencies>
     <properties>
-        <version.orbit.rabbitmq>3.4.4</version.orbit.rabbitmq>
+        <version.orbit.rabbitmq>3.4.4.wso2v1</version.orbit.rabbitmq>
     </properties>
 </project>
