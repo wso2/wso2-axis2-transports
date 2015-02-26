@@ -175,7 +175,10 @@ public class ServiceTaskManager {
 					}
 
 				}
-			} catch (Exception e) {
+			} catch (java.net.ConnectException ce){
+				log.error("Can not create connection to the RabbitMQ Broker for the service "+ serviceName, ce);
+			}
+			catch (Exception e) {
 				handleException("Error while receiving message from queue", e);
 			} finally {
 				closeConnection();
@@ -195,7 +198,6 @@ public class ServiceTaskManager {
 		 * @throws IOException
 		 */
 		private void startConsumer() throws ShutdownSignalException, IOException {
-
 			connection = getConnection();
 			if (channel == null || !channel.isOpen()) {
 				channel = connection.createChannel();
@@ -459,7 +461,7 @@ public class ServiceTaskManager {
 			this.connected = connected;
 		}
 
-		private Connection getConnection() {
+		private Connection getConnection() throws IOException{
 			if (connection == null) {
 				connection = createConnection();
 				setConnected(true);
@@ -479,7 +481,7 @@ public class ServiceTaskManager {
 			}
 		}
 
-		private Connection createConnection() {
+		private Connection createConnection() throws IOException{
 			Connection connection = null;
 			try {
 				connection = connectionFactory.createConnection();

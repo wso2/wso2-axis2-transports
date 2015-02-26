@@ -84,7 +84,7 @@ public class ConnectionFactory {
      * Create a rabbit mq connection
      * @return  a connection to the server
      */
-    public Connection createConnection() {
+    public Connection createConnection() throws IOException{
         Connection connection = null;
         try {
             connection = RabbitMQUtils.createConnection(connectionFactory);
