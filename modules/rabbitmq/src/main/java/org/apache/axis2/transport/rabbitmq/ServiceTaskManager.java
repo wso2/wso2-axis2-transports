@@ -169,8 +169,10 @@ public class ServiceTaskManager {
 									log.error("Error while waiting for re-connection", e);
 								}
 							}
-							log.info("Reconnection attempt of the service " + serviceName +
-							         " was successful. ");
+							if(workerState == STATE_STARTED) {
+								log.info("Reconnection attempt of the service " + serviceName +
+								         " was successful. ");
+							}
 						}
 					}
 
