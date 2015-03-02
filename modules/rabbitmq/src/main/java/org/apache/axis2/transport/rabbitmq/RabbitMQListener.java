@@ -67,7 +67,13 @@ public class RabbitMQListener extends AbstractTransportListenerEx<RabbitMQEndpoi
     @Override
     protected void stopEndpoint(RabbitMQEndpoint endpoint) {
         ServiceTaskManager stm = endpoint.getServiceTaskManager();
+        if (log.isDebugEnabled()) {
+            log.debug("Stopping receiver for for service : " + stm.getServiceName());
+        }
+
         stm.stop();
+
+        log.info("Stopped listening for AMQP messages to service : " + endpoint.getServiceName());
     }
 
     /**

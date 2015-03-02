@@ -32,6 +32,9 @@ public class RabbitMQConstants {
     public static final String SERVER_USER_NAME = "rabbitmq.server.user.name";
     public static final String SERVER_PASSWORD = "rabbitmq.server.password";
     public static final String SERVER_VIRTUAL_HOST = "rabbitmq.server.virtual.host";
+    public static final String RECOVERY_INTERVAL = "rabbitmq.factory.recovery.interval";
+    public static final String HEARTBEAT = "rabbitmq.factory.heartbeat";
+    public static final String CONNECTION_TIMEOUT = "rabbitmq.factory.connection.timeout";
 
     public static final String CORRELATION_ID = "rabbitmq.message.correlation.id";
     public static final String MESSAGE_ID = "rabbitmq.message.id";
@@ -43,6 +46,7 @@ public class RabbitMQConstants {
     public static final String EXCHANGE_NAME = "rabbitmq.exchange.name";
     public static final String EXCHANGE_TYPE = "rabbitmq.exchange.type";
     public static final String EXCHANGE_DURABLE = "rabbitmq.exchange.durable";
+    public static final String EXCHANGE_AUTODELETE= "rabbitmq.exchange.auto.delete";
 
     public static final String QUEUE_NAME = "rabbitmq.queue.name";
     public static final String QUEUE_DURABLE = "rabbitmq.queue.durable";

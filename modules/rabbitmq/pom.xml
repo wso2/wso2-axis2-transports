@@ -67,8 +67,8 @@
             <artifactId>axis2-transport-base</artifactId>
             <version>${axis2.version}</version>
         </dependency>
-
-        <dependency>
+	
+ 	<dependency>
             <groupId>org.apache.axis2.transport</groupId>
             <artifactId>axis2-transport-testkit</artifactId>
             <version>${project.parent.version}</version>
@@ -87,6 +87,6 @@
         </dependency>
     </dependencies>
     <properties>
-        <version.orbit.rabbitmq>3.0.3.wso2v1</version.orbit.rabbitmq>
+        <version.orbit.rabbitmq>3.4.4.wso2v1</version.orbit.rabbitmq>
     </properties>
 </project>
