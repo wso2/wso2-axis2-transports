@@ -22,16 +22,16 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-   <parent>
+    <parent>
         <groupId>org.apache.axis2.transport</groupId>
         <artifactId>axis2-transports</artifactId>
-	<version>1.1.0-wso2v11-SNAPSHOT</version>
+        <version>1.1.0-wso2v12-SNAPSHOT</version>
         <relativePath>../../pom.xml</relativePath>
     </parent>
 
     <artifactId>axis2-transport-xmpp</artifactId>
     <name>Apache Axis2 - Transport - XMPP</name>
-    <description>This inclues all the available transports in Axis2 </description>
+    <description>This inclues all the available transports in Axis2</description>
     <packaging>bundle</packaging>
 
     <!--scm>
@@ -47,7 +47,6 @@
             <plugin>
                 <groupId>org.apache.felix</groupId>
                 <artifactId>maven-bundle-plugin</artifactId>
-                <version>1.4.0</version>
                 <extensions>true</extensions>
                 <configuration>
                     <instructions>
@@ -108,10 +107,9 @@
     </build>
 
     <dependencies>
-	<dependency>
+        <dependency>
             <groupId>org.apache.axis2</groupId>
             <artifactId>axis2-kernel</artifactId>
-            <version>${axis2.version}</version>
         </dependency>
         <dependency>
             <groupId>commons-logging</groupId>
@@ -122,12 +120,10 @@
         <dependency>
             <groupId>jivesoftware</groupId>
             <artifactId>smack</artifactId>
-	    <version>3.0.4</version>
         </dependency>
         <dependency>
             <groupId>jivesoftware</groupId>
             <artifactId>smackx</artifactId>
-	    <version>3.0.4</version>
         </dependency>
         <dependency>
             <groupId>commons-lang</groupId>
