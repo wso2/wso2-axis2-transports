@@ -77,12 +77,7 @@ public class RabbitMQSender extends AbstractTransportSender {
 
             if (factory != null) {
                 sender = new RabbitMQMessageSender(factory, targetEPR);
-                try {
-                    sendOverAMQP(msgCtx, sender);
-                } finally {
-                    sender.close();
-                }
-
+                sendOverAMQP(msgCtx, sender);
             }
         }
     }
