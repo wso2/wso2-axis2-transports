@@ -24,6 +24,7 @@ import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.QueueingConsumer;
 import com.rabbitmq.client.ShutdownSignalException;
 import org.apache.axis2.transport.base.threads.WorkerPool;
+import org.apache.axis2.transport.rabbitmq.utils.RabbitMQUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -34,6 +35,7 @@ import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
 
+
 /**
  * Each service will have one ServiceTaskManager instance that will send, manage and also destroy
  * idle tasks created for it, for message receipt. It uses the MessageListenerTask to poll for the
@@ -42,8 +44,6 @@ import java.util.Map;
  */
 
 public class ServiceTaskManager {
-
-	
 	private static final Log log = LogFactory.getLog(ServiceTaskManager.class);
 
 	private static final int STATE_STOPPED = 0;
