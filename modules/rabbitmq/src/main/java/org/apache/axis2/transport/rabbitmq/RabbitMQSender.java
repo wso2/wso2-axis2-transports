@@ -45,6 +45,7 @@ public class RabbitMQSender extends AbstractTransportSender {
      * @param transportOut the transport sender definition from axis2.xml
      * @throws AxisFault on error
      */
+    @Override
     public void init(ConfigurationContext cfgCtx, TransportOutDescription transportOut)
             throws AxisFault {
         super.init(cfgCtx, transportOut);
@@ -53,7 +54,12 @@ public class RabbitMQSender extends AbstractTransportSender {
 
     }
 
-
+    @Override
+    public void stop(){
+        // clean up senders connection factory, connections
+        connectionFactoryManager.stop();
+        super.stop();
+    }
     /**
      * Performs the sending of the RabbitMQ AMQP message
      */

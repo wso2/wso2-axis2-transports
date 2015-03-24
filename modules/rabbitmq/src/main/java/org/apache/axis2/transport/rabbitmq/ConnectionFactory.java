@@ -207,4 +207,13 @@ public class ConnectionFactory {
             connectionFactory.setVirtualHost(virtualHost);
         }
     }
+
+    /**
+     * Stop all the connections in this connection factory
+     * Stop the executor service
+     */
+    public void stop(){
+        es.shutdown();
+    }
+
 }
