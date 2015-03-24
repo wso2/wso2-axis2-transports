@@ -42,6 +42,8 @@ import java.util.Map;
  */
 
 public class ServiceTaskManager {
+
+	
 	private static final Log log = LogFactory.getLog(ServiceTaskManager.class);
 
 	private static final int STATE_STOPPED = 0;
