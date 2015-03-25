@@ -216,7 +216,7 @@ public class ServiceTaskManager {
 			}
 			//set the qos value for the consumer
 			String qos = rabbitMQProperties.get(RabbitMQConstants.CONSUMER_QOS);
-			if (qos != null && "".equals(qos)){
+			if (qos != null && !"".equals(qos)){
 				channel.basicQos(Integer.parseInt(qos));
 			}
 			QueueingConsumer queueingConsumer = createQueueConsumer(channel);
