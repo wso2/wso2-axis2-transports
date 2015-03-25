@@ -215,7 +215,10 @@ public class ServiceTaskManager {
 				channel = connection.createChannel();
 			}
 			//set the qos value for the consumer
-			channel.basicQos(Integer.parseInt(rabbitMQProperties.get(RabbitMQConstants.CONSUMER_QOS)));
+			String qos = rabbitMQProperties.get(RabbitMQConstants.CONSUMER_QOS);
+			if (qos != null && "".equals(qos)){
+				channel.basicQos(Integer.parseInt(qos));
+			}
 			QueueingConsumer queueingConsumer = createQueueConsumer(channel);
 
 			while (isActive()) {
@@ -282,7 +285,6 @@ public class ServiceTaskManager {
 			String routeKey = rabbitMQProperties.get(RabbitMQConstants.QUEUE_ROUTING_KEY);
 			String exchangeName = rabbitMQProperties.get(RabbitMQConstants.EXCHANGE_NAME);
 			String autoAckStringValue = rabbitMQProperties.get(RabbitMQConstants.QUEUE_AUTO_ACK);
-			//TODO: set default false
 			if (autoAckStringValue != null) {
 				autoAck = Boolean.parseBoolean(autoAckStringValue);
 			}
