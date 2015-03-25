@@ -128,7 +128,7 @@ public class ServiceTaskManager {
 	private class MessageListenerTask implements Runnable {
 
 		private Connection connection = null;
-		private Channel channel = null;
+		private Channel channel = null; //TODO: let client to configure BasicQoS
 		private boolean autoAck = false;
 
 		private volatile int workerState = STATE_STOPPED;
@@ -276,11 +276,12 @@ public class ServiceTaskManager {
 		private QueueingConsumer createQueueConsumer(Channel channel) throws IOException {
 			QueueingConsumer consumer = null;
 			//try {
-
+			//TODO: ack test for axis faliure
 			String queueName = rabbitMQProperties.get(RabbitMQConstants.QUEUE_NAME);
 			String routeKey = rabbitMQProperties.get(RabbitMQConstants.QUEUE_ROUTING_KEY);
 			String exchangeName = rabbitMQProperties.get(RabbitMQConstants.EXCHANGE_NAME);
 			String autoAckStringValue = rabbitMQProperties.get(RabbitMQConstants.QUEUE_AUTO_ACK);
+			//TODO: set default false
 			if (autoAckStringValue != null) {
 				autoAck = Boolean.parseBoolean(autoAckStringValue);
 			}
@@ -293,12 +294,12 @@ public class ServiceTaskManager {
 
 			if (routeKey == null) {
 				log.info(
-						"rabbitmq.queue.routing.key property not found.Using queue name as the " +
-						"routing key..");
+						"[ rabbitmq.queue.routing.key ] property not found. Using queue name as the " +
+						"routing key.");
 				routeKey = queueName;
 			}
 
-			Boolean queueAvailable = false;
+			Boolean queueAvailable = false; //TODO: for already exclusively declared queue, show an error message n stop the flow
 			try {
 				//check availability of the named queue
 				//if an error is encountered, including if the queue does not exist and if the
@@ -313,7 +314,7 @@ public class ServiceTaskManager {
 			String queueDurable = rabbitMQProperties.get(RabbitMQConstants.QUEUE_DURABLE);
 			String queueExclusive = rabbitMQProperties.get(RabbitMQConstants.QUEUE_EXCLUSIVE);
 			String queueAutoDelete = rabbitMQProperties.get(RabbitMQConstants.QUEUE_AUTO_DELETE);
-
+			//TODO: look for durability in JMS
 			boolean bool_queueDurable = false;
 			boolean bool_queueExclusive = false;
 			boolean bool_queueAutoDelete = false;
@@ -331,9 +332,9 @@ public class ServiceTaskManager {
 				}
 				channel.queueDeclare(queueName, bool_queueDurable, bool_queueExclusive,
 				                     bool_queueAutoDelete, null);
-				log.info("Declaring a queue with | Name:" + queueName + " Durable:" +
+				log.info("Declaring a queue with [ Name:" + queueName + " Durable:" +
 				         bool_queueDurable + " Exclusive:" + bool_queueExclusive + " AutoDelete:" +
-				         bool_queueAutoDelete);
+				         bool_queueAutoDelete+" ]");
 			}
 
 			if (exchangeName != null && !exchangeName.equals("")) {

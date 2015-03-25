@@ -216,7 +216,7 @@ public class RabbitMQMessageSender {
 							axisFault);
 				}
 
-				try {
+				try { //TODO: find about x-consistent hash
 					// generate random value as routeKey if the exchangeType is
 					// x-consistent-hash type
 					if (exchangeType != null
