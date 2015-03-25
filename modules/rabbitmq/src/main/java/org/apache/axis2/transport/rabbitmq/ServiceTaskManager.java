@@ -214,7 +214,8 @@ public class ServiceTaskManager {
 			if (channel == null || !channel.isOpen()) {
 				channel = connection.createChannel();
 			}
-
+			//set the qos value for the consumer
+			channel.basicQos(Integer.parseInt(rabbitMQProperties.get(RabbitMQConstants.CONSUMER_QOS)));
 			QueueingConsumer queueingConsumer = createQueueConsumer(channel);
 
 			while (isActive()) {
