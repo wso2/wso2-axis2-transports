@@ -56,6 +56,8 @@ public class RabbitMQConstants {
     public static final String QUEUE_ROUTING_KEY = "rabbitmq.queue.routing.key";
     public static final String QUEUE_DELIVERY_MODE = "rabbitmq.queue.delivery.mode";
 
+    public static final String CONSUMER_QOS = "rabbitmq.channel.consumer.qos";
+
     public static final String CONSUMER_TAG = "rabbitmq.consumer.tag";
 
 }

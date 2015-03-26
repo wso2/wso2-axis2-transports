@@ -92,10 +92,10 @@ public class RabbitMQMessageSender {
 			String durable = properties.get(RabbitMQConstants.EXCHANGE_DURABLE);
 
 			try {
-				if (routeKey == null) {
+				if (routeKey == null && !"x-consistent-hash".equals(exchangeType)) {
 					log.info(
-							"rabbitmq.queue.routing.key property not found.Using queue name as " +
-							"the routing key..");
+							"rabbitmq.queue.routing.key property not found. Using queue name as " +
+							"the routing key.");
 					routeKey = queueName;
 				}
 
@@ -171,13 +171,13 @@ public class RabbitMQMessageSender {
 								channel.exchangeDeclare(exchangeName, "direct", true);
 							}
 						} catch (java.io.IOException e) {
-							handleException("Error occured while declaring exchange.");
+							handleException("Error occurred while declaring exchange.");
 
 						}
 
 					}
 
-					if (queueName != null) {
+					if (queueName != null && !"x-consistent-hash".equals(exchangeType)) {
 						// Create bind between the queue &
 						// provided routeKey
 						try {
@@ -186,7 +186,7 @@ public class RabbitMQMessageSender {
 							channel.queueBind(queueName, exchangeName, routeKey);
 						} catch (java.io.IOException e) {
 							handleException(
-									"Error occured while creating the bind between the queue: "
+									"Error occurred while creating the bind between the queue: "
 									+ queueName
 									+ " & exchange: "
 									+ exchangeName + e);
@@ -216,7 +216,10 @@ public class RabbitMQMessageSender {
 							axisFault);
 				}
 
-				try { //TODO: find about x-consistent hash
+				//server plugging should be enabled before using x-consistent hashing
+				//for x-consistent-hashing only exchangeName, exchangeType and routingKey should be
+				// given. Queue/exchange creation, bindings should be done at the broker
+				try {
 					// generate random value as routeKey if the exchangeType is
 					// x-consistent-hash type
 					if (exchangeType != null

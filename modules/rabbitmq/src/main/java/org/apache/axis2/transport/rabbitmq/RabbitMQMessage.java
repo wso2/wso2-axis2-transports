@@ -48,9 +48,9 @@ public class RabbitMQMessage {
         this.soapAction = msgCtx.getSoapAction();
         this.messageId = msgCtx.getMessageID();
         this.replyTo = msgCtx.getReplyTo().toString();
-        this.contentType = (String) msgCtx.getProperty(RabbitMQConstants.CONTENT_TYPE);
+        this.contentType = (String) msgCtx.getProperty("messageType");
         this.correlationId = (String) msgCtx.getProperty(RabbitMQConstants.CORRELATION_ID);
-        this.contentEncoding = (String) msgCtx.getProperty(RabbitMQConstants.CONTENT_ENCODING);
+        this.contentEncoding = (String) msgCtx.getProperty("CHARACTER_SET_ENCODING");
         this.headers = (Map<String, Object>) msgCtx.getProperty(MessageContext.TRANSPORT_HEADERS);
     }
 
