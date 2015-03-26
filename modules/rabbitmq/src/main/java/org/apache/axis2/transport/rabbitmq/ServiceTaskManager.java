@@ -346,7 +346,7 @@ public class ServiceTaskManager {
 					         bool_queueDurable + " Exclusive:" + bool_queueExclusive + " AutoDelete:" +
 					         bool_queueAutoDelete+" ]");
 				} catch (java.io.IOException e) {
-					log.error("Queue :" + queueName + " is already declared as exclusive.");
+					log.error("Can not consume from queue : " + queueName + ". Already declared as exclusive. Stopping consumer.");
 					return null;
 				}
 			}
