@@ -128,7 +128,7 @@ public class ServiceTaskManager {
 	private class MessageListenerTask implements Runnable {
 
 		private Connection connection = null;
-		private Channel channel = null; //TODO: let client to configure BasicQoS
+		private Channel channel = null;
 		private boolean autoAck = false;
 
 		private volatile int workerState = STATE_STOPPED;
@@ -216,10 +216,16 @@ public class ServiceTaskManager {
 			}
 			//set the qos value for the consumer
 			String qos = rabbitMQProperties.get(RabbitMQConstants.CONSUMER_QOS);
-			if (qos != null && !"".equals(qos)){
+			if (qos != null && !"".equals(qos)) {
 				channel.basicQos(Integer.parseInt(qos));
 			}
 			QueueingConsumer queueingConsumer = createQueueConsumer(channel);
+
+			//unable to connect to the queue
+			if (queueingConsumer == null) {
+				workerState = STATE_STOPPED;
+				return;
+			}
 
 			while (isActive()) {
 				try {
@@ -279,8 +285,6 @@ public class ServiceTaskManager {
 		 */
 		private QueueingConsumer createQueueConsumer(Channel channel) throws IOException {
 			QueueingConsumer consumer = null;
-			//try {
-			//TODO: ack test for axis faliure
 			String queueName = rabbitMQProperties.get(RabbitMQConstants.QUEUE_NAME);
 			String routeKey = rabbitMQProperties.get(RabbitMQConstants.QUEUE_ROUTING_KEY);
 			String exchangeName = rabbitMQProperties.get(RabbitMQConstants.EXCHANGE_NAME);
@@ -302,7 +306,7 @@ public class ServiceTaskManager {
 				routeKey = queueName;
 			}
 
-			Boolean queueAvailable = false; //TODO: for already exclusively declared queue, show an error message n stop the flow
+			Boolean queueAvailable = false;
 			try {
 				//check availability of the named queue
 				//if an error is encountered, including if the queue does not exist and if the
@@ -311,7 +315,9 @@ public class ServiceTaskManager {
 				queueAvailable = true;
 
 			} catch (java.io.IOException e) {
-				log.info("Queue :" + queueName + " not found.Declaring queue.");
+				if (log.isDebugEnabled()) {
+					log.debug("Queue :" + queueName + " not found or already declared exclusive. Trying to declare the queue.");
+				}
 			}
 			//Setting queue properties
 			String queueDurable = rabbitMQProperties.get(RabbitMQConstants.QUEUE_DURABLE);
@@ -333,11 +339,16 @@ public class ServiceTaskManager {
 				if (!channel.isOpen()) {
 					channel = connection.createChannel();
 				}
-				channel.queueDeclare(queueName, bool_queueDurable, bool_queueExclusive,
-				                     bool_queueAutoDelete, null);
-				log.info("Declaring a queue with [ Name:" + queueName + " Durable:" +
-				         bool_queueDurable + " Exclusive:" + bool_queueExclusive + " AutoDelete:" +
-				         bool_queueAutoDelete+" ]");
+				try {
+					channel.queueDeclare(queueName, bool_queueDurable, bool_queueExclusive,
+					                     bool_queueAutoDelete, null);
+					log.info("Declaring a queue with [ Name:" + queueName + " Durable:" +
+					         bool_queueDurable + " Exclusive:" + bool_queueExclusive + " AutoDelete:" +
+					         bool_queueAutoDelete+" ]");
+				} catch (java.io.IOException e) {
+					log.error("Queue :" + queueName + " is already declared as exclusive.");
+					return null;
+				}
 			}
 
 			if (exchangeName != null && !exchangeName.equals("")) {
