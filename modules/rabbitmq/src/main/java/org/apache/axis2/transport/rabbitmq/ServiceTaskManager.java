@@ -323,8 +323,8 @@ public class ServiceTaskManager {
 			String queueDurable = rabbitMQProperties.get(RabbitMQConstants.QUEUE_DURABLE);
 			String queueExclusive = rabbitMQProperties.get(RabbitMQConstants.QUEUE_EXCLUSIVE);
 			String queueAutoDelete = rabbitMQProperties.get(RabbitMQConstants.QUEUE_AUTO_DELETE);
-			//TODO: look for durability in JMS
-			boolean bool_queueDurable = false;
+
+			boolean bool_queueDurable = true;
 			boolean bool_queueExclusive = false;
 			boolean bool_queueAutoDelete = false;
 
