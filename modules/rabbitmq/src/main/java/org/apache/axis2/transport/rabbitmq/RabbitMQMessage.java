@@ -111,7 +111,7 @@ public class RabbitMQMessage {
     }
 
     /**
-     * get header 'Replyto' of JMS
+     * get header 'Replyto' of RabbitMQ
      * @return return header value of 'replyTo'
      */
     public String getReplyTo() {

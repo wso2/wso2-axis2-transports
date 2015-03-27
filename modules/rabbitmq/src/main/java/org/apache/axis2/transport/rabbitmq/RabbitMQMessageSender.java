@@ -90,6 +90,12 @@ public class RabbitMQMessageSender {
 			String exchangeType = properties
 					.get(RabbitMQConstants.EXCHANGE_TYPE);
 			String durable = properties.get(RabbitMQConstants.EXCHANGE_DURABLE);
+			String replyTo = properties.get(RabbitMQConstants.RABBITMQ_REPLY_TO);
+
+			//if the user defined any replyTo value it will be set
+			if (replyTo != null) {
+				message.setReplyTo(replyTo);
+			}
 
 			try {
 				if (routeKey == null && !"x-consistent-hash".equals(exchangeType)) {
