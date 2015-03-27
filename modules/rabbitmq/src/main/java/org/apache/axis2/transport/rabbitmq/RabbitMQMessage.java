@@ -119,7 +119,7 @@ public class RabbitMQMessage {
     }
 
     /**
-     * set 'ReplyTo' JMS header
+     * set 'ReplyTo' RabbitMQ header
      * @param replyTo value of the header to set
      */
     public void setReplyTo(String replyTo) {
