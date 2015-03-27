@@ -203,13 +203,15 @@ public class RabbitMQMessageSender {
 
 				AMQP.BasicProperties.Builder builder = buildBasicProperties(message);
 
-				// set delivery mode
+				// set delivery mode (default is Persistent): 1=NonPersistent , 2=Persistent
 				String deliveryModeString = properties
 						.get(RabbitMQConstants.QUEUE_DELIVERY_MODE);
+				int deliveryMode = 2;
 				if (deliveryModeString != null) {
-					int deliveryMode = Integer.parseInt(deliveryModeString);
-					builder.deliveryMode(deliveryMode);
+					deliveryMode = Integer.parseInt(deliveryModeString);
 				}
+				builder.deliveryMode(deliveryMode);
+
 				basicProperties = builder.build();
 				OMOutputFormat format = BaseUtils.getOMOutputFormat(msgContext);
 				MessageFormatter messageFormatter = null;
