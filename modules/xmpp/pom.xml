@@ -61,6 +61,8 @@
                             !org.apache.axis2.transport.xmpp,
                             !org.apache.axis2.transport.xmpp.util,
                             org.apache.axis2.transport; version="${imp.pkg.version.axis2}",
+                            org.apache.axis2.wsdl; version="${imp.pkg.version.axis2}",
+                            org.apache.axis2.transport.http; version="${imp.pkg.version.axis2}",
                             javax.xml.namespace,
                             javax.xml.parsers,
                             javax.xml.stream,
