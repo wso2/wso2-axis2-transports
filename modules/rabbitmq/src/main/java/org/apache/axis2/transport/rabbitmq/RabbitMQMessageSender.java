@@ -137,8 +137,9 @@ public class RabbitMQMessageSender {
 							                     null);
 
 						} catch (java.io.IOException e) {
-							handleException("Error while creating queue: "
+							handleException("Error while creating queue: "+queueName
 							                + e);
+							return;
 						}
 					}
 				}
