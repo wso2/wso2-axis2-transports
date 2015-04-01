@@ -114,7 +114,7 @@ public class RabbitMQMessageReceiver {
                     soapAction,
                     contentType);
         } catch (AxisFault axisFault) {
-            log.error("Error when tryting to read incoming message ...", axisFault);
+            log.error("Error when trying to read incoming message ...", axisFault);
             return false;
         }
         return true;

@@ -48,9 +48,9 @@ public class RabbitMQMessage {
         this.soapAction = msgCtx.getSoapAction();
         this.messageId = msgCtx.getMessageID();
         this.replyTo = msgCtx.getReplyTo().toString();
-        this.contentType = (String) msgCtx.getProperty(RabbitMQConstants.CONTENT_TYPE);
+        this.contentType = (String) msgCtx.getProperty("messageType");
         this.correlationId = (String) msgCtx.getProperty(RabbitMQConstants.CORRELATION_ID);
-        this.contentEncoding = (String) msgCtx.getProperty(RabbitMQConstants.CONTENT_ENCODING);
+        this.contentEncoding = (String) msgCtx.getProperty("CHARACTER_SET_ENCODING");
         this.headers = (Map<String, Object>) msgCtx.getProperty(MessageContext.TRANSPORT_HEADERS);
     }
 
@@ -111,7 +111,7 @@ public class RabbitMQMessage {
     }
 
     /**
-     * get header 'Replyto' of JMS
+     * get header 'Replyto' of RabbitMQ
      * @return return header value of 'replyTo'
      */
     public String getReplyTo() {
@@ -119,7 +119,7 @@ public class RabbitMQMessage {
     }
 
     /**
-     * set 'ReplyTo' JMS header
+     * set 'ReplyTo' RabbitMQ header
      * @param replyTo value of the header to set
      */
     public void setReplyTo(String replyTo) {
