@@ -29,7 +29,7 @@ import org.apache.axis2.context.MessageContext;
 
 /**
  * Class encapsulating a SOAP envelope and an attachment map.
- * This class is used by {@link MockMessageReceiver} because it is not safe to
+ * This class is used by {Link MockMessageReceiver} because it is not safe to
  * keep a reference to the {@link org.apache.axis2.context.MessageContext} object.
  */
 public class AxisMessage {

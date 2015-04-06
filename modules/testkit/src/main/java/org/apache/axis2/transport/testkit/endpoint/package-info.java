@@ -21,7 +21,7 @@
  * Provides interface and support classes for test endpoints.
  * <p>
  * The test kit uses in-only and in-out test endpoints. See
- * {@link org.apache.axis2.transport.testkit.endpoint.InOnlyEndpoint} and
+ * {link org.apache.axis2.transport.testkit.endpoint.InOnlyEndpoint} and
  * {@link org.apache.axis2.transport.testkit.endpoint.InOutEndpoint} for
  * more details.
  * <p>
