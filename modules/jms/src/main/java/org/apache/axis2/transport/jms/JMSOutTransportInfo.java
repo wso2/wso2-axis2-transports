@@ -66,6 +66,8 @@ public class JMSOutTransportInfo implements OutTransportInfo {
     private String targetEPR = null;
     /** the message property name that stores the content type of the outgoing message */
     private String contentTypeProperty;
+    /** the message property name that stores the cache level for the JMS endpoint */
+    private int cacheLevel;
 
     /**
      * Creates an instance using the given JMS connection factory and destination
@@ -104,6 +106,7 @@ public class JMSOutTransportInfo implements OutTransportInfo {
 
         replyDestinationName = properties.get(JMSConstants.PARAM_REPLY_DESTINATION);
         contentTypeProperty = properties.get(JMSConstants.CONTENT_TYPE_PROPERTY_PARAM);
+        cacheLevel = getCacheLevel(properties.get(JMSConstants.PARAM_CACHE_LEVEL));
     }
 
     /**
@@ -386,11 +389,34 @@ public class JMSOutTransportInfo implements OutTransportInfo {
                 producer,
                 destination,
                 jmsConnectionFactory == null ?
-                        JMSConstants.CACHE_NONE : jmsConnectionFactory.getCacheLevel(),
+                        this.cacheLevel : jmsConnectionFactory.getCacheLevel(),
                 false,
                 destType == -1 ?
                         null : destType == JMSConstants.QUEUE ? Boolean.TRUE : Boolean.FALSE
         );
 
+    }
+
+    /**
+     * Convert the cache value to int
+     */
+    private int getCacheLevel(String cacheValue) {
+
+        int cacheLevel = JMSConstants.CACHE_NONE;
+
+        if ("none".equalsIgnoreCase(cacheValue)) {
+            cacheLevel = JMSConstants.CACHE_NONE;
+        } else if ("connection".equalsIgnoreCase(cacheValue)) {
+            cacheLevel = JMSConstants.CACHE_CONNECTION;
+        } else if ("session".equals(cacheValue)) {
+            cacheLevel = JMSConstants.CACHE_SESSION;
+        } else if ("producer".equals(cacheValue)) {
+            cacheLevel = JMSConstants.CACHE_PRODUCER;
+        } else if ("consumer".equals(cacheValue)) {
+            cacheLevel = JMSConstants.CACHE_CONSUMER;
+        } else if (cacheValue != null) {
+            throw new AxisJMSException("Invalid cache level : " + cacheValue + " for JMSOutTransportInfo");
+        }
+        return cacheLevel;
     }
 }

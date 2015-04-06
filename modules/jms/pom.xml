@@ -20,10 +20,10 @@
 
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <modelVersion>4.0.0</modelVersion>
-   <parent>
+    <parent>
         <groupId>org.apache.axis2.transport</groupId>
         <artifactId>axis2-transports</artifactId>
-	<version>1.1.0-wso2v11-SNAPSHOT</version>
+        <version>1.1.0-wso2v13-SNAPSHOT</version>
         <relativePath>../../pom.xml</relativePath>
     </parent>
 
@@ -43,7 +43,6 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-dependency-plugin</artifactId>
-                <version>2.0</version>
                 <executions>
                     <execution>
                         <id>copy</id>
@@ -67,7 +66,6 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
-                <version>2.3</version>
                 <configuration>
                     <systemProperties>
                         <property>
@@ -81,7 +79,6 @@
             <plugin>
                 <groupId>org.apache.felix</groupId>
                 <artifactId>maven-bundle-plugin</artifactId>
-                <version>1.4.0</version>
                 <extensions>true</extensions>
                 <configuration>
                     <instructions>
@@ -108,72 +105,55 @@
         <dependency>
             <groupId>org.apache.axis2</groupId>
             <artifactId>axis2-transport-base</artifactId>
-            <version>${axis2.version}</version>
-        </dependency>
-
-      <dependency>
-          <groupId>org.apache.axis2.transport</groupId>
-          <artifactId>axis2-transport-testkit</artifactId>
-          <version>${project.version}</version>
-          <scope>test</scope>
-      </dependency>
-      <dependency>
-          <groupId>org.mockejb</groupId>
-          <artifactId>mockejb</artifactId>
-          <version>0.6-beta2</version>
-          <scope>test</scope>
-      </dependency>
-      <dependency>
-          <groupId>org.apache.qpid</groupId>
-          <artifactId>qpid-broker</artifactId>
-          <version>1.0-incubating-M2.1</version>
-          <scope>test</scope>
-      </dependency>
-      <dependency>
-          <groupId>org.apache.qpid</groupId>
-          <artifactId>qpid-client</artifactId>
-          <version>1.0-incubating-M2.1</version>
-          <scope>test</scope>
-      </dependency>
-      <dependency>
-          <groupId>org.apache.activemq</groupId>
-          <artifactId>activemq-core</artifactId>
-          <version>5.1.0</version>
-          <scope>test</scope>
-          <exclusions>
-              <!-- We want to choose the JAF implementation ourselves -->
-              <exclusion>
-                  <groupId>javax.activation</groupId>
-                  <artifactId>activation</artifactId>
-              </exclusion>
-          </exclusions>
-      </dependency>
-
-        <dependency>
-            <groupId>org.apache.geronimo.specs</groupId>
-            <artifactId>geronimo-jms_1.1_spec</artifactId>
-            <version>${jms-1.1-spec.version}</version>
         </dependency>
 
         <dependency>
-            <groupId>org.apache.geronimo.specs</groupId>
-            <artifactId>geronimo-jta_1.0.1B_spec</artifactId>
-            <version>${jta-spec.version}</version>
-        </dependency>
-        
-        <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
+            <groupId>org.apache.axis2.transport</groupId>
+            <artifactId>axis2-transport-testkit</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.mockejb</groupId>
             <artifactId>mockejb</artifactId>
-            <version>0.6-beta2</version>
             <scope>test</scope>
-        </dependency>        
+        </dependency>
+        <dependency>
+            <groupId>org.apache.qpid</groupId>
+            <artifactId>qpid-broker</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.qpid</groupId>
+            <artifactId>qpid-client</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.activemq</groupId>
+            <artifactId>activemq-core</artifactId>
+            <scope>test</scope>
+            <exclusions>
+                <!-- We want to choose the JAF implementation ourselves -->
+                <exclusion>
+                    <groupId>javax.activation</groupId>
+                    <artifactId>activation</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.geronimo.specs</groupId>
+            <artifactId>geronimo-jms_1.1_spec</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.geronimo.specs</groupId>
+            <artifactId>geronimo-jta_1.0.1B_spec</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
-    
+
     <repositories>
         <!-- this is for qpid -->
         <repository>
@@ -188,10 +168,8 @@
             </snapshots>
         </repository>
     </repositories>
-    
+
     <properties>
-        <jms-1.1-spec.version>1.1</jms-1.1-spec.version>
-        <jta-spec.version>1.0</jta-spec.version>
     </properties>
 
 </project>

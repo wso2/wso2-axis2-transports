@@ -115,4 +115,12 @@ public class ConnectionFactoryManager {
             connectionFactories.put(amqpConFactory.getName(), amqpConFactory);
         }
     }
+    /**
+     * Stop all connection factories.
+     */
+    public void stop() {
+        for (ConnectionFactory conFac : connectionFactories.values()) {
+            conFac.stop();
+        }
+    }
 }
