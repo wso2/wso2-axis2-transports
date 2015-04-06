@@ -55,7 +55,7 @@
  * build and that other available tools such as test report generators and test coverage
  * analysis tools can be used.
  * <p>
- * The usual approach to write JUnit tests is to extend {@link junit.framework.TestCase.TestCase}
+ * The usual approach to write JUnit tests is to extend {link junit.framework.TestCase.TestCase}
  * and to define a set of methods that implement the different test cases. Since the goal of the framework
  * is to build test suites in an automated way and the number of test cases can be fairly high, this
  * approach would not be feasible. Fortunately JUnit supports another way to create a test suite
@@ -129,7 +129,7 @@
  *       The precise meaning of "reusing" in this context is using the same instance without calling the
  *       tear down and set up methods.</p>
  *       <p>For example, consider the following test cases and resource sets:</p>
- *       <table border="1">
+ *       <table border="1" summary="">
  *         <tr><th>Test case</th><th>Resource set</th></tr>
  *         <tr><td>T1</td><td><code>c:MyTestClient</code>, <code>p1:MyProtocolProvider</code></td></tr>
  *         <tr><td>T2</td><td><code>c:MyTestClient</code>, <code>p1:MyProtocolProvider</code>, <code>r:SomeOtherResourceType</code></td></tr>
@@ -137,7 +137,7 @@
  *       </table>
  *       <p>Assuming that <code>SomeOtherResourceType</code> is independent of <code>MyTestClient</code> and
  *       <code>MyProtocolProvider</code>, the lifecycle of the different resources will be as follows:</p>
- *       <table border="1">
+ *       <table border="1" summary="">
  *         <tr><th>Transition</th><th>Lifecycle actions</th></tr>
  *         <tr><td>&bull; &rarr; T1</td><td>set up <code>p1</code>, set up <code>c</code></td></tr>
  *         <tr><td>T1 &rarr; T2</td><td>set up <code>r</code></td></tr>
@@ -171,7 +171,7 @@
  *       endpoint reference.</li>
  * </ul>
  * <p>The test kit provides the following Axis2 based test client and endpoint implementations:</p>
- * <table border="1">
+ * <table border="1" summary="">
  *   <tr>
  *     <th></th>
  *     <th>One-way</th>
