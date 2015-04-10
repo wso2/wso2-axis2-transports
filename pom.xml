@@ -64,6 +64,7 @@
                 <module>features/org.apache.axis2.transport.tcp.feature</module>
                 <module>features/org.apache.axis2.transport.udp.feature</module>
                 <module>features/org.apache.axis2.transport.xmpp.feature</module>
+                <module>features/org.apache.axis2.transport.rabbitmq.feature</module>
             </modules>
         </profile>
         <profile>
@@ -100,7 +101,11 @@
                 <artifactId>org.wso2.carbon.core.common</artifactId>
                 <version>${carbon.kernel.version}</version>
             </dependency>
-
+            <dependency>
+                <groupId>org.apache.axis2.transport</groupId>
+                <artifactId>axis2-transport-rabbitmq-amqp</artifactId>
+                <version>${axis2.transports.version}</version>
+            </dependency>
             <dependency>
                 <groupId>org.apache.axis2.transport</groupId>
                 <artifactId>axis2-transport-jms</artifactId>
