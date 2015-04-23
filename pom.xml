@@ -47,6 +47,9 @@
             <activation>
                 <activeByDefault>true</activeByDefault>
             </activation>
+            <properties>
+                <javadoc.doclint.none>-Xdoclint:none</javadoc.doclint.none>
+            </properties>
             <modules>
                 <!--transport-base module resides with wso2-axis2 repository-->
                 <!--module>modules/base</module-->
