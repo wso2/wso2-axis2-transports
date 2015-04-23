@@ -45,8 +45,8 @@
  * <p>
  * The UDP transport can be enabled in the Axis configuration as follows:
  * <pre>
- * &lt;transportReceiver name="udp" class="org.apache.synapse.transport.udp.UDPListener"/>
- * &lt;transportSender name="udp" class="org.apache.synapse.transport.udp.UDPSender"/></pre>
+ * <transportReceiver name="udp" class="org.apache.synapse.transport.udp.UDPListener"/>
+ * <transportSender name="udp" class="org.apache.synapse.transport.udp.UDPSender"/></pre>
  * It should be noted that given its characteristics, UDP is not a
  * suitable transport protocol for SOAP, except maybe in very particular
  * circumstances. Indeed, UDP is an unreliable protocol:
@@ -65,7 +65,7 @@
  * particular Synapse) with existing UDP based protocols. See
  * of protocol.
  * 
- * <h4>Known issues and limitations</h4>
+ * <H4>Known issues and limitations</H4>
  * 
  * <ul>
  *   <li>Packets longer than the configured maximum packet size
