@@ -188,6 +188,7 @@
                             <goal>javadoc</goal>
                         </goals>
                         <configuration>
+                            <additionalparam>-Xdoclint:none</additionalparam>
                             <docletArtifacts>
                                 <docletArtifact>
                                     <groupId>org.apache.axis2</groupId>
@@ -211,7 +212,9 @@
             <plugin>
                 <artifactId>maven-javadoc-plugin</artifactId>
                 <version>2.7</version>
+
                 <configuration>
+                        <additionalparam>-Xdoclint:none</additionalparam>
                     <docletArtifacts>
                         <docletArtifact>
                             <groupId>org.apache.axis2</groupId>
