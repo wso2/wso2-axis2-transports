@@ -97,9 +97,7 @@ public class XMPPListener implements TransportListener {
    
     /**
      * Extract connection details & connect to those xmpp servers.
-     * @see init(ConfigurationContext configurationCtx, TransportInDescription transportIn)
-     * @param configurationContext
-     * @param transportIn
+     * @param transportIn TransportInDescription
      */
     private void initializeConnectionFactories(TransportInDescription transportIn) throws AxisFault{    	
         Iterator serversToListenOn = transportIn.getParameters().iterator();
@@ -150,8 +148,8 @@ public class XMPPListener implements TransportListener {
 
     /**
      * Returns Default EPR for a given Service name & IP
-     * @param serviceName
-     * @param ip
+     * @param serviceName ServiceName
+     * @param ip IP
      */
     public EndpointReference getEPRForService(String serviceName, String ip) throws AxisFault {
         return getEPRsForService(serviceName, ip)[0];
@@ -159,8 +157,8 @@ public class XMPPListener implements TransportListener {
 
     /**
      * Returns all EPRs for a given Service name & IP
-     * @param serviceName
-     * @param ip
+     * @param serviceName ServiceName
+     * @param ip IP
      */    
     public EndpointReference[] getEPRsForService(String serviceName, String ip) throws AxisFault {
     	String domainName = serverCredentials.getDomainName() == null? serverCredentials.getDomainName()

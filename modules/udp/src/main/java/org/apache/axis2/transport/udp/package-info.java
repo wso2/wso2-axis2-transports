@@ -37,7 +37,6 @@
  *   <li>Since UDP doesn't provide any mean to correlate responses to requests,
  *       the transport can only be used for asynchronous communication.</li>
  * </ul>
- * See the documentation of {@link org.apache.synapse.transport.udp.UDPListener}
  * for more information about how to configure a service to accept UDP packets.
  * Endpoint references for the UDP transport are assumed to follow the following
  * syntax:
@@ -46,8 +45,9 @@
  * <p>
  * The UDP transport can be enabled in the Axis configuration as follows:
  * <pre>
- * &lt;transportReceiver name="udp" class="org.apache.synapse.transport.udp.UDPListener"/>
- * &lt;transportSender name="udp" class="org.apache.synapse.transport.udp.UDPSender"/></pre>
+ * transportReceiver name="udp" class="org.apache.synapse.transport.udp.UDPListener"
+ * transportSender name="udp" class="org.apache.synapse.transport.udp.UDPSender"
+ * </pre>
  * It should be noted that given its characteristics, UDP is not a
  * suitable transport protocol for SOAP, except maybe in very particular
  * circumstances. Indeed, UDP is an unreliable protocol:
@@ -64,10 +64,9 @@
  * <p>
  * The main purpose of this transport implementation is to integrate Axis (and in
  * particular Synapse) with existing UDP based protocols. See
- * {@link org.apache.synapse.format.syslog} for an example of this kind
  * of protocol.
  * 
- * <h4>Known issues and limitations</h4>
+ * <h3>Known issues and limitations</h3>
  * 
  * <ul>
  *   <li>Packets longer than the configured maximum packet size
@@ -75,7 +74,6 @@
  *       and trigger an error.</li>
  *   <li>The listener doesn't implement all management operations
  *       specified by
- *       {@link org.apache.synapse.transport.base.ManagementSupport}.</li>
  *   <li>The listener assumes that services are bound to unique UDP ports
  *       and predispatches incoming requests based on port numbers.
  *       When SOAP with WS-Addressing is used, the packets could be
