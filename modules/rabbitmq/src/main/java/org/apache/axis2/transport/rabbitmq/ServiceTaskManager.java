@@ -160,7 +160,8 @@ public class ServiceTaskManager {
 		public void run() {
 			workerState = STATE_STARTED;
 			activeTaskCount++;
-			int recoveryInterval = getRecoveryInterval();
+            int retryInterval = connectionFactory.getRetryInterval();
+            int retryCountMax = connectionFactory.getRetryCount();
 			try {
 				while (workerState == STATE_STARTED) {
 					try {
@@ -169,28 +170,37 @@ public class ServiceTaskManager {
 						if (!sse.isInitiatedByApplication()) {
 							log.error("RabbitMQ Listener of the service  " + serviceName +
 							          "  was disconnected", sse);
-							while ((workerState == STATE_STARTED) && !connection.isOpen()) {
+                            int retryCount = 0;
+							while ((workerState == STATE_STARTED) && !connection.isOpen()
+                                    && ((retryCountMax == -1) || (retryCount < retryCountMax))) {
+                                retryCount++;
 								log.error("Retry in process of the service  " + serviceName +
 								          " to connect to RabbitMQ Server in " +
-								          recoveryInterval / 1000 + " seconds");
+                                        retryInterval / 1000 + " seconds");
 								try {
-									Thread.sleep(recoveryInterval);
+									Thread.sleep(retryInterval);
 								} catch (InterruptedException e) {
 									log.error("Error while waiting for re-connection", e);
 								}
 							}
-							if(workerState == STATE_STARTED) {
+							if (connection.isOpen()) {
 								log.info("Reconnection attempt of the service " + serviceName +
 								         " was successful. ");
-							}
+							} else {
+                                log.error("Could not reconnect to the RabbitMQ Broker for the service " + serviceName +
+                                        ". Connection is terminated");
+                                break;
+                            }
 						}
 					}
 
 				}
 			} catch (java.net.ConnectException ce){
 				log.error("Can not create connection to the RabbitMQ Broker for the service "+ serviceName, ce);
-			}
-			catch (Exception e) {
+			} catch (AxisRabbitMQException re) {
+                handleException("Error while connecting to RabbitMQ Broker for the service " + serviceName
+                        + ". Connection is terminated", re);
+            } catch (Exception e) {
 				handleException("Error while receiving message from queue", e);
 			} finally {
 				closeConnection();
@@ -513,25 +523,10 @@ public class ServiceTaskManager {
 			try {
 				connection = connectionFactory.createConnection();
 			} catch (Exception e) {
-				log.error("Error while creating AMQP Connection...", e);
+                handleException("Error while creating AMQP Connection...", e);
 			}
 			return connection;
 		}
-	}
-
-	public int getRecoveryInterval() {
-		String recoveryInterval =
-				connectionFactory.getParameters().get(RabbitMQConstants.RECOVERY_INTERVAL);
-		int recoveryIntervalValue = 5000;
-		if (recoveryInterval != null && !("").equals(recoveryInterval)) {
-			try {
-				recoveryIntervalValue = Integer.parseInt(recoveryInterval);
-			} catch (NumberFormatException e) {
-				log.error(
-						"Number format error in reading recovery interval value. Proceeding with default value (5000ms)");
-			}
-		}
-		return recoveryIntervalValue;
 	}
 
 	public String getServiceName() {

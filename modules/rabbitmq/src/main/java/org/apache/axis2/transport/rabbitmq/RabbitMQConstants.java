@@ -32,9 +32,11 @@ public class RabbitMQConstants {
     public static final String SERVER_USER_NAME = "rabbitmq.server.user.name";
     public static final String SERVER_PASSWORD = "rabbitmq.server.password";
     public static final String SERVER_VIRTUAL_HOST = "rabbitmq.server.virtual.host";
-    public static final String RECOVERY_INTERVAL = "rabbitmq.factory.recovery.interval";
     public static final String HEARTBEAT = "rabbitmq.factory.heartbeat";
     public static final String CONNECTION_TIMEOUT = "rabbitmq.factory.connection.timeout";
+
+    public static final String RETRY_INTERVAL = "rabbitmq.connection.retry.interval";
+    public static final String RETRY_COUNT = "rabbitmq.connection.retry.count";
 
     public static final String CORRELATION_ID = "rabbitmq.message.correlation.id";
     public static final String MESSAGE_ID = "rabbitmq.message.id";
