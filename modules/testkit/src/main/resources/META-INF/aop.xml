@@ -20,5 +20,7 @@
 <aspectj>
     <aspects>
         <aspect name="org.apache.axis2.transport.testkit.axis2.LogAspect"/>
+        <include within="test.*" />
+        <include within="test.aspect.*" />
     </aspects>
 </aspectj>
