@@ -67,7 +67,6 @@
                 <module>features/org.apache.axis2.transport.tcp.feature</module>
                 <module>features/org.apache.axis2.transport.udp.feature</module>
                 <module>features/org.apache.axis2.transport.xmpp.feature</module>
-                <module>features/org.apache.axis2.transport.rabbitmq.feature</module>
             </modules>
         </profile>
         <profile>
