@@ -28,7 +28,7 @@
     </parent>
     <groupId>org.apache.axis2.transport</groupId>
     <artifactId>axis2-transports</artifactId>
-    <version>1.1.0-wso2v13-SNAPSHOT</version>
+    <version>1.1.0-wso2v14-SNAPSHOT</version>
     <packaging>pom</packaging>
     <name>Apache Axis2 Transport</name>
     <inceptionYear>2004</inceptionYear>
@@ -47,6 +47,9 @@
             <activation>
                 <activeByDefault>true</activeByDefault>
             </activation>
+            <properties>
+                <javadoc.doclint.none>-Xdoclint:none</javadoc.doclint.none>
+            </properties>
             <modules>
                 <!--transport-base module resides with wso2-axis2 repository-->
                 <!--module>modules/base</module-->
@@ -426,11 +429,13 @@
             <name>WSO2 Maven2 Repository</name>
             <url>scp://dist.wso2.org/home/httpd/dist.wso2.org/maven2/</url>
         </repository-->
+
         <repository>
             <id>nexus-releases</id>
-            <name>WSO2 Nexus Release Repository</name>
+            <name>WSO2 Release Distribution Repository</name>
             <url>http://maven.wso2.org/nexus/service/local/staging/deploy/maven2/</url>
         </repository>
+
         <snapshotRepository>
             <id>wso2.snapshots</id>
             <name>Apache Snapshot Repository</name>
@@ -468,8 +473,8 @@
                     <artifactId>maven-compiler-plugin</artifactId>
                     <version>${maven.compiler.plugin.version}</version>
                     <configuration>
-                        <source>1.6</source>
-                        <target>1.6</target>
+                        <source>1.7</source>
+                        <target>1.7</target>
                     </configuration>
                 </plugin>
                 <plugin>
@@ -523,7 +528,7 @@
     </build>
 
     <properties>
-        <axis2.transports.version>1.1.0-wso2v13-SNAPSHOT</axis2.transports.version>
+        <axis2.transports.version>1.1.0-wso2v14-SNAPSHOT</axis2.transports.version>
         <axis2.version>1.6.1-wso2v12</axis2.version>
         <carbon.kernel.version>4.4.0</carbon.kernel.version>
         <imp.pkg.version.axis2>[1.6.1.wso2v11, 1.7.0)</imp.pkg.version.axis2>

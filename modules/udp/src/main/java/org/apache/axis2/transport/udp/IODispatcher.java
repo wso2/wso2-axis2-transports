@@ -92,8 +92,7 @@ public class IODispatcher implements DatagramDispatcher<Endpoint>, Runnable {
     
     /**
      * Constructor.
-     * 
-     * @param callback
+     * @param callback DatagramDispatcher callback parameter
      * @throws IOException if the {@link Selector} instance could not be created
      */
     public IODispatcher(DatagramDispatcherCallback callback) throws IOException {
@@ -152,8 +151,7 @@ public class IODispatcher implements DatagramDispatcher<Endpoint>, Runnable {
      * Stop the dispatcher.
      * This method closes all sockets and causes the execution of the
      * {@link #run()} method to stop.
-     * 
-     * @throws IOException
+     * @throws IOException Selector generates IO Exception
      */
     public void stop() throws IOException {
         execute(new SelectorOperation() {
