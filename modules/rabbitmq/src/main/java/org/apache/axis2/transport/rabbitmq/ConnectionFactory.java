@@ -70,7 +70,7 @@ public class ConnectionFactory {
         try {
             pi.deserializeParameters((OMElement) parameter.getValue());
         } catch (AxisFault axisFault) {
-            handleException("Error reading parameters for AMQP connection factory" + name, axisFault);
+            handleException("Error reading parameters for RabbitMQ connection factory" + name, axisFault);
         }
 
         for (Object o : pi.getParameters()) {
@@ -78,7 +78,7 @@ public class ConnectionFactory {
             parameters.put(p.getName(), (String) p.getValue());
         }
         initConnectionFactory();
-        log.info("AMQP ConnectionFactory : " + name + " initialized");
+        log.info("RabbitMQ ConnectionFactory : " + name + " initialized");
     }
 
     /**
@@ -89,16 +89,18 @@ public class ConnectionFactory {
         Connection connection = null;
         try {
             connection = RabbitMQUtils.createConnection(connectionFactory);
+            log.info("Successfully connected to RabbitMQ Broker");
         } catch (IOException e) {
-            log.error("Error creating AMQP connection to RabbitMQ Broker");
+            log.error("Error creating connection to RabbitMQ Broker. Reattempting to connect.");
             int retryC = 0;
             while ((connection == null) && ((retryCount == -1) || (retryC < retryCount))) {
                 retryC++;
-                log.info("Attempting to create AMQP connection to RabbitMQ Broker" +
-                        " in " + retryInterval / 1000 + " seconds");
+                log.info("Attempting to create connection to RabbitMQ Broker" +
+                        " in " + retryInterval + " ms");
                 try {
                     Thread.sleep(retryInterval);
                     connection = RabbitMQUtils.createConnection(connectionFactory);
+                    log.info("Successfully connected to RabbitMQ Broker");
                 } catch (InterruptedException e1) {
                     log.error("Error while trying to reconnect to RabbitMQ Broker", e1);
                 } catch (IOException e2) {
@@ -106,7 +108,7 @@ public class ConnectionFactory {
                 }
             }
             if (connection == null) {
-                handleException("Could not connect to RabbitMQ Broker. Error while creating AMQP Connection", e);
+                handleException("Could not connect to RabbitMQ Broker. Error while creating connection", e);
             } else {
                 log.info("Successfully reconnected to RabbitMQ Broker");
             }
@@ -175,15 +177,15 @@ public class ConnectionFactory {
         String heartbeat = parameters.get(RabbitMQConstants.HEARTBEAT);
         String connectionTimeout = parameters.get(RabbitMQConstants.CONNECTION_TIMEOUT);
 
-        if(heartbeat != null && !("").equals(heartbeat)){
-            try{
+        if (heartbeat != null && !("").equals(heartbeat)) {
+            try {
                 int heartbeatValue = Integer.parseInt(heartbeat);
                 connectionFactory.setRequestedHeartbeat(heartbeatValue);
-            }catch (NumberFormatException e){
+            } catch (NumberFormatException e) {
                 log.error("Number format error in reading heartbeat value. Proceeding with default");
             }
         }
-        if(connectionTimeout != null && !("").equals(connectionTimeout)){
+        if (connectionTimeout != null && !("").equals(connectionTimeout)){
             try{
                 int connectionTimeoutValue = Integer.parseInt(connectionTimeout);
                 connectionFactory.setConnectionTimeout(connectionTimeoutValue);
@@ -192,7 +194,7 @@ public class ConnectionFactory {
             }
         }
 
-        if(retryIntervalV != null && !("").equals(retryIntervalV)) {
+        if (retryIntervalV != null && !("").equals(retryIntervalV)) {
             try {
                 retryInterval = Integer.parseInt(retryIntervalV);
             } catch (NumberFormatException e) {
@@ -207,7 +209,7 @@ public class ConnectionFactory {
             try {
                 retryCount = Integer.parseInt(retryCountV);
             } catch (NumberFormatException e) {
-                log.error("Number format error in reading retry count value. Proceeding with default value 3");
+                log.error("Number format error in reading retry count value. Proceeding with default value (3)");
             }
         }
 
