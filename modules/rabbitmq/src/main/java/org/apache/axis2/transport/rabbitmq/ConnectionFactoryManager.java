@@ -84,6 +84,8 @@ public class ConnectionFactoryManager {
             if (virtualHost != null && !virtualHost.equals("")) {
                 factory.setVirtualHost(virtualHost);
             }
+            factory.setAutomaticRecoveryEnabled(true);
+            factory.setTopologyRecoveryEnabled(false);
             connectionFactory = new ConnectionFactory(hostAndPort, factory);
             connectionFactories.put(connectionFactory.getName(), connectionFactory);
         }
