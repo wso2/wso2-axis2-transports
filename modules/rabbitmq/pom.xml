@@ -75,7 +75,6 @@
         <dependency>
             <groupId>com.rabbitmq.wso2</groupId>
             <artifactId>amqp-client</artifactId>
-	    <version>${version.orbit.rabbitmq}</version>
         </dependency>
         <dependency>
             <groupId>junit</groupId>
@@ -83,7 +82,4 @@
             <scope>test</scope>
         </dependency>
     </dependencies>
-    <properties>
-        <version.orbit.rabbitmq>3.4.4.wso2v1</version.orbit.rabbitmq>
-    </properties>
 </project>
