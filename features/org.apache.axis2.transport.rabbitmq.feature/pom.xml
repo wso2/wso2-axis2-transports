@@ -25,15 +25,15 @@
     </parent>
 
     <modelVersion>4.0.0</modelVersion>
-    <artifactId>org.apache.axis2.transport.mail.feature</artifactId>
+    <artifactId>org.apache.axis2.transport.rabbitmq.feature</artifactId>
     <packaging>pom</packaging>
-    <name>Apache Axis2 - Mail Transport Feature</name>
+    <name>Apache Axis2 - RabbitMQ Transport Feature</name>
     <url>http://wso2.org</url>
 
     <dependencies>
         <dependency>
             <groupId>org.apache.axis2.transport</groupId>
-            <artifactId>axis2-transport-mail</artifactId>
+            <artifactId>axis2-transport-rabbitmq-amqp</artifactId>
         </dependency>
     </dependencies>
 
@@ -51,7 +51,7 @@
                             <goal>p2-feature-gen</goal>
                         </goals>
                         <configuration>
-                            <id>org.apache.axis2.transport.mail</id>
+                            <id>org.apache.axis2.transport.rabbitmq</id>
                             <propertiesFile>../etc/feature.properties</propertiesFile>
                             <adviceFile>
                                 <properties>
@@ -59,7 +59,8 @@
                                 </properties>
                             </adviceFile>
                             <bundles>
-                                <bundleDef>org.apache.axis2.transport:axis2-transport-mail</bundleDef>
+                                <bundleDef>org.apache.axis2.transport:axis2-transport-rabbitmq-amqp</bundleDef>
+                                <bundleDef>com.rabbitmq.wso2:amqp-client:${rabbitmq.orbit.version}</bundleDef>
                             </bundles>
                             <importFeatures>
                                 <importFeatureDef>org.wso2.carbon.core.common:${carbon.kernel.version}</importFeatureDef>

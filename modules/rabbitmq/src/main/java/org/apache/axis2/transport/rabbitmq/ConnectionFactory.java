@@ -49,7 +49,8 @@ public class ConnectionFactory {
     private Hashtable<String, String> parameters = new Hashtable<String, String>();
     ExecutorService es = Executors.newFixedThreadPool(20);
     private Connection connection = null;
-
+    private int retryInterval = 30000;
+    private int retryCount = 3;
 
 
     public ConnectionFactory(String name, com.rabbitmq.client.ConnectionFactory connectionFactory) {
@@ -69,7 +70,7 @@ public class ConnectionFactory {
         try {
             pi.deserializeParameters((OMElement) parameter.getValue());
         } catch (AxisFault axisFault) {
-            handleException("Error reading parameters for AMQP connection factory" + name, axisFault);
+            handleException("Error reading parameters for RabbitMQ connection factory" + name, axisFault);
         }
 
         for (Object o : pi.getParameters()) {
@@ -77,7 +78,7 @@ public class ConnectionFactory {
             parameters.put(p.getName(), (String) p.getValue());
         }
         initConnectionFactory();
-        log.info("AMQP ConnectionFactory : " + name + " initialized");
+        log.info("RabbitMQ ConnectionFactory : " + name + " initialized");
     }
 
     /**
@@ -88,8 +89,29 @@ public class ConnectionFactory {
         Connection connection = null;
         try {
             connection = RabbitMQUtils.createConnection(connectionFactory);
+            log.info("Successfully connected to RabbitMQ Broker");
         } catch (IOException e) {
-            handleException("Error while creating AMQP Connection...", e);
+            log.error("Error creating connection to RabbitMQ Broker. Reattempting to connect.");
+            int retryC = 0;
+            while ((connection == null) && ((retryCount == -1) || (retryC < retryCount))) {
+                retryC++;
+                log.info("Attempting to create connection to RabbitMQ Broker" +
+                        " in " + retryInterval + " ms");
+                try {
+                    Thread.sleep(retryInterval);
+                    connection = RabbitMQUtils.createConnection(connectionFactory);
+                    log.info("Successfully connected to RabbitMQ Broker");
+                } catch (InterruptedException e1) {
+                    log.error("Error while trying to reconnect to RabbitMQ Broker", e1);
+                } catch (IOException e2) {
+                    log.error("Error while trying to reconnect to RabbitMQ Broker", e2);
+                }
+            }
+            if (connection == null) {
+                handleException("Could not connect to RabbitMQ Broker. Error while creating connection", e);
+            } else {
+                log.info("Successfully reconnected to RabbitMQ Broker");
+            }
         }
         return connection;
     }
@@ -150,19 +172,20 @@ public class ConnectionFactory {
         connectionFactory = new com.rabbitmq.client.ConnectionFactory();
         String hostName = parameters.get(RabbitMQConstants.SERVER_HOST_NAME);
         String portValue = parameters.get(RabbitMQConstants.SERVER_PORT);
-        String recoveryInterval = parameters.get(RabbitMQConstants.RECOVERY_INTERVAL);
+        String retryIntervalV = parameters.get(RabbitMQConstants.RETRY_INTERVAL);
+        String retryCountV = parameters.get(RabbitMQConstants.RETRY_COUNT);
         String heartbeat = parameters.get(RabbitMQConstants.HEARTBEAT);
         String connectionTimeout = parameters.get(RabbitMQConstants.CONNECTION_TIMEOUT);
 
-        if(heartbeat != null && !("").equals(heartbeat)){
-            try{
+        if (heartbeat != null && !("").equals(heartbeat)) {
+            try {
                 int heartbeatValue = Integer.parseInt(heartbeat);
                 connectionFactory.setRequestedHeartbeat(heartbeatValue);
-            }catch (NumberFormatException e){
+            } catch (NumberFormatException e) {
                 log.error("Number format error in reading heartbeat value. Proceeding with default");
             }
         }
-        if(connectionTimeout != null && !("").equals(connectionTimeout)){
+        if (connectionTimeout != null && !("").equals(connectionTimeout)){
             try{
                 int connectionTimeoutValue = Integer.parseInt(connectionTimeout);
                 connectionFactory.setConnectionTimeout(connectionTimeoutValue);
@@ -170,17 +193,26 @@ public class ConnectionFactory {
                 log.error("Number format error in reading connection timeout value. Proceeding with default");
             }
         }
-        int recoveryIntervalValue=5000;
-        if(recoveryInterval != null && !("").equals(recoveryInterval)) {
+
+        if (retryIntervalV != null && !("").equals(retryIntervalV)) {
             try {
-                recoveryIntervalValue = Integer.parseInt(recoveryInterval);
+                retryInterval = Integer.parseInt(retryIntervalV);
             } catch (NumberFormatException e) {
-                log.error("Number format error in reading recovery interval value. Proceeding with default value (5000ms)");
+                log.error("Number format error in reading retry interval value. Proceeding with default value (30000ms)");
             }
         }
-        connectionFactory.setNetworkRecoveryInterval(recoveryIntervalValue);
+        connectionFactory.setNetworkRecoveryInterval(retryInterval);
         connectionFactory.setAutomaticRecoveryEnabled(true);
         connectionFactory.setTopologyRecoveryEnabled(false);
+
+        if (retryCountV != null && !("").equals(retryCountV)) {
+            try {
+                retryCount = Integer.parseInt(retryCountV);
+            } catch (NumberFormatException e) {
+                log.error("Number format error in reading retry count value. Proceeding with default value (3)");
+            }
+        }
+
         if (hostName != null && !hostName.equals("")) {
             connectionFactory.setHost(hostName);
         } else {
@@ -206,6 +238,14 @@ public class ConnectionFactory {
         if (virtualHost != null && !virtualHost.equals("")) {
             connectionFactory.setVirtualHost(virtualHost);
         }
+    }
+
+    public int getRetryInterval() {
+        return retryInterval;
+    }
+
+    public int getRetryCount() {
+        return retryCount;
     }
 
     /**

@@ -28,7 +28,7 @@
     </parent>
     <groupId>org.apache.axis2.transport</groupId>
     <artifactId>axis2-transports</artifactId>
-    <version>1.1.0-wso2v14-SNAPSHOT</version>
+    <version>1.1.0-wso2v15-SNAPSHOT</version>
     <packaging>pom</packaging>
     <name>Apache Axis2 Transport</name>
     <inceptionYear>2004</inceptionYear>
@@ -67,6 +67,7 @@
                 <module>features/org.apache.axis2.transport.tcp.feature</module>
                 <module>features/org.apache.axis2.transport.udp.feature</module>
                 <module>features/org.apache.axis2.transport.xmpp.feature</module>
+                <module>features/org.apache.axis2.transport.rabbitmq.feature</module>
             </modules>
         </profile>
         <profile>
@@ -107,6 +108,11 @@
             <dependency>
                 <groupId>org.apache.axis2.transport</groupId>
                 <artifactId>axis2-transport-jms</artifactId>
+                <version>${axis2.transports.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.axis2.transport</groupId>
+                <artifactId>axis2-transport-rabbitmq-amqp</artifactId>
                 <version>${axis2.transports.version}</version>
             </dependency>
             <dependency>
@@ -208,7 +214,7 @@
             <dependency>
                 <groupId>com.rabbitmq.wso2</groupId>
                 <artifactId>amqp-client</artifactId>
-                <version>${version.orbit.rabbitmq}</version>
+                <version>${rabbitmq.orbit.version}</version>
             </dependency>
 
             <!-- Smack Jabber client libraries to be included -->
@@ -528,7 +534,7 @@
     </build>
 
     <properties>
-        <axis2.transports.version>1.1.0-wso2v14-SNAPSHOT</axis2.transports.version>
+        <axis2.transports.version>1.1.0-wso2v15-SNAPSHOT</axis2.transports.version>
         <axis2.version>1.6.1-wso2v12</axis2.version>
         <carbon.kernel.version>4.4.0</carbon.kernel.version>
         <imp.pkg.version.axis2>[1.6.1.wso2v11, 1.7.0)</imp.pkg.version.axis2>
@@ -547,7 +553,7 @@
         <maven.jar.plugin.version>2.1</maven.jar.plugin.version>
         <jms-1.1-spec.version>1.1</jms-1.1-spec.version>
         <jta-spec.version>1.0</jta-spec.version>
-        <version.orbit.rabbitmq>3.0.3.wso2v1</version.orbit.rabbitmq>
+        <rabbitmq.orbit.version>3.4.4.wso2v1</rabbitmq.orbit.version>
         <jsmpp-version>2.0.1</jsmpp-version>
         <slf4j-version>1.4.3</slf4j-version>
     </properties>
