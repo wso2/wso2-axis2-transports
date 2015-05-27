@@ -266,5 +266,9 @@ public class JMSListener extends AbstractTransportListenerEx<JMSEndpoint> implem
     
     public void clearActiveConnections() {
     	log.error("Not Implemented.");
-    }    
+    }
+
+    protected int getState() {
+        return this.state;
+    }
 }

@@ -212,4 +212,9 @@ public class JMSMessageReceiver {
         }
         return true;
     }
+
+    protected JMSListener getJmsListener() {
+        return jmsListener;
+    }
+
 }
