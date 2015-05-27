@@ -150,7 +150,7 @@ public class ServiceTaskManager {
     private volatile boolean isOnExceptionError = false;
 
     private volatile boolean isInitalizeFailed = false;
-    
+
      /**
      * Start or re-start the Task Manager by shutting down any existing worker tasks and
      * re-creating them. However, if this is STM is PAUSED, a start request is ignored.
@@ -198,7 +198,11 @@ public class ServiceTaskManager {
         }
 
         for (int i=0; i<concurrentConsumers; i++) {
-            workerPool.execute(new MessageListenerTask());
+            if (jmsMessageReceiver.getJmsListener().getState() == BaseConstants.PAUSED) {
+                workerPool.execute(new MessageListenerTask(BaseConstants.PAUSED));
+            } else {
+                workerPool.execute(new MessageListenerTask(BaseConstants.STARTED));
+            }
         }
 
         serviceTaskManagerState = STATE_STARTED;
@@ -299,7 +303,12 @@ public class ServiceTaskManager {
     private void scheduleNewTaskIfAppropriate() {
         if (serviceTaskManagerState == STATE_STARTED &&
             pollingTasks.size() < getMaxConcurrentConsumers() && getIdleTaskCount() == 0) {
-            workerPool.execute(new MessageListenerTask());
+
+            if (jmsMessageReceiver.getJmsListener().getState() == BaseConstants.PAUSED) {
+                workerPool.execute(new MessageListenerTask(BaseConstants.PAUSED));
+            } else {
+                workerPool.execute(new MessageListenerTask(BaseConstants.STARTED));
+            }
         }
     }
 
@@ -354,11 +363,15 @@ public class ServiceTaskManager {
         private volatile boolean idle = false;
         /** Is this task connected to the JMS provider successfully? */
         private volatile boolean connected = false;
+        private volatile boolean listenerPaused = false;
 
         /** As soon as we create a new polling task, add it to the STM for control later */
-        MessageListenerTask() {
+        MessageListenerTask(int listenerState) {
             synchronized(pollingTasks) {
                 pollingTasks.add(this);
+                if (listenerState == BaseConstants.PAUSED) {
+                    listenerPaused = true;
+                }
             }
         }
 
@@ -375,6 +388,7 @@ public class ServiceTaskManager {
                     }
                 }
                 workerState = STATE_PAUSED;
+                listenerPaused = true;
             }
         }
 
@@ -390,6 +404,7 @@ public class ServiceTaskManager {
                 }
             }
             workerState = STATE_STARTED;
+            listenerPaused = false;
         }
 
         /**
@@ -402,6 +417,10 @@ public class ServiceTaskManager {
 
             if (log.isDebugEnabled()) {
                 log.debug("New poll task starting : thread id = " + Thread.currentThread().getId());
+            }
+
+            if (listenerPaused) {
+                workerState = STATE_PAUSED;
             }
 
             try {
