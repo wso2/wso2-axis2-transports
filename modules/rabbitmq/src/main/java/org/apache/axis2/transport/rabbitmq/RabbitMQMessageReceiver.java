@@ -86,9 +86,12 @@ public class RabbitMQMessageReceiver {
 
         String contentType = message.getContentType();
         if (contentType == null) {
-            throw new AxisFault("Unable to determine content type for message " +
-                                msgContext.getMessageID());
+            contentType = RabbitMQConstants.DEFAULT_CONTENT_TYPE;
+            log.warn("Unable to determine content type for message " +
+                    msgContext.getMessageID() + " setting to default " + RabbitMQConstants.DEFAULT_CONTENT_TYPE);
         }
+        msgContext.setProperty(RabbitMQConstants.CONTENT_TYPE, contentType);
+
         msgContext.setProperty(RabbitMQConstants.CONTENT_TYPE, contentType);
         if (message.getContentEncoding() != null) {
             msgContext.setProperty(RabbitMQConstants.CONTENT_ENCODING, message.getContentEncoding());
