@@ -36,7 +36,7 @@ public class RabbitMQMessage {
     private byte body[];
     private long deliveryTag;
 
-    public RabbitMQMessage(){
+    public RabbitMQMessage() {
 
     }
 

@@ -43,8 +43,6 @@ public class RabbitMQConstants {
     public static final String CONTENT_TYPE = "rabbitmq.message.content.type";
     public static final String CONTENT_ENCODING = "rabbitmq.message.content.encoding";
 
-    public static final String DEFAULT_CONTENT_TYPE = "text/plain";
-
     public static final String SOAP_ACTION = "SOAP_ACTION";
 
     public static final String EXCHANGE_NAME = "rabbitmq.exchange.name";
@@ -63,5 +61,7 @@ public class RabbitMQConstants {
     public static final String CONSUMER_QOS = "rabbitmq.channel.consumer.qos";
 
     public static final String CONSUMER_TAG = "rabbitmq.consumer.tag";
+
+    public static final String DEFAULT_CONTENT_TYPE = "text/plain";
 
 }

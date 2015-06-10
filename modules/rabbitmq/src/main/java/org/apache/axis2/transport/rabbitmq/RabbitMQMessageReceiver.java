@@ -75,8 +75,6 @@ public class RabbitMQMessageReceiver {
 
         MessageContext msgContext = endpoint.createMessageContext();
 
-
-        msgContext.setMessageID(message.getMessageId());
         String amqpCorrelationID = message.getCorrelationId();
         if (amqpCorrelationID != null && amqpCorrelationID.length() > 0) {
             msgContext.setProperty(RabbitMQConstants.CORRELATION_ID, amqpCorrelationID);
@@ -86,9 +84,10 @@ public class RabbitMQMessageReceiver {
 
         String contentType = message.getContentType();
         if (contentType == null) {
-            contentType = RabbitMQConstants.DEFAULT_CONTENT_TYPE;
             log.warn("Unable to determine content type for message " +
-                    msgContext.getMessageID() + " setting to default " + RabbitMQConstants.DEFAULT_CONTENT_TYPE);
+                    msgContext.getMessageID() + " setting to text/plain");
+            contentType = RabbitMQConstants.DEFAULT_CONTENT_TYPE;
+            message.setContentType(contentType);
         }
         msgContext.setProperty(RabbitMQConstants.CONTENT_TYPE, contentType);
 
