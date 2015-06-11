@@ -62,4 +62,6 @@ public class RabbitMQConstants {
 
     public static final String CONSUMER_TAG = "rabbitmq.consumer.tag";
 
+    public static final String DEFAULT_CONTENT_TYPE = "text/plain";
+
 }

@@ -465,7 +465,15 @@ public class ServiceTaskManager {
 				message.setDeliveryTag(delivery.getEnvelope().getDeliveryTag());
 				message.setReplyTo(properties.getReplyTo());
 				message.setMessageId(properties.getMessageId());
-				message.setContentType(properties.getContentType());
+
+                // Set content.type
+                // If content.type is set as a service parameter, precedence is given to that.
+                String contentType = rabbitMQProperties.get(RabbitMQConstants.CONTENT_TYPE);
+                if (contentType == null) {
+                    contentType = properties.getContentType();
+                }
+                message.setContentType(contentType);
+
 				message.setContentEncoding(properties.getContentEncoding());
                 message.setCorrelationId(properties.getCorrelationId());
 				if (headers != null) {
