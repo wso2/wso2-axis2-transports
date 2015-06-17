@@ -270,6 +270,8 @@ public class JMSUtils extends BaseUtils {
             return;
         }
 
+        boolean hyphenSupport = (boolean) msgContext.getProperty(JMSConstants.JMS_MESSAGE_NAME_HYPHEN);
+
         for (Object headerName : headerMap.keySet()) {
 
             String name = (String) headerName;
@@ -313,7 +315,11 @@ public class JMSUtils extends BaseUtils {
             } else {
                 Object value = headerMap.get(name);
                 if (value instanceof String) {
-                    message.setStringProperty(name, (String) value);
+                    if (hyphenSupport) {
+                        message.setStringProperty(transformHyphenatedString(name), (String) value);
+                    } else {
+                        message.setStringProperty(name, (String) value);
+                    }
                 } else if (value instanceof Boolean) {
                     message.setBooleanProperty(name, (Boolean) value);
                 } else if (value instanceof Integer) {
@@ -330,6 +336,20 @@ public class JMSUtils extends BaseUtils {
     }
 
     /**
+     * This method is to fix ESBJAVA-3687 - certain brokers do not support '-' in JMS property name, in such scenarios
+     * we will replace the dash with a special character sequence. This support is configurable and is turned off by
+     * default.
+     * @return modified string name if broker does not support name format
+     */
+    private static String transformHyphenatedString(String name) {
+        return name.replaceAll("-", JMSConstants.HYPHEN_REPLACEMENT_STR);
+    }
+
+    private static String inverseTransformHyphenatedString(String name) {
+        return name.replaceAll(JMSConstants.HYPHEN_REPLACEMENT_STR, "-");
+    }
+
+    /**
      * Read the transport headers from the JMS Message and set them to the axis2 message context
      *
      * @param message the JMS Message received
@@ -338,7 +358,12 @@ public class JMSUtils extends BaseUtils {
      */
     public static void loadTransportHeaders(Message message, MessageContext responseMsgCtx)
         throws AxisFault {
-        responseMsgCtx.setProperty(MessageContext.TRANSPORT_HEADERS, getTransportHeaders(message));
+        responseMsgCtx.setProperty(MessageContext.TRANSPORT_HEADERS, getTransportHeaders(message, responseMsgCtx));
+    }
+
+
+    public static Map<String, Object> getTransportHeaders(Message message) {
+        return getTransportHeaders(message, null);
     }
 
     /**
@@ -347,7 +372,7 @@ public class JMSUtils extends BaseUtils {
      * @param message the JMS message
      * @return a Map of the transport headers
      */
-    public static Map<String, Object> getTransportHeaders(Message message) {
+    public static Map<String, Object> getTransportHeaders(Message message, MessageContext msgContext) {
         // create a Map to hold transport headers
         Map<String, Object> map = new HashMap<String, Object>();
 
@@ -424,10 +449,20 @@ public class JMSUtils extends BaseUtils {
         } catch (JMSException ignore) {}
 
         if (e != null) {
+
+            boolean hyphenSupport = false;
+            if (msgContext !=  null) {
+                hyphenSupport = (boolean) msgContext.getProperty(JMSConstants.JMS_MESSAGE_NAME_HYPHEN);
+            }
+
             while (e.hasMoreElements()) {
                 String headerName = (String) e.nextElement();
                 try {
-                    map.put(headerName, message.getStringProperty(headerName));
+                    if (hyphenSupport) {
+                        map.put(inverseTransformHyphenatedString(headerName), message.getStringProperty(headerName));
+                    } else {
+                        map.put(headerName, message.getStringProperty(headerName));
+                    }
                     continue;
                 } catch (JMSException ignore) {}
                 try {

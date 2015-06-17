@@ -151,6 +151,14 @@ public class JMSSender extends AbstractTransportSender implements ManagementSupp
             contentTypeProperty = jmsOut.getContentTypeProperty();
         }
 
+        // Fix for ESBJAVA-3687, retrieve JMS transport property transport.jms.MessagePropertyHyphen and set this
+        // into the msgCtx
+        boolean hyphenSupport = false;
+        if (jmsOut.getProperties() != null) {
+            hyphenSupport = Boolean.valueOf(jmsOut.getProperties().get(JMSConstants.JMS_MESSAGE_NAME_HYPHEN));
+        }
+        msgCtx.setProperty(JMSConstants.JMS_MESSAGE_NAME_HYPHEN, hyphenSupport);
+
         // need to synchronize as Sessions are not thread safe
         synchronized (messageSender.getSession()) {
             try {
@@ -519,7 +527,7 @@ public class JMSSender extends AbstractTransportSender implements ManagementSupp
 
         handleIncomingMessage(
             responseMsgCtx,
-            JMSUtils.getTransportHeaders(message),
+            JMSUtils.getTransportHeaders(message, responseMsgCtx),
             JMSUtils.getProperty(message, BaseConstants.SOAPACTION),
             contentType
         );

@@ -333,4 +333,12 @@ public class JMSConstants {
       * */
      public static final String MAX_JMS_CONNECTIONS_ = "transport.jms.MaxJMSConnections";
 
+    /**
+     * Does the JMS broker support hyphen in JMS message property names.
+     */
+    public static final String JMS_MESSAGE_NAME_HYPHEN = "transport.jms.MessagePropertyHyphen";
+
+    public static final String HYPHEN_REPLACEMENT_STR = "_DASHED_";
+
+    public static final boolean DEFAULT_HYPHEN_SUPPORT = false;
 }

@@ -60,6 +60,7 @@ public class JMSEndpoint extends ProtocolEndpoint {
     private Set<EndpointReference> endpointReferences = new HashSet<EndpointReference>();
     private ContentTypeRuleSet contentTypeRuleSet;
     private ServiceTaskManager serviceTaskManager;
+    private boolean hyphenSupported = JMSConstants.DEFAULT_HYPHEN_SUPPORT;
 
     public JMSEndpoint(JMSListener listener, WorkerPool workerPool) {
         this.listener = listener;
@@ -181,6 +182,10 @@ public class JMSEndpoint extends ProtocolEndpoint {
         this.serviceTaskManager = serviceTaskManager;
     }
 
+    public boolean isHyphenSupported() {
+        return hyphenSupported;
+    }
+
     @Override
     public boolean loadConfiguration(ParameterInclude params) throws AxisFault {
         // We only support endpoints configured at service level
@@ -248,7 +253,12 @@ public class JMSEndpoint extends ProtocolEndpoint {
         
         serviceTaskManager = ServiceTaskManagerFactory.createTaskManagerForService(cf, service, workerPool);
         serviceTaskManager.setJmsMessageReceiver(new JMSMessageReceiver(listener, cf, this));
-        
+
+        Parameter paramHyphenSupport = service.getParameter(JMSConstants.JMS_MESSAGE_NAME_HYPHEN);
+        if (paramHyphenSupport != null) {
+            hyphenSupported = Boolean.valueOf((String) paramHyphenSupport.getValue());
+        }
+
         return true;
     }
 }
