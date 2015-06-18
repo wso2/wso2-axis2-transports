@@ -197,9 +197,11 @@ public class JMSMessageReceiver {
             msgContext.setProperty(BaseConstants.USER_TRANSACTION, ut);
         }
 
+        msgContext.setProperty(JMSConstants.PARAM_JMS_HYPHEN_MODE, endpoint.getHyphenSupport());
+
         jmsListener.handleIncomingMessage(
                 msgContext,
-                JMSUtils.getTransportHeaders(message),
+                JMSUtils.getTransportHeaders(message, msgContext),
                 soapAction,
                 contentTypeInfo.getContentType());
 

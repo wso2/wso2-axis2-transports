@@ -313,7 +313,17 @@ public class JMSUtils extends BaseUtils {
             } else {
                 Object value = headerMap.get(name);
                 if (value instanceof String) {
-                    message.setStringProperty(name, (String) value);
+                    if (name.contains("-")) {
+                        if (isHyphenReplaceMode(msgContext)) { // we replace
+                            message.setStringProperty(transformHyphenatedString(name), (String) value);
+                        } else if (isHyphenDeleteMode(msgContext)) { // we skip
+                            continue;
+                        } else {
+                            message.setStringProperty(name, (String) value);
+                        }
+                    } else {
+                        message.setStringProperty(name, (String) value);
+                    }
                 } else if (value instanceof Boolean) {
                     message.setBooleanProperty(name, (Boolean) value);
                 } else if (value instanceof Integer) {
@@ -330,6 +340,46 @@ public class JMSUtils extends BaseUtils {
     }
 
     /**
+     * This method is to fix ESBJAVA-3687 - certain brokers do not support '-' in JMS property name, in such scenarios
+     * we will replace the dash with a special character sequence. This support is configurable and is turned off by
+     * default.
+     * @return modified string name if broker does not support name format
+     */
+    private static String transformHyphenatedString(String name) {
+        return name.replaceAll("-", JMSConstants.HYPHEN_REPLACEMENT_STR);
+    }
+
+    private static String inverseTransformHyphenatedString(String name) {
+        return name.replaceAll(JMSConstants.HYPHEN_REPLACEMENT_STR, "-");
+    }
+
+    private static boolean isHyphenReplaceMode(MessageContext msgContext) {
+        if (msgContext == null) {
+            return false;
+        }
+
+        String hyphenSupport = (String) msgContext.getProperty(JMSConstants.PARAM_JMS_HYPHEN_MODE);
+        if (hyphenSupport != null && hyphenSupport.equals(JMSConstants.HYPHEN_MODE_REPLACE)) {
+            return true;
+        }
+
+        return false;
+    }
+
+    private static boolean isHyphenDeleteMode(MessageContext msgContext) {
+        if (msgContext == null) {
+            return false;
+        }
+
+        String hyphenSupport = (String) msgContext.getProperty(JMSConstants.PARAM_JMS_HYPHEN_MODE);
+        if (hyphenSupport != null && hyphenSupport.equals(JMSConstants.HYPHEN_MODE_DELETE)) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
      * Read the transport headers from the JMS Message and set them to the axis2 message context
      *
      * @param message the JMS Message received
@@ -338,7 +388,12 @@ public class JMSUtils extends BaseUtils {
      */
     public static void loadTransportHeaders(Message message, MessageContext responseMsgCtx)
         throws AxisFault {
-        responseMsgCtx.setProperty(MessageContext.TRANSPORT_HEADERS, getTransportHeaders(message));
+        responseMsgCtx.setProperty(MessageContext.TRANSPORT_HEADERS, getTransportHeaders(message, responseMsgCtx));
+    }
+
+
+    public static Map<String, Object> getTransportHeaders(Message message) {
+        return getTransportHeaders(message, null);
     }
 
     /**
@@ -347,7 +402,7 @@ public class JMSUtils extends BaseUtils {
      * @param message the JMS message
      * @return a Map of the transport headers
      */
-    public static Map<String, Object> getTransportHeaders(Message message) {
+    public static Map<String, Object> getTransportHeaders(Message message, MessageContext msgContext) {
         // create a Map to hold transport headers
         Map<String, Object> map = new HashMap<String, Object>();
 
@@ -424,10 +479,15 @@ public class JMSUtils extends BaseUtils {
         } catch (JMSException ignore) {}
 
         if (e != null) {
+
             while (e.hasMoreElements()) {
                 String headerName = (String) e.nextElement();
                 try {
-                    map.put(headerName, message.getStringProperty(headerName));
+                    if (isHyphenReplaceMode(msgContext)) {
+                        map.put(inverseTransformHyphenatedString(headerName), message.getStringProperty(headerName));
+                    } else {
+                        map.put(headerName, message.getStringProperty(headerName));
+                    }
                     continue;
                 } catch (JMSException ignore) {}
                 try {
