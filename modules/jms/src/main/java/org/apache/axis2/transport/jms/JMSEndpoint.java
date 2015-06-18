@@ -60,7 +60,7 @@ public class JMSEndpoint extends ProtocolEndpoint {
     private Set<EndpointReference> endpointReferences = new HashSet<EndpointReference>();
     private ContentTypeRuleSet contentTypeRuleSet;
     private ServiceTaskManager serviceTaskManager;
-    private boolean hyphenSupported = JMSConstants.DEFAULT_HYPHEN_SUPPORT;
+    private String hyphenSupport = JMSConstants.DEFAULT_HYPHEN_SUPPORT;
 
     public JMSEndpoint(JMSListener listener, WorkerPool workerPool) {
         this.listener = listener;
@@ -182,8 +182,8 @@ public class JMSEndpoint extends ProtocolEndpoint {
         this.serviceTaskManager = serviceTaskManager;
     }
 
-    public boolean isHyphenSupported() {
-        return hyphenSupported;
+    public String getHyphenSupport() {
+        return hyphenSupport;
     }
 
     @Override
@@ -254,9 +254,15 @@ public class JMSEndpoint extends ProtocolEndpoint {
         serviceTaskManager = ServiceTaskManagerFactory.createTaskManagerForService(cf, service, workerPool);
         serviceTaskManager.setJmsMessageReceiver(new JMSMessageReceiver(listener, cf, this));
 
-        Parameter paramHyphenSupport = service.getParameter(JMSConstants.JMS_MESSAGE_NAME_HYPHEN);
+        // Fix for ESBJAVA-3687, retrieve JMS transport property transport.jms.MessagePropertyHyphens and set this
+        // into the msgCtx
+        Parameter paramHyphenSupport = service.getParameter(JMSConstants.PARAM_JMS_HYPHEN_MODE);
         if (paramHyphenSupport != null) {
-            hyphenSupported = Boolean.valueOf((String) paramHyphenSupport.getValue());
+            if (((String) paramHyphenSupport.getValue()).equals(JMSConstants.HYPHEN_MODE_REPLACE)) {
+                hyphenSupport = JMSConstants.HYPHEN_MODE_REPLACE;
+            } else if (((String) paramHyphenSupport.getValue()).equals(JMSConstants.HYPHEN_MODE_DELETE)) {
+                hyphenSupport = JMSConstants.HYPHEN_MODE_DELETE;
+            }
         }
 
         return true;

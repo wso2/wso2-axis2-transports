@@ -336,9 +336,15 @@ public class JMSConstants {
     /**
      * Does the JMS broker support hyphen in JMS message property names.
      */
-    public static final String JMS_MESSAGE_NAME_HYPHEN = "transport.jms.MessagePropertyHyphen";
+    public static final String PARAM_JMS_HYPHEN_MODE = "transport.jms.MessagePropertyHyphens";
+
+    public static final String HYPHEN_MODE_NONE = "none";
+
+    public static final String HYPHEN_MODE_REPLACE = "replace";
+
+    public static final String HYPHEN_MODE_DELETE = "delete";
 
     public static final String HYPHEN_REPLACEMENT_STR = "_DASHED_";
 
-    public static final boolean DEFAULT_HYPHEN_SUPPORT = false;
+    public static final String DEFAULT_HYPHEN_SUPPORT = HYPHEN_MODE_NONE;
 }

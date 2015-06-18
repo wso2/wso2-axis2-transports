@@ -151,13 +151,17 @@ public class JMSSender extends AbstractTransportSender implements ManagementSupp
             contentTypeProperty = jmsOut.getContentTypeProperty();
         }
 
-        // Fix for ESBJAVA-3687, retrieve JMS transport property transport.jms.MessagePropertyHyphen and set this
+        // Fix for ESBJAVA-3687, retrieve JMS transport property transport.jms.MessagePropertyHyphens and set this
         // into the msgCtx
-        boolean hyphenSupport = false;
-        if (jmsOut.getProperties() != null) {
-            hyphenSupport = Boolean.valueOf(jmsOut.getProperties().get(JMSConstants.JMS_MESSAGE_NAME_HYPHEN));
+        String hyphenSupport = JMSConstants.DEFAULT_HYPHEN_SUPPORT;
+        if (jmsOut.getProperties() != null && jmsOut.getProperties().get(JMSConstants.PARAM_JMS_HYPHEN_MODE) != null) {
+            if (jmsOut.getProperties().get(JMSConstants.PARAM_JMS_HYPHEN_MODE).equals(JMSConstants.HYPHEN_MODE_REPLACE)) {
+                hyphenSupport = JMSConstants.HYPHEN_MODE_REPLACE;
+            } else if (jmsOut.getProperties().get(JMSConstants.PARAM_JMS_HYPHEN_MODE).equals(JMSConstants.HYPHEN_MODE_DELETE)) {
+                hyphenSupport = JMSConstants.HYPHEN_MODE_DELETE;
+            }
         }
-        msgCtx.setProperty(JMSConstants.JMS_MESSAGE_NAME_HYPHEN, hyphenSupport);
+        msgCtx.setProperty(JMSConstants.PARAM_JMS_HYPHEN_MODE, hyphenSupport);
 
         // need to synchronize as Sessions are not thread safe
         synchronized (messageSender.getSession()) {

@@ -270,8 +270,6 @@ public class JMSUtils extends BaseUtils {
             return;
         }
 
-        boolean hyphenSupport = (boolean) msgContext.getProperty(JMSConstants.JMS_MESSAGE_NAME_HYPHEN);
-
         for (Object headerName : headerMap.keySet()) {
 
             String name = (String) headerName;
@@ -315,8 +313,10 @@ public class JMSUtils extends BaseUtils {
             } else {
                 Object value = headerMap.get(name);
                 if (value instanceof String) {
-                    if (hyphenSupport) {
+                    if (name.contains("-") && isHyphenReplaceMode(msgContext)) { // we replace
                         message.setStringProperty(transformHyphenatedString(name), (String) value);
+                    } else if (name.contains("-") && isHyphenDeleteMode(msgContext)) { // we skip
+                        continue;
                     } else {
                         message.setStringProperty(name, (String) value);
                     }
@@ -347,6 +347,32 @@ public class JMSUtils extends BaseUtils {
 
     private static String inverseTransformHyphenatedString(String name) {
         return name.replaceAll(JMSConstants.HYPHEN_REPLACEMENT_STR, "-");
+    }
+
+    private static boolean isHyphenReplaceMode(MessageContext msgContext) {
+        if (msgContext == null) {
+            return false;
+        }
+
+        String hyphenSupport = (String) msgContext.getProperty(JMSConstants.PARAM_JMS_HYPHEN_MODE);
+        if (hyphenSupport != null && hyphenSupport.equals(JMSConstants.HYPHEN_MODE_REPLACE)) {
+            return true;
+        }
+
+        return false;
+    }
+
+    private static boolean isHyphenDeleteMode(MessageContext msgContext) {
+        if (msgContext == null) {
+            return false;
+        }
+
+        String hyphenSupport = (String) msgContext.getProperty(JMSConstants.PARAM_JMS_HYPHEN_MODE);
+        if (hyphenSupport != null && hyphenSupport.equals(JMSConstants.HYPHEN_MODE_DELETE)) {
+            return true;
+        }
+
+        return false;
     }
 
     /**
@@ -450,15 +476,10 @@ public class JMSUtils extends BaseUtils {
 
         if (e != null) {
 
-            boolean hyphenSupport = false;
-            if (msgContext !=  null) {
-                hyphenSupport = (boolean) msgContext.getProperty(JMSConstants.JMS_MESSAGE_NAME_HYPHEN);
-            }
-
             while (e.hasMoreElements()) {
                 String headerName = (String) e.nextElement();
                 try {
-                    if (hyphenSupport) {
+                    if (isHyphenReplaceMode(msgContext)) {
                         map.put(inverseTransformHyphenatedString(headerName), message.getStringProperty(headerName));
                     } else {
                         map.put(headerName, message.getStringProperty(headerName));
