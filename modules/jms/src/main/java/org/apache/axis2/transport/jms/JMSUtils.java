@@ -313,10 +313,14 @@ public class JMSUtils extends BaseUtils {
             } else {
                 Object value = headerMap.get(name);
                 if (value instanceof String) {
-                    if (name.contains("-") && isHyphenReplaceMode(msgContext)) { // we replace
-                        message.setStringProperty(transformHyphenatedString(name), (String) value);
-                    } else if (name.contains("-") && isHyphenDeleteMode(msgContext)) { // we skip
-                        continue;
+                    if (name.contains("-")) {
+                        if (isHyphenReplaceMode(msgContext)) { // we replace
+                            message.setStringProperty(transformHyphenatedString(name), (String) value);
+                        } else if (isHyphenDeleteMode(msgContext)) { // we skip
+                            continue;
+                        } else {
+                            message.setStringProperty(name, (String) value);
+                        }
                     } else {
                         message.setStringProperty(name, (String) value);
                     }
