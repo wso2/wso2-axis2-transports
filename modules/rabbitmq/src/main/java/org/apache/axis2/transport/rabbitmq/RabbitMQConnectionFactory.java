@@ -19,6 +19,7 @@
 package org.apache.axis2.transport.rabbitmq;
 
 import com.rabbitmq.client.Connection;
+import com.rabbitmq.client.ConnectionFactory;
 import org.apache.axiom.om.OMElement;
 import org.apache.axis2.AxisFault;
 import org.apache.axis2.description.Parameter;
@@ -45,7 +46,7 @@ public class RabbitMQConnectionFactory {
 
     private static final Log log = LogFactory.getLog(RabbitMQConnectionFactory.class);
 
-    private com.rabbitmq.client.ConnectionFactory connectionFactory = null;
+    private ConnectionFactory connectionFactory = null;
     private String name;
     private Hashtable<String, String> parameters = new Hashtable<String, String>();
     private ExecutorService es = Executors.newFixedThreadPool(20);
@@ -54,7 +55,7 @@ public class RabbitMQConnectionFactory {
     private int retryCount = 3;
 
 
-    public RabbitMQConnectionFactory(String name, com.rabbitmq.client.ConnectionFactory connectionFactory) {
+    public RabbitMQConnectionFactory(String name, ConnectionFactory connectionFactory) {
         this.name = name;
         this.connectionFactory = connectionFactory;
     }
@@ -170,7 +171,7 @@ public class RabbitMQConnectionFactory {
      * Initialize connection factory
      */
     private void initConnectionFactory() {
-        connectionFactory = new com.rabbitmq.client.ConnectionFactory();
+        connectionFactory = new ConnectionFactory();
         String hostName = parameters.get(RabbitMQConstants.SERVER_HOST_NAME);
         String portValue = parameters.get(RabbitMQConstants.SERVER_PORT);
         String retryIntervalV = parameters.get(RabbitMQConstants.RETRY_INTERVAL);

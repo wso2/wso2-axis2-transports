@@ -18,6 +18,7 @@
 
 package org.apache.axis2.transport.rabbitmq;
 
+import com.rabbitmq.client.ConnectionFactory;
 import org.apache.axis2.description.Parameter;
 import org.apache.axis2.description.ParameterInclude;
 import org.apache.axis2.transport.rabbitmq.utils.AxisRabbitMQException;
@@ -59,7 +60,7 @@ public class RabbitMQConnectionFactoryManager {
         rabbitMQConnectionFactory = connectionFactories.get(hostAndPort);
 
         if (rabbitMQConnectionFactory == null) {
-            com.rabbitmq.client.ConnectionFactory factory = new com.rabbitmq.client.ConnectionFactory();
+            ConnectionFactory factory = new ConnectionFactory();
             if (hostName != null && !hostName.equals("")) {
                 factory.setHost(hostName);
             } else {
