@@ -20,6 +20,7 @@ package org.apache.axis2.transport.rabbitmq;
 
 import org.apache.axis2.transport.OutTransportInfo;
 import org.apache.axis2.transport.base.BaseUtils;
+import org.apache.axis2.transport.rabbitmq.utils.AxisRabbitMQException;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -41,7 +42,7 @@ public class RabbitMQOutTransportInfo implements OutTransportInfo {
 
     private String contentTypeProperty;
 
-    private ConnectionFactory connectionFactory;
+    private RabbitMQConnectionFactory rabbitMQConnectionFactory;
     private String replyTo;
 
 
@@ -63,13 +64,13 @@ public class RabbitMQOutTransportInfo implements OutTransportInfo {
     /**
      * Creates an instance using the given connection factory and destination
      *
-     * @param connectionFactory   the connection factory
+     * @param rabbitMQConnectionFactory   the connection factory
      * @param replyTo             the destination
      * @param contentTypeProperty the content type
      */
-    public RabbitMQOutTransportInfo(ConnectionFactory connectionFactory, String replyTo,
+    public RabbitMQOutTransportInfo(RabbitMQConnectionFactory rabbitMQConnectionFactory, String replyTo,
                                     String contentTypeProperty) {
-        this.connectionFactory = connectionFactory;
+        this.rabbitMQConnectionFactory = rabbitMQConnectionFactory;
         this.replyTo = replyTo;
         this.contentTypeProperty = contentTypeProperty;
     }

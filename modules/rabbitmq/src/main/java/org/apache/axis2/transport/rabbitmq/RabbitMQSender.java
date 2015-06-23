@@ -24,6 +24,7 @@ import org.apache.axis2.context.MessageContext;
 import org.apache.axis2.description.TransportOutDescription;
 import org.apache.axis2.transport.OutTransportInfo;
 import org.apache.axis2.transport.base.AbstractTransportSender;
+import org.apache.axis2.transport.rabbitmq.utils.AxisRabbitMQException;
 
 import java.util.Hashtable;
 
@@ -35,7 +36,7 @@ public class RabbitMQSender extends AbstractTransportSender {
     /**
      * The connection factory manager to be used when sending messages out
      */
-    private ConnectionFactoryManager connectionFactoryManager;
+    private RabbitMQConnectionFactoryManager rabbitMQConnectionFactoryManager;
 
     /**
      * Initialize the transport sender by reading pre-defined connection factories for
@@ -49,7 +50,7 @@ public class RabbitMQSender extends AbstractTransportSender {
     public void init(ConfigurationContext cfgCtx, TransportOutDescription transportOut)
             throws AxisFault {
         super.init(cfgCtx, transportOut);
-        connectionFactoryManager = new ConnectionFactoryManager(transportOut);
+        rabbitMQConnectionFactoryManager = new RabbitMQConnectionFactoryManager(transportOut);
         log.info("RabbitMQ AMQP Transport Sender initialized...");
 
     }
@@ -57,7 +58,7 @@ public class RabbitMQSender extends AbstractTransportSender {
     @Override
     public void stop(){
         // clean up senders connection factory, connections
-        connectionFactoryManager.stop();
+        rabbitMQConnectionFactoryManager.stop();
         super.stop();
     }
     /**
@@ -67,7 +68,7 @@ public class RabbitMQSender extends AbstractTransportSender {
     public void sendMessage(MessageContext msgCtx, String targetEPR,
                             OutTransportInfo outTransportInfo) throws AxisFault {
 
-        ConnectionFactory factory = null;
+        RabbitMQConnectionFactory factory = null;
         RabbitMQMessageSender sender = null;
         RabbitMQOutTransportInfo transportOutInfo = null;
 
@@ -94,7 +95,7 @@ public class RabbitMQSender extends AbstractTransportSender {
         } catch (AxisRabbitMQException e) {
             handleException("Error occured while sending message out", e);
         }
-
+//TODO : if exception is thrown, it should invoke the fault sequece. Test that.
     }
 
     /**
@@ -104,9 +105,9 @@ public class RabbitMQSender extends AbstractTransportSender {
      * @param transportInfo the transport-out information
      * @return the corresponding ConnectionFactory, if any
      */
-    private ConnectionFactory getAMQPConnectionFactory(RabbitMQOutTransportInfo transportInfo) {
+    private RabbitMQConnectionFactory getAMQPConnectionFactory(RabbitMQOutTransportInfo transportInfo) {
         Hashtable<String, String> props = transportInfo.getProperties();
-        ConnectionFactory factory = connectionFactoryManager.getAMQPConnectionFactory(props);
+        RabbitMQConnectionFactory factory = rabbitMQConnectionFactoryManager.getAMQPConnectionFactory(props);
         return factory;
     }
 }

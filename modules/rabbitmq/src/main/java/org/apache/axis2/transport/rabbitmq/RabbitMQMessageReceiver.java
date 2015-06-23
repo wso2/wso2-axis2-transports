@@ -33,19 +33,19 @@ public class RabbitMQMessageReceiver {
     private static final Log log = LogFactory.getLog(RabbitMQMessageReceiver.class);
     private final RabbitMQEndpoint endpoint;
     private final RabbitMQListener listener;
-    private final ConnectionFactory connectionFactory;
+    private final RabbitMQConnectionFactory rabbitMQConnectionFactory;
 
     /**
      * Create a new RabbitMQMessage receiver
      *
      * @param listener            the AMQP transport Listener
-     * @param connectionFactory   the AMQP connection factory we are associated with
+     * @param rabbitMQConnectionFactory   the AMQP connection factory we are associated with
      * @param endpoint            the RabbitMQEndpoint definition to be used
      */
     public RabbitMQMessageReceiver(RabbitMQListener listener,
-                                   ConnectionFactory connectionFactory, RabbitMQEndpoint endpoint) {
+                                   RabbitMQConnectionFactory rabbitMQConnectionFactory, RabbitMQEndpoint endpoint) {
         this.endpoint = endpoint;
-        this.connectionFactory = connectionFactory;
+        this.rabbitMQConnectionFactory = rabbitMQConnectionFactory;
         this.listener = listener;
     }
 
@@ -102,7 +102,7 @@ public class RabbitMQMessageReceiver {
         String replyTo = message.getReplyTo();
         if (replyTo != null) {
             msgContext.setProperty(Constants.OUT_TRANSPORT_INFO,
-                                   new RabbitMQOutTransportInfo(connectionFactory, replyTo, contentType));
+                                   new RabbitMQOutTransportInfo(rabbitMQConnectionFactory, replyTo, contentType));
 
         }
 

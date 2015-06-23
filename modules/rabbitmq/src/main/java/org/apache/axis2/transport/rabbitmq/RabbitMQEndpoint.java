@@ -39,7 +39,7 @@ public class RabbitMQEndpoint extends ProtocolEndpoint {
     private final WorkerPool workerPool;
     private final RabbitMQListener rabbitMQListener;
 
-    private ConnectionFactory connectionFactory;
+    private RabbitMQConnectionFactory rabbitMQConnectionFactory;
     private Set<EndpointReference> endpointReferences = new HashSet<EndpointReference>();
     private ServiceTaskManager serviceTaskManager;
 
@@ -62,8 +62,8 @@ public class RabbitMQEndpoint extends ProtocolEndpoint {
      * Get connection factory of the EP
      * @return connection factory set to this EP
      */
-    public ConnectionFactory getConnectionFactory() {
-        return connectionFactory;
+    public RabbitMQConnectionFactory getRabbitMQConnectionFactory() {
+        return rabbitMQConnectionFactory;
     }
 
     /**
@@ -91,15 +91,15 @@ public class RabbitMQEndpoint extends ProtocolEndpoint {
 
         AxisService service = (AxisService) params;
 
-        connectionFactory = rabbitMQListener.getConnectionFactory(service);
-        if (connectionFactory == null) {
+        rabbitMQConnectionFactory = rabbitMQListener.getConnectionFactory(service);
+        if (rabbitMQConnectionFactory == null) {
             return false;
         }
 
         serviceTaskManager = ServiceTaskManagerFactory.
-                createTaskManagerForService(connectionFactory, service, workerPool);
+                createTaskManagerForService(rabbitMQConnectionFactory, service, workerPool);
         serviceTaskManager.setRabbitMQMessageReceiver(new RabbitMQMessageReceiver(rabbitMQListener,
-                                                                                  connectionFactory, this));
+                rabbitMQConnectionFactory, this));
 
         return true;
     }

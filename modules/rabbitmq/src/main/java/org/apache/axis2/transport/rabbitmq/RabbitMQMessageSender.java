@@ -26,6 +26,7 @@ import org.apache.axis2.AxisFault;
 import org.apache.axis2.context.MessageContext;
 import org.apache.axis2.transport.MessageFormatter;
 import org.apache.axis2.transport.base.BaseUtils;
+import org.apache.axis2.transport.rabbitmq.utils.AxisRabbitMQException;
 import org.apache.axis2.transport.rabbitmq.utils.RabbitMQUtils;
 import org.apache.axis2.util.MessageProcessorSelector;
 import org.apache.commons.logging.Log;
@@ -55,7 +56,7 @@ public class RabbitMQMessageSender {
 	 * @param factory   the ConnectionFactory
 	 * @param targetEPR the targetAddress
 	 */
-	public RabbitMQMessageSender(ConnectionFactory factory, String targetEPR) {
+	public RabbitMQMessageSender(RabbitMQConnectionFactory factory, String targetEPR) {
 		try {
 			this.connection = factory.getConnectionPool();
 		} catch (IOException e) {
@@ -76,7 +77,7 @@ public class RabbitMQMessageSender {
 	 * @param msgContext the Axis2 MessageContext
 	 */
 	public void send(RabbitMQMessage message, MessageContext msgContext) throws
-	                                                                     AxisRabbitMQException {
+			AxisRabbitMQException {
 
 		String exchangeName = null;
 		AMQP.BasicProperties basicProperties = null;

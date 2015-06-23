@@ -34,16 +34,17 @@ import org.apache.axis2.transport.base.AbstractTransportListenerEx;
 public class RabbitMQListener extends AbstractTransportListenerEx<RabbitMQEndpoint> {
 
     /** The ConnectionFactoryManager which centralizes the management of defined factories */
-    private ConnectionFactoryManager connectionFactoryManager;
+    private RabbitMQConnectionFactoryManager rabbitMQConnectionFactoryManager;
 
     @Override
     protected void doInit() throws AxisFault {
-        connectionFactoryManager = new ConnectionFactoryManager(getTransportInDescription());
+        rabbitMQConnectionFactoryManager = new RabbitMQConnectionFactoryManager(getTransportInDescription());
         log.info("RabbitMQ AMQP Transport Receiver initialized...");
     }
 
     @Override
     protected RabbitMQEndpoint createEndpoint() {
+        //TODO : check wht happens here. Should SSL part come here?
         return new RabbitMQEndpoint(this, workerPool);
     }
 
@@ -84,10 +85,10 @@ public class RabbitMQListener extends AbstractTransportListenerEx<RabbitMQEndpoi
      * @param service the AxisService
      * @return the ConnectionFactory to be used, or null if reference is invalid
      */
-    public ConnectionFactory getConnectionFactory(AxisService service) {
+    public RabbitMQConnectionFactory getConnectionFactory(AxisService service) {
         Parameter conFacParam = service.getParameter(RabbitMQConstants.RABBITMQ_CON_FAC);
         if (conFacParam != null) {
-            return connectionFactoryManager.getAMQPConnectionFactory((String) conFacParam.getValue());
+            return rabbitMQConnectionFactoryManager.getAMQPConnectionFactory((String) conFacParam.getValue());
         }
         return null;
     }

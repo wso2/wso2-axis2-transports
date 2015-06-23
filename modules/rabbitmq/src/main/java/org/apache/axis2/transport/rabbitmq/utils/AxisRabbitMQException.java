@@ -16,7 +16,7 @@
  * under the License.
  */
 
-package org.apache.axis2.transport.rabbitmq;
+package org.apache.axis2.transport.rabbitmq.utils;
 
 /**
  * This class represents RabbitMQ specific exceptions

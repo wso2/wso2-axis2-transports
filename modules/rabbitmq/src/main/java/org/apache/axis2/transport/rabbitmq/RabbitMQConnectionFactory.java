@@ -23,6 +23,7 @@ import org.apache.axiom.om.OMElement;
 import org.apache.axis2.AxisFault;
 import org.apache.axis2.description.Parameter;
 import org.apache.axis2.description.ParameterIncludeImpl;
+import org.apache.axis2.transport.rabbitmq.utils.AxisRabbitMQException;
 import org.apache.axis2.transport.rabbitmq.utils.RabbitMQUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -40,20 +41,20 @@ import java.util.concurrent.Executors;
  * and re-used by each service that binds to it
  *
  */
-public class ConnectionFactory {
+public class RabbitMQConnectionFactory {
 
-    private static final Log log = LogFactory.getLog(ConnectionFactory.class);
+    private static final Log log = LogFactory.getLog(RabbitMQConnectionFactory.class);
 
     private com.rabbitmq.client.ConnectionFactory connectionFactory = null;
     private String name;
     private Hashtable<String, String> parameters = new Hashtable<String, String>();
-    ExecutorService es = Executors.newFixedThreadPool(20);
+    private ExecutorService es = Executors.newFixedThreadPool(20);
     private Connection connection = null;
     private int retryInterval = 30000;
     private int retryCount = 3;
 
 
-    public ConnectionFactory(String name, com.rabbitmq.client.ConnectionFactory connectionFactory) {
+    public RabbitMQConnectionFactory(String name, com.rabbitmq.client.ConnectionFactory connectionFactory) {
         this.name = name;
         this.connectionFactory = connectionFactory;
     }
@@ -63,7 +64,7 @@ public class ConnectionFactory {
      *
      * @param parameter the axis2.xml 'Parameter' that defined the AMQP CF
      */
-    public ConnectionFactory(Parameter parameter) {
+    public RabbitMQConnectionFactory(Parameter parameter) {
         this.name = parameter.getName();
         ParameterIncludeImpl pi = new ParameterIncludeImpl();
 

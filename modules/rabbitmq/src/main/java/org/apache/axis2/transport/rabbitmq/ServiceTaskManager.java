@@ -26,6 +26,7 @@ import com.rabbitmq.client.ShutdownSignalException;
 import com.rabbitmq.client.ConsumerCancelledException;
 
 import org.apache.axis2.transport.base.threads.WorkerPool;
+import org.apache.axis2.transport.rabbitmq.utils.AxisRabbitMQException;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -58,15 +59,15 @@ public class ServiceTaskManager {
 	private WorkerPool workerPool = null;
 	private String serviceName;
 	private Hashtable<String, String> rabbitMQProperties = new Hashtable<String, String>();
-	private final ConnectionFactory connectionFactory;
+	private final RabbitMQConnectionFactory rabbitMQConnectionFactory;
 	private final List<MessageListenerTask> pollingTasks =
 			Collections.synchronizedList(new ArrayList<MessageListenerTask>());
 	private RabbitMQMessageReceiver rabbitMQMessageReceiver;
 	private int serviceTaskManagerState = STATE_STOPPED;
 
 	public ServiceTaskManager(
-			ConnectionFactory connectionFactory) {
-		this.connectionFactory = connectionFactory;
+			RabbitMQConnectionFactory rabbitMQConnectionFactory) {
+		this.rabbitMQConnectionFactory = rabbitMQConnectionFactory;
 	}
 
 	/**
@@ -190,8 +191,8 @@ public class ServiceTaskManager {
 		}
 
         private void waitForConnection() {
-            int retryInterval = connectionFactory.getRetryInterval();
-            int retryCountMax = connectionFactory.getRetryCount();
+            int retryInterval = rabbitMQConnectionFactory.getRetryInterval();
+            int retryCountMax = rabbitMQConnectionFactory.getRetryCount();
             int retryCount = 0;
             while ((workerState == STATE_STARTED) && !connection.isOpen()
                     && ((retryCountMax == -1) || (retryCount < retryCountMax))) {
@@ -547,7 +548,7 @@ public class ServiceTaskManager {
 		private Connection createConnection() throws IOException{
 			Connection connection = null;
 			try {
-				connection = connectionFactory.createConnection();
+				connection = rabbitMQConnectionFactory.createConnection();
                 log.info("RabbitMQ connection created for service " + serviceName);
 			} catch (Exception e) {
                 handleException("Error while creating RabbitMQ connection for service " + serviceName, e);

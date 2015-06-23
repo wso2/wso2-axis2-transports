@@ -20,23 +20,24 @@ package org.apache.axis2.transport.rabbitmq;
 
 import org.apache.axis2.description.Parameter;
 import org.apache.axis2.description.ParameterInclude;
+import org.apache.axis2.transport.rabbitmq.utils.AxisRabbitMQException;
 
 import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.Map;
 
 /**
- * Class managing a set of {@link ConnectionFactory} objects.
+ * Class managing a set of {@link RabbitMQConnectionFactory} objects.
  */
-public class ConnectionFactoryManager {
-    private final Map<String, ConnectionFactory> connectionFactories =
-            new HashMap<String, ConnectionFactory>();
+public class RabbitMQConnectionFactoryManager {
+    private final Map<String, RabbitMQConnectionFactory> connectionFactories =
+            new HashMap<String, RabbitMQConnectionFactory>();
 
     /**
      * Construct a Connection factory manager for the RabbitMQ transport sender or receiver
      * @param description
      */
-    public ConnectionFactoryManager(ParameterInclude description) {
+    public RabbitMQConnectionFactoryManager(ParameterInclude description) {
         loadConnectionFactoryDefinitions(description);
     }
 
@@ -50,14 +51,14 @@ public class ConnectionFactoryManager {
      * @return the connection factory or null if no connection factory compatible
      *         with the given properties exists
      */
-    public ConnectionFactory getAMQPConnectionFactory(Hashtable<String, String> props) {
-        ConnectionFactory connectionFactory = null;
+    public RabbitMQConnectionFactory getAMQPConnectionFactory(Hashtable<String, String> props) {
+        RabbitMQConnectionFactory rabbitMQConnectionFactory = null;
         String hostName = props.get(RabbitMQConstants.SERVER_HOST_NAME);
         String portValue = props.get(RabbitMQConstants.SERVER_PORT);
         String hostAndPort = hostName + ":" + portValue;
-        connectionFactory = connectionFactories.get(hostAndPort);
+        rabbitMQConnectionFactory = connectionFactories.get(hostAndPort);
 
-        if (connectionFactory == null) {
+        if (rabbitMQConnectionFactory == null) {
             com.rabbitmq.client.ConnectionFactory factory = new com.rabbitmq.client.ConnectionFactory();
             if (hostName != null && !hostName.equals("")) {
                 factory.setHost(hostName);
@@ -86,11 +87,11 @@ public class ConnectionFactoryManager {
             }
             factory.setAutomaticRecoveryEnabled(true);
             factory.setTopologyRecoveryEnabled(false);
-            connectionFactory = new ConnectionFactory(hostAndPort, factory);
-            connectionFactories.put(connectionFactory.getName(), connectionFactory);
+            rabbitMQConnectionFactory = new RabbitMQConnectionFactory(hostAndPort, factory);
+            connectionFactories.put(rabbitMQConnectionFactory.getName(), rabbitMQConnectionFactory);
         }
 
-        return connectionFactory;
+        return rabbitMQConnectionFactory;
     }
 
 
@@ -101,7 +102,7 @@ public class ConnectionFactoryManager {
      * @return the AMQP connection factory or null if no connection factory with
      *         the given name exists
      */
-    public ConnectionFactory getAMQPConnectionFactory(String connectionFactoryName) {
+    public RabbitMQConnectionFactory getAMQPConnectionFactory(String connectionFactoryName) {
         return connectionFactories.get(connectionFactoryName);
     }
 
@@ -113,7 +114,8 @@ public class ConnectionFactoryManager {
      */
     private void loadConnectionFactoryDefinitions(ParameterInclude trpDesc) {
         for (Parameter parameter : trpDesc.getParameters()) {
-            ConnectionFactory amqpConFactory = new ConnectionFactory(parameter);
+            //TODO : do we need to create amqpConFactory all the time??
+            RabbitMQConnectionFactory amqpConFactory = new RabbitMQConnectionFactory(parameter);
             connectionFactories.put(amqpConFactory.getName(), amqpConFactory);
         }
     }
@@ -121,7 +123,7 @@ public class ConnectionFactoryManager {
      * Stop all connection factories.
      */
     public void stop() {
-        for (ConnectionFactory conFac : connectionFactories.values()) {
+        for (RabbitMQConnectionFactory conFac : connectionFactories.values()) {
             conFac.stop();
         }
     }

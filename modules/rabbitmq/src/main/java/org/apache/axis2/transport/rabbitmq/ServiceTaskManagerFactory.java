@@ -34,20 +34,20 @@ public class ServiceTaskManagerFactory {
     /**
      * Create a ServiceTaskManager for the service passed in and its corresponding ConnectionFactory
      *
-     * @param connectionFactory the ConnectionFactory instance to used with ServiceTaskManager
+     * @param rabbitMQConnectionFactory the ConnectionFactory instance to used with ServiceTaskManager
      * @param service the AxisService instance to send the ServiceTaskManager
      * @param workerPool to be used with ServiceTaskManager
      * @return ServiceTaskManager
      */
     public static ServiceTaskManager createTaskManagerForService(
-            ConnectionFactory connectionFactory,
+            RabbitMQConnectionFactory rabbitMQConnectionFactory,
             AxisService service, WorkerPool workerPool) {
 
         String serviceName = service.getName();
         Map<String, String> stringParameters = getServiceStringParameters(service.getParameters());
-        Map<String, String> cfParameters = connectionFactory.getParameters();
+        Map<String, String> cfParameters = rabbitMQConnectionFactory.getParameters();
 
-        ServiceTaskManager taskManager = new ServiceTaskManager(connectionFactory);
+        ServiceTaskManager taskManager = new ServiceTaskManager(rabbitMQConnectionFactory);
 
         taskManager.setServiceName(serviceName);
         taskManager.addRabbitMQProperties(cfParameters);
