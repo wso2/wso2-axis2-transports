@@ -22,6 +22,7 @@ import com.rabbitmq.client.ConnectionFactory;
 import org.apache.axis2.description.Parameter;
 import org.apache.axis2.description.ParameterInclude;
 import org.apache.axis2.transport.rabbitmq.utils.AxisRabbitMQException;
+import org.apache.axis2.transport.rabbitmq.utils.RabbitMQConstants;
 
 import java.util.HashMap;
 import java.util.Hashtable;
@@ -52,7 +53,7 @@ public class RabbitMQConnectionFactoryManager {
      * @return the connection factory or null if no connection factory compatible
      *         with the given properties exists
      */
-    public RabbitMQConnectionFactory getAMQPConnectionFactory(Hashtable<String, String> props) {
+    public RabbitMQConnectionFactory getConnectionFactory(Hashtable<String, String> props) {
         RabbitMQConnectionFactory rabbitMQConnectionFactory = null;
         String hostName = props.get(RabbitMQConstants.SERVER_HOST_NAME);
         String portValue = props.get(RabbitMQConstants.SERVER_PORT);
@@ -103,7 +104,7 @@ public class RabbitMQConnectionFactoryManager {
      * @return the AMQP connection factory or null if no connection factory with
      *         the given name exists
      */
-    public RabbitMQConnectionFactory getAMQPConnectionFactory(String connectionFactoryName) {
+    public RabbitMQConnectionFactory getConnectionFactory(String connectionFactoryName) {
         return connectionFactories.get(connectionFactoryName);
     }
 
@@ -115,7 +116,6 @@ public class RabbitMQConnectionFactoryManager {
      */
     private void loadConnectionFactoryDefinitions(ParameterInclude trpDesc) {
         for (Parameter parameter : trpDesc.getParameters()) {
-            //TODO : do we need to create amqpConFactory all the time??
             RabbitMQConnectionFactory amqpConFactory = new RabbitMQConnectionFactory(parameter);
             connectionFactories.put(amqpConFactory.getName(), amqpConFactory);
         }

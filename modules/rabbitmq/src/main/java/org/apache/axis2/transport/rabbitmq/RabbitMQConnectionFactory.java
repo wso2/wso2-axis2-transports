@@ -25,6 +25,7 @@ import org.apache.axis2.AxisFault;
 import org.apache.axis2.description.Parameter;
 import org.apache.axis2.description.ParameterIncludeImpl;
 import org.apache.axis2.transport.rabbitmq.utils.AxisRabbitMQException;
+import org.apache.axis2.transport.rabbitmq.utils.RabbitMQConstants;
 import org.apache.axis2.transport.rabbitmq.utils.RabbitMQUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -49,10 +50,11 @@ public class RabbitMQConnectionFactory {
     private ConnectionFactory connectionFactory = null;
     private String name;
     private Hashtable<String, String> parameters = new Hashtable<String, String>();
-    private ExecutorService es = Executors.newFixedThreadPool(20);
+    //TODO : verify whether executor service is really required
+    private ExecutorService es = Executors.newFixedThreadPool(RabbitMQConstants.DEFAULT_THREAD_COUNT);
     private Connection connection = null;
-    private int retryInterval = 30000;
-    private int retryCount = 3;
+    private int retryInterval = RabbitMQConstants.DEFAULT_RETRY_INTERVAL;
+    private int retryCount = RabbitMQConstants.DEFAULT_RETRY_COUNT;
 
 
     public RabbitMQConnectionFactory(String name, ConnectionFactory connectionFactory) {
@@ -124,10 +126,7 @@ public class RabbitMQConnectionFactory {
      * @throws IOException
      */
     public Connection getConnectionPool() throws IOException {
-        if (connection == null) {
-            connection = connectionFactory.newConnection(es);
-        }
-        if(!connection.isOpen()){
+        if ((connection == null) || (!connection.isOpen())) {
             connection = connectionFactory.newConnection(es);
         }
         return connection;
@@ -205,7 +204,7 @@ public class RabbitMQConnectionFactory {
         }
         connectionFactory.setNetworkRecoveryInterval(retryInterval);
         connectionFactory.setAutomaticRecoveryEnabled(true);
-        connectionFactory.setTopologyRecoveryEnabled(false);
+        connectionFactory.setTopologyRecoveryEnabled(false); //Topology recovery should be done from broker end
 
         if (retryCountV != null && !("").equals(retryCountV)) {
             try {
@@ -257,5 +256,5 @@ public class RabbitMQConnectionFactory {
     public void stop(){
         es.shutdown();
     }
-
+    //TODO : verify whether this is closed. Seems to be closed from sender only. Seems to be the same done in JMS
 }

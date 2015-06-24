@@ -19,6 +19,7 @@
 package org.apache.axis2.transport.rabbitmq;
 
 import org.apache.axis2.context.MessageContext;
+import org.apache.axis2.transport.rabbitmq.utils.RabbitMQConstants;
 
 import java.util.Map;
 

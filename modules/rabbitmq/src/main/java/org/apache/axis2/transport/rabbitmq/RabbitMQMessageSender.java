@@ -27,6 +27,7 @@ import org.apache.axis2.context.MessageContext;
 import org.apache.axis2.transport.MessageFormatter;
 import org.apache.axis2.transport.base.BaseUtils;
 import org.apache.axis2.transport.rabbitmq.utils.AxisRabbitMQException;
+import org.apache.axis2.transport.rabbitmq.utils.RabbitMQConstants;
 import org.apache.axis2.transport.rabbitmq.utils.RabbitMQUtils;
 import org.apache.axis2.util.MessageProcessorSelector;
 import org.apache.commons.logging.Log;

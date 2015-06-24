@@ -27,6 +27,7 @@ import com.rabbitmq.client.ConsumerCancelledException;
 
 import org.apache.axis2.transport.base.threads.WorkerPool;
 import org.apache.axis2.transport.rabbitmq.utils.AxisRabbitMQException;
+import org.apache.axis2.transport.rabbitmq.utils.RabbitMQConstants;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 

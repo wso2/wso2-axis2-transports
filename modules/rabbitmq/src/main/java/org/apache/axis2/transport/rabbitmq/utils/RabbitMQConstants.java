@@ -16,7 +16,7 @@
  * under the License.
  */
 
-package org.apache.axis2.transport.rabbitmq;
+package org.apache.axis2.transport.rabbitmq.utils;
 
 /**
  * Holds constants for RabbitMQ Implementation
@@ -48,7 +48,7 @@ public class RabbitMQConstants {
     public static final String EXCHANGE_NAME = "rabbitmq.exchange.name";
     public static final String EXCHANGE_TYPE = "rabbitmq.exchange.type";
     public static final String EXCHANGE_DURABLE = "rabbitmq.exchange.durable";
-    public static final String EXCHANGE_AUTODELETE= "rabbitmq.exchange.auto.delete";
+    public static final String EXCHANGE_AUTODELETE = "rabbitmq.exchange.auto.delete";
 
     public static final String QUEUE_NAME = "rabbitmq.queue.name";
     public static final String QUEUE_DURABLE = "rabbitmq.queue.durable";
@@ -63,5 +63,8 @@ public class RabbitMQConstants {
     public static final String CONSUMER_TAG = "rabbitmq.consumer.tag";
 
     public static final String DEFAULT_CONTENT_TYPE = "text/plain";
+    public static final int DEFAULT_RETRY_INTERVAL = 30000;
+    public static final int DEFAULT_RETRY_COUNT = 3;
 
+    public static final int DEFAULT_THREAD_COUNT = 20;
 }

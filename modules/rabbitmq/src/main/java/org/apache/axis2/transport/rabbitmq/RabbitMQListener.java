@@ -23,6 +23,7 @@ import org.apache.axis2.AxisFault;
 import org.apache.axis2.description.AxisService;
 import org.apache.axis2.description.Parameter;
 import org.apache.axis2.transport.base.AbstractTransportListenerEx;
+import org.apache.axis2.transport.rabbitmq.utils.RabbitMQConstants;
 
 /**
  * The RabbitMQ AMQP Transport listener implementation. Creates {@link ServiceTaskManager} instances
@@ -88,7 +89,7 @@ public class RabbitMQListener extends AbstractTransportListenerEx<RabbitMQEndpoi
     public RabbitMQConnectionFactory getConnectionFactory(AxisService service) {
         Parameter conFacParam = service.getParameter(RabbitMQConstants.RABBITMQ_CON_FAC);
         if (conFacParam != null) {
-            return rabbitMQConnectionFactoryManager.getAMQPConnectionFactory((String) conFacParam.getValue());
+            return rabbitMQConnectionFactoryManager.getConnectionFactory((String) conFacParam.getValue());
         }
         return null;
     }

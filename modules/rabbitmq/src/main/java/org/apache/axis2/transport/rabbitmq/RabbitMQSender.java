@@ -107,7 +107,7 @@ public class RabbitMQSender extends AbstractTransportSender {
      */
     private RabbitMQConnectionFactory getAMQPConnectionFactory(RabbitMQOutTransportInfo transportInfo) {
         Hashtable<String, String> props = transportInfo.getProperties();
-        RabbitMQConnectionFactory factory = rabbitMQConnectionFactoryManager.getAMQPConnectionFactory(props);
+        RabbitMQConnectionFactory factory = rabbitMQConnectionFactoryManager.getConnectionFactory(props);
         return factory;
     }
 }

@@ -21,6 +21,7 @@ package org.apache.axis2.transport.rabbitmq;
 import org.apache.axis2.transport.OutTransportInfo;
 import org.apache.axis2.transport.base.BaseUtils;
 import org.apache.axis2.transport.rabbitmq.utils.AxisRabbitMQException;
+import org.apache.axis2.transport.rabbitmq.utils.RabbitMQConstants;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
