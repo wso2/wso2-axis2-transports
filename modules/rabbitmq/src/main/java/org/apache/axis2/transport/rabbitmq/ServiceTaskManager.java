@@ -316,13 +316,16 @@ public class ServiceTaskManager {
 
 			if (routeKey == null) {
 				log.info(
-						"[ rabbitmq.queue.routing.key ] property not found. Using queue name as the " +
+						"No routing key specified. Using queue name as the " +
 						"routing key.");
 				routeKey = queueName;
 			}
 
 			Boolean queueAvailable = false;
 			try {
+				if (!channel.isOpen()) {
+					channel = connection.createChannel();
+				}
 				//check availability of the named queue
 				//if an error is encountered, including if the queue does not exist and if the
 				// queue is exclusively owned by another connection
@@ -333,23 +336,24 @@ public class ServiceTaskManager {
 					log.debug("Queue :" + queueName + " not found or already declared exclusive. Trying to declare the queue.");
 				}
 			}
-			//Setting queue properties
-			String queueDurable = rabbitMQProperties.get(RabbitMQConstants.QUEUE_DURABLE);
-			String queueExclusive = rabbitMQProperties.get(RabbitMQConstants.QUEUE_EXCLUSIVE);
-			String queueAutoDelete = rabbitMQProperties.get(RabbitMQConstants.QUEUE_AUTO_DELETE);
-
-			boolean bool_queueDurable = true;
-			boolean bool_queueExclusive = false;
-			boolean bool_queueAutoDelete = false;
-
-			if (queueDurable != null && !queueDurable.equals(""))
-				bool_queueDurable = Boolean.parseBoolean(queueDurable);
-			if (queueExclusive != null && !queueExclusive.equals(""))
-				bool_queueExclusive = Boolean.parseBoolean(queueExclusive);
-			if (queueAutoDelete != null && !queueAutoDelete.equals(""))
-				bool_queueAutoDelete = Boolean.parseBoolean(queueAutoDelete);
 
 			if (!queueAvailable) {
+				//Setting queue properties
+				String queueDurable = rabbitMQProperties.get(RabbitMQConstants.QUEUE_DURABLE);
+				String queueExclusive = rabbitMQProperties.get(RabbitMQConstants.QUEUE_EXCLUSIVE);
+				String queueAutoDelete = rabbitMQProperties.get(RabbitMQConstants.QUEUE_AUTO_DELETE);
+
+				boolean bool_queueDurable = true;
+				boolean bool_queueExclusive = false;
+				boolean bool_queueAutoDelete = false;
+
+				if (queueDurable != null && !queueDurable.equals(""))
+					bool_queueDurable = Boolean.parseBoolean(queueDurable);
+				if (queueExclusive != null && !queueExclusive.equals(""))
+					bool_queueExclusive = Boolean.parseBoolean(queueExclusive);
+				if (queueAutoDelete != null && !queueAutoDelete.equals(""))
+					bool_queueAutoDelete = Boolean.parseBoolean(queueAutoDelete);
+
 				if (!channel.isOpen()) {
 					channel = connection.createChannel();
                     log.debug("Channel is not open. Creating a new channel for service " + serviceName);
@@ -369,6 +373,10 @@ public class ServiceTaskManager {
 			if (exchangeName != null && !exchangeName.equals("")) {
 				Boolean exchangeAvailable = false;
 				try {
+					if (!channel.isOpen()) {
+						channel = connection.createChannel();
+						log.debug("Channel is not open. Creating a new channel for service " + serviceName);
+					}
 					//check availability of the named exchange
 					//Throws:java.io.IOException - the server will raise a 404 channel exception
 					// if the named exchange does not exists.
@@ -378,14 +386,14 @@ public class ServiceTaskManager {
 					log.info("Exchange :" + exchangeName + " not found.Declaring exchange.");
 				}
 
-				String exchangeType = rabbitMQProperties.get(RabbitMQConstants.EXCHANGE_TYPE);
-
-				if (!channel.isOpen()) {
-					channel = connection.createChannel();
-                    log.debug("Channel is not open. Creating a new channel for service " + serviceName);
-                }
-
 				if (!exchangeAvailable) {
+					String exchangeType = rabbitMQProperties.get(RabbitMQConstants.EXCHANGE_TYPE);
+
+					if (!channel.isOpen()) {
+						channel = connection.createChannel();
+						log.debug("Channel is not open. Creating a new channel for service " + serviceName);
+					}
+
 					try {
 						if (exchangeType != null) {
                             String durable = rabbitMQProperties
@@ -410,10 +418,9 @@ public class ServiceTaskManager {
 					} catch (IOException e) {
 						handleException(
 								"Error occurred while declaring the exchange: " + exchangeName, e);
-
 					}
-
 				}
+
 				if (!channel.isOpen()) {
 					channel = connection.createChannel();
                     log.debug("Channel is not open. Creating a new channel for service " + serviceName);

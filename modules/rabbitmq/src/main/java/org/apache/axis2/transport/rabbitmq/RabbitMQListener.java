@@ -45,7 +45,6 @@ public class RabbitMQListener extends AbstractTransportListenerEx<RabbitMQEndpoi
 
     @Override
     protected RabbitMQEndpoint createEndpoint() {
-        //TODO : check wht happens here. Should SSL part come here?
         return new RabbitMQEndpoint(this, workerPool);
     }
 

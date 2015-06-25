@@ -55,7 +55,7 @@ public class RabbitMQOutTransportInfo implements OutTransportInfo {
     public RabbitMQOutTransportInfo(String targetEPR) {
         this.targetEPR = targetEPR;
         if (!targetEPR.startsWith(RabbitMQConstants.RABBITMQ_PREFIX)) {
-            handleException("Invalid prefix for a AMQP EPR : " + targetEPR);
+            handleException("Invalid prefix for a RabbitMQ AMQP EPR : " + targetEPR);
         } else {
             properties = BaseUtils.getEPRProperties(targetEPR);
             contentTypeProperty = properties.get(RabbitMQConstants.CONTENT_TYPE_PROPERTY_PARAM);

@@ -50,7 +50,6 @@ public class RabbitMQConnectionFactory {
     private ConnectionFactory connectionFactory = null;
     private String name;
     private Hashtable<String, String> parameters = new Hashtable<String, String>();
-    //TODO : verify whether executor service is really required
     private ExecutorService es = Executors.newFixedThreadPool(RabbitMQConstants.DEFAULT_THREAD_COUNT);
     private Connection connection = null;
     private int retryInterval = RabbitMQConstants.DEFAULT_RETRY_INTERVAL;
@@ -256,5 +255,4 @@ public class RabbitMQConnectionFactory {
     public void stop(){
         es.shutdown();
     }
-    //TODO : verify whether this is closed. Seems to be closed from sender only. Seems to be the same done in JMS
 }

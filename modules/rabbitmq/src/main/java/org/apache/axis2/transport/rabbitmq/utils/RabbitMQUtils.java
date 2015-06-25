@@ -75,7 +75,7 @@ public class RabbitMQUtils {
                 charSetEnc = new ContentType(contentType).getParameter("charset");
             }
         } catch (ParseException ex) {
-            // ignore
+            log.debug("Parse error", ex);
         }
         msgContext.setProperty(Constants.Configuration.CHARACTER_SET_ENCODING, charSetEnc);
 
@@ -109,7 +109,6 @@ public class RabbitMQUtils {
             }
         } catch (Exception ignore) {
         }
-
 
         // replyto destination name
         try {

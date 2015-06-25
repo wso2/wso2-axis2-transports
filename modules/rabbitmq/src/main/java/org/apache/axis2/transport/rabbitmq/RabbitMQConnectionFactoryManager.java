@@ -88,7 +88,7 @@ public class RabbitMQConnectionFactoryManager {
                 factory.setVirtualHost(virtualHost);
             }
             factory.setAutomaticRecoveryEnabled(true);
-            factory.setTopologyRecoveryEnabled(false);
+            factory.setTopologyRecoveryEnabled(false); //Topology recovery should be done from broker end
             rabbitMQConnectionFactory = new RabbitMQConnectionFactory(hostAndPort, factory);
             connectionFactories.put(rabbitMQConnectionFactory.getName(), rabbitMQConnectionFactory);
         }

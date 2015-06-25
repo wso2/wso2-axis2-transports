@@ -44,14 +44,14 @@ public class ServiceTaskManagerFactory {
             AxisService service, WorkerPool workerPool) {
 
         String serviceName = service.getName();
-        Map<String, String> stringParameters = getServiceStringParameters(service.getParameters());
+        Map<String, String> serviceParameters = getServiceStringParameters(service.getParameters());
         Map<String, String> cfParameters = rabbitMQConnectionFactory.getParameters();
 
         ServiceTaskManager taskManager = new ServiceTaskManager(rabbitMQConnectionFactory);
 
         taskManager.setServiceName(serviceName);
         taskManager.addRabbitMQProperties(cfParameters);
-        taskManager.addRabbitMQProperties(stringParameters);
+        taskManager.addRabbitMQProperties(serviceParameters);
 
         taskManager.setWorkerPool(workerPool);
 

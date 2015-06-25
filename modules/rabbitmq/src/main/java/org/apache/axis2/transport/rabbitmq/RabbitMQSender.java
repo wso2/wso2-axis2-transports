@@ -74,7 +74,7 @@ public class RabbitMQSender extends AbstractTransportSender {
 
         if (targetEPR != null) {
             transportOutInfo = new RabbitMQOutTransportInfo(targetEPR);
-            factory = getAMQPConnectionFactory(transportOutInfo);
+            factory = getConnectionFactory(transportOutInfo);
 
             if (factory != null) {
                 sender = new RabbitMQMessageSender(factory, targetEPR);
@@ -105,7 +105,7 @@ public class RabbitMQSender extends AbstractTransportSender {
      * @param transportInfo the transport-out information
      * @return the corresponding ConnectionFactory, if any
      */
-    private RabbitMQConnectionFactory getAMQPConnectionFactory(RabbitMQOutTransportInfo transportInfo) {
+    private RabbitMQConnectionFactory getConnectionFactory(RabbitMQOutTransportInfo transportInfo) {
         Hashtable<String, String> props = transportInfo.getProperties();
         RabbitMQConnectionFactory factory = rabbitMQConnectionFactoryManager.getConnectionFactory(props);
         return factory;

@@ -261,16 +261,18 @@ public class RabbitMQMessageSender {
 			}
 			try {
 				if (connection != null) {
-
 					try {
-						channel = connection.createChannel();
-						if (exchangeName != null && exchangeName != "")
+						if((channel == null)||!channel.isOpen()) {
+							channel = connection.createChannel();
+						}
+						if (exchangeName != null && exchangeName != "") {
 							channel.basicPublish(exchangeName, routeKey, basicProperties,
-							                     messageBody);
-						else
+									messageBody);
+						}
+						else {
 							channel.basicPublish("", routeKey, basicProperties,
-							                     messageBody);
-
+									messageBody);
+						}
 					} catch (IOException e) {
 						log.error("Error while publishing the message");
 					} finally {
