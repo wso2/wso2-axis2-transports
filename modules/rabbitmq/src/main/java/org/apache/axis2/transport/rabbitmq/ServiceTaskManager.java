@@ -27,6 +27,7 @@ import com.rabbitmq.client.ShutdownSignalException;
 import org.apache.axis2.transport.base.threads.WorkerPool;
 import org.apache.axis2.transport.rabbitmq.utils.AxisRabbitMQException;
 import org.apache.axis2.transport.rabbitmq.utils.RabbitMQConstants;
+import org.apache.axis2.transport.rabbitmq.utils.RabbitMQUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -178,7 +179,6 @@ public class ServiceTaskManager {
                                 " was disconnected", e);
                         waitForConnection();
                     }
-
                 }
             } finally {
                 closeConnection();
@@ -339,35 +339,15 @@ public class ServiceTaskManager {
             }
 
             if (!queueAvailable) {
-                //Setting queue properties
-                String queueDurable = rabbitMQProperties.get(RabbitMQConstants.QUEUE_DURABLE);
-                String queueExclusive = rabbitMQProperties.get(RabbitMQConstants.QUEUE_EXCLUSIVE);
-                String queueAutoDelete = rabbitMQProperties.get(RabbitMQConstants.QUEUE_AUTO_DELETE);
-
-                boolean bool_queueDurable = true;
-                boolean bool_queueExclusive = false;
-                boolean bool_queueAutoDelete = false;
-
-                if (queueDurable != null && !queueDurable.equals(""))
-                    bool_queueDurable = Boolean.parseBoolean(queueDurable);
-                if (queueExclusive != null && !queueExclusive.equals(""))
-                    bool_queueExclusive = Boolean.parseBoolean(queueExclusive);
-                if (queueAutoDelete != null && !queueAutoDelete.equals(""))
-                    bool_queueAutoDelete = Boolean.parseBoolean(queueAutoDelete);
-
                 if (!channel.isOpen()) {
                     channel = connection.createChannel();
                     log.debug("Channel is not open. Creating a new channel for service " + serviceName);
                 }
                 try {
-                    channel.queueDeclare(queueName, bool_queueDurable, bool_queueExclusive,
-                            bool_queueAutoDelete, null);
-                    log.info("Declaring a queue with [ Name:" + queueName + " Durable:" +
-                            bool_queueDurable + " Exclusive:" + bool_queueExclusive + " AutoDelete:" +
-                            bool_queueAutoDelete + " ]");
+                    channel.queueDeclare(queueName, RabbitMQUtils.isDurableQueue(rabbitMQProperties),
+                            RabbitMQUtils.isExclusiveQueue(rabbitMQProperties), RabbitMQUtils.isAutoDeleteQueue(rabbitMQProperties), null);
                 } catch (IOException e) {
-                    log.error("Can not consume from queue : " + queueName + ". Already declared as exclusive. Stopping consumer.");
-                    return null;
+                    handleException("Error declaring queue " + queueName, e);
                 }
             }
 
@@ -491,7 +471,6 @@ public class ServiceTaskManager {
                     if (headers.get(RabbitMQConstants.SOAP_ACTION) != null) {
                         message.setSoapAction(headers.get(
                                 RabbitMQConstants.SOAP_ACTION).toString());
-
                     }
                 }
             } else {

@@ -36,13 +36,9 @@ import java.util.Hashtable;
 public class RabbitMQOutTransportInfo implements OutTransportInfo {
 
     private static final Log log = LogFactory.getLog(RabbitMQOutTransportInfo.class);
-
     private String targetEPR = null;
-
     private Hashtable<String, String> properties = null;
-
     private String contentTypeProperty;
-
     private RabbitMQConnectionFactory rabbitMQConnectionFactory;
     private String replyTo;
 
