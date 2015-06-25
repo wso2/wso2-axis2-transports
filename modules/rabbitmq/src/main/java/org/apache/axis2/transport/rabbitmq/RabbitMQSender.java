@@ -96,7 +96,6 @@ public class RabbitMQSender extends AbstractTransportSender {
         } catch (AxisRabbitMQException e) {
             handleException("Error occured while sending message out", e);
         }
-//TODO : if exception is thrown, it should invoke the fault sequece. Test that.
     }
 
     /**
