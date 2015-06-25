@@ -45,8 +45,9 @@ public class RabbitMQEndpoint extends ProtocolEndpoint {
 
     /**
      * Create a rabbit mq endpoint
+     *
      * @param rabbitMQListener listener listening for messages from this EP
-     * @param workerPool worker pool to create service task manager
+     * @param workerPool       worker pool to create service task manager
      */
     public RabbitMQEndpoint(RabbitMQListener rabbitMQListener, WorkerPool workerPool) {
         this.rabbitMQListener = rabbitMQListener;
@@ -60,6 +61,7 @@ public class RabbitMQEndpoint extends ProtocolEndpoint {
 
     /**
      * Get connection factory of the EP
+     *
      * @return connection factory set to this EP
      */
     public RabbitMQConnectionFactory getRabbitMQConnectionFactory() {
@@ -68,6 +70,7 @@ public class RabbitMQEndpoint extends ProtocolEndpoint {
 
     /**
      * Get service task manager for this EP
+     *
      * @return service task manager set for this EP
      */
     public ServiceTaskManager getServiceTaskManager() {
@@ -76,7 +79,8 @@ public class RabbitMQEndpoint extends ProtocolEndpoint {
 
     /**
      * Set service task manager for the EP
-     * @param serviceTaskManager  service task manager to be set
+     *
+     * @param serviceTaskManager service task manager to be set
      */
     public void setServiceTaskManager(ServiceTaskManager serviceTaskManager) {
         this.serviceTaskManager = serviceTaskManager;

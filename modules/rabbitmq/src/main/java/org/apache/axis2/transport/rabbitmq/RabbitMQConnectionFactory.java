@@ -38,10 +38,9 @@ import java.util.concurrent.Executors;
 
 /**
  * Encapsulate a RabbitMQ AMQP Connection factory definition within an Axis2.xml
- *
+ * <p/>
  * Connection Factory definitions, allows service level parameters to be defined,
  * and re-used by each service that binds to it
- *
  */
 public class RabbitMQConnectionFactory {
 
@@ -86,9 +85,10 @@ public class RabbitMQConnectionFactory {
 
     /**
      * Create a rabbit mq connection
-     * @return  a connection to the server
+     *
+     * @return a connection to the server
      */
-    public Connection createConnection() throws IOException{
+    public Connection createConnection() throws IOException {
         Connection connection = null;
         try {
             connection = RabbitMQUtils.createConnection(connectionFactory);
@@ -121,7 +121,8 @@ public class RabbitMQConnectionFactory {
 
     /**
      * Create a connection from pool
-     * @return  a connection to the server
+     *
+     * @return a connection to the server
      * @throws IOException
      */
     public Connection getConnectionPool() throws IOException {
@@ -133,6 +134,7 @@ public class RabbitMQConnectionFactory {
 
     /**
      * get connection factory name
+     *
      * @return connection factory name
      */
     public String getName() {
@@ -141,6 +143,7 @@ public class RabbitMQConnectionFactory {
 
     /**
      * Set connection factory name
+     *
      * @param name name to set for the connection Factory
      */
     public void setName(String name) {
@@ -149,8 +152,9 @@ public class RabbitMQConnectionFactory {
 
     /**
      * Catch an exception an throw a AxisRabbitMQException with message
+     *
      * @param msg message to set for the exception
-     * @param e throwable to set
+     * @param e   throwable to set
      */
     private void handleException(String msg, Exception e) {
         log.error(msg, e);
@@ -159,6 +163,7 @@ public class RabbitMQConnectionFactory {
 
     /**
      * Get all rabbit mq parameters
+     *
      * @return a map of parameters
      */
     public Map<String, String> getParameters() {
@@ -185,11 +190,11 @@ public class RabbitMQConnectionFactory {
                 log.error("Number format error in reading heartbeat value. Proceeding with default");
             }
         }
-        if (connectionTimeout != null && !("").equals(connectionTimeout)){
-            try{
+        if (connectionTimeout != null && !("").equals(connectionTimeout)) {
+            try {
                 int connectionTimeoutValue = Integer.parseInt(connectionTimeout);
                 connectionFactory.setConnectionTimeout(connectionTimeoutValue);
-            }catch (NumberFormatException e){
+            } catch (NumberFormatException e) {
                 log.error("Number format error in reading connection timeout value. Proceeding with default");
             }
         }
@@ -252,7 +257,7 @@ public class RabbitMQConnectionFactory {
      * Stop all the connections in this connection factory
      * Stop the executor service
      */
-    public void stop(){
+    public void stop() {
         es.shutdown();
     }
 }

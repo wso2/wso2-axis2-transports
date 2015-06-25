@@ -37,6 +37,7 @@ public class RabbitMQConnectionFactoryManager {
 
     /**
      * Construct a Connection factory manager for the RabbitMQ transport sender or receiver
+     *
      * @param description
      */
     public RabbitMQConnectionFactoryManager(ParameterInclude description) {
@@ -51,7 +52,7 @@ public class RabbitMQConnectionFactoryManager {
      *
      * @param props a Map of connection factory properties and name
      * @return the connection factory or null if no connection factory compatible
-     *         with the given properties exists
+     * with the given properties exists
      */
     public RabbitMQConnectionFactory getConnectionFactory(Hashtable<String, String> props) {
         RabbitMQConnectionFactory rabbitMQConnectionFactory = null;
@@ -102,7 +103,7 @@ public class RabbitMQConnectionFactoryManager {
      *
      * @param connectionFactoryName the name of the AMQP connection factory
      * @return the AMQP connection factory or null if no connection factory with
-     *         the given name exists
+     * the given name exists
      */
     public RabbitMQConnectionFactory getConnectionFactory(String connectionFactoryName) {
         return connectionFactories.get(connectionFactoryName);
@@ -120,6 +121,7 @@ public class RabbitMQConnectionFactoryManager {
             connectionFactories.put(amqpConFactory.getName(), amqpConFactory);
         }
     }
+
     /**
      * Stop all connection factories.
      */

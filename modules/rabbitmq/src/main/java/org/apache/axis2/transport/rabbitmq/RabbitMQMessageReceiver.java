@@ -39,9 +39,9 @@ public class RabbitMQMessageReceiver {
     /**
      * Create a new RabbitMQMessage receiver
      *
-     * @param listener            the AMQP transport Listener
-     * @param rabbitMQConnectionFactory   the AMQP connection factory we are associated with
-     * @param endpoint            the RabbitMQEndpoint definition to be used
+     * @param listener                  the AMQP transport Listener
+     * @param rabbitMQConnectionFactory the AMQP connection factory we are associated with
+     * @param endpoint                  the RabbitMQEndpoint definition to be used
      */
     public RabbitMQMessageReceiver(RabbitMQListener listener,
                                    RabbitMQConnectionFactory rabbitMQConnectionFactory, RabbitMQEndpoint endpoint) {
@@ -70,7 +70,7 @@ public class RabbitMQMessageReceiver {
      *
      * @param message the RabbitMQMessage
      * @return true if the caller should commit
-     * @throws AxisFault     on Axis2 errors
+     * @throws AxisFault on Axis2 errors
      */
     private boolean processThroughAxisEngine(RabbitMQMessage message) throws AxisFault {
 
@@ -103,7 +103,7 @@ public class RabbitMQMessageReceiver {
         String replyTo = message.getReplyTo();
         if (replyTo != null) {
             msgContext.setProperty(Constants.OUT_TRANSPORT_INFO,
-                                   new RabbitMQOutTransportInfo(rabbitMQConnectionFactory, replyTo, contentType));
+                    new RabbitMQOutTransportInfo(rabbitMQConnectionFactory, replyTo, contentType));
 
         }
 

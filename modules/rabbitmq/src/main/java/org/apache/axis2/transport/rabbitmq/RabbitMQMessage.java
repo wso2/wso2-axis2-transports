@@ -33,7 +33,7 @@ public class RabbitMQMessage {
     private String replyTo;
     private String messageId;
     private String soapAction;
-    private Map<String,Object> headers;
+    private Map<String, Object> headers;
     private byte body[];
     private long deliveryTag;
 
@@ -43,6 +43,7 @@ public class RabbitMQMessage {
 
     /**
      * Create a rabbitMQ message with properties
+     *
      * @param msgCtx message context from transport holding the message
      */
     public RabbitMQMessage(MessageContext msgCtx) {
@@ -57,7 +58,8 @@ public class RabbitMQMessage {
 
     /**
      * Get body of the message
-     * @return  bytes of the message body
+     *
+     * @return bytes of the message body
      */
     public byte[] getBody() {
         return body;
@@ -65,6 +67,7 @@ public class RabbitMQMessage {
 
     /**
      * Get content type of the message
+     *
      * @return content type
      */
     public String getContentType() {
@@ -73,6 +76,7 @@ public class RabbitMQMessage {
 
     /**
      * Set content type for the message
+     *
      * @param contentType content type to set for the message
      */
     public void setContentType(String contentType) {
@@ -81,6 +85,7 @@ public class RabbitMQMessage {
 
     /**
      * Get content encoding of the message
+     *
      * @return content encoding
      */
     public String getContentEncoding() {
@@ -89,6 +94,7 @@ public class RabbitMQMessage {
 
     /**
      * Set content encoding for the message
+     *
      * @param contentEncoding return content encoding
      */
     public void setContentEncoding(String contentEncoding) {
@@ -97,6 +103,7 @@ public class RabbitMQMessage {
 
     /**
      * Get correlation id of the message
+     *
      * @return correlation id
      */
     public String getCorrelationId() {
@@ -105,6 +112,7 @@ public class RabbitMQMessage {
 
     /**
      * Set correlation id of the message
+     *
      * @param correlationId correlation id to set
      */
     public void setCorrelationId(String correlationId) {
@@ -113,6 +121,7 @@ public class RabbitMQMessage {
 
     /**
      * get header 'Replyto' of RabbitMQ
+     *
      * @return return header value of 'replyTo'
      */
     public String getReplyTo() {
@@ -121,6 +130,7 @@ public class RabbitMQMessage {
 
     /**
      * set 'ReplyTo' RabbitMQ header
+     *
      * @param replyTo value of the header to set
      */
     public void setReplyTo(String replyTo) {
@@ -129,6 +139,7 @@ public class RabbitMQMessage {
 
     /**
      * Get identifier of the message
+     *
      * @return message id (unique)
      */
     public String getMessageId() {
@@ -137,7 +148,8 @@ public class RabbitMQMessage {
 
     /**
      * Set id for the message
-     * @param messageId  unique id for the message
+     *
+     * @param messageId unique id for the message
      */
     public void setMessageId(String messageId) {
         this.messageId = messageId;
@@ -145,6 +157,7 @@ public class RabbitMQMessage {
 
     /**
      * Get soap action message bares
+     *
      * @return Soap Action set to the message
      */
     public String getSoapAction() {
@@ -153,6 +166,7 @@ public class RabbitMQMessage {
 
     /**
      * Set soap action to the message
+     *
      * @param soapAction soap action to e set
      */
     public void setSoapAction(String soapAction) {
@@ -161,6 +175,7 @@ public class RabbitMQMessage {
 
     /**
      * get all headers of the message as a map
+     *
      * @return map of headers
      */
     public Map<String, Object> getHeaders() {
@@ -169,7 +184,8 @@ public class RabbitMQMessage {
 
     /**
      * set all headers for the message
-     * @param headers  a map of headers to be set
+     *
+     * @param headers a map of headers to be set
      */
     public void setHeaders(Map<String, Object> headers) {
         this.headers = headers;
@@ -177,6 +193,7 @@ public class RabbitMQMessage {
 
     /**
      * set body of the message
+     *
      * @param body bytes representing body
      */
     public void setBody(byte[] body) {
@@ -185,7 +202,8 @@ public class RabbitMQMessage {
 
     /**
      * set delivery tag of the message assigned by the transport
-     * @param deliveryTag  delivery tag to set
+     *
+     * @param deliveryTag delivery tag to set
      */
     public void setDeliveryTag(long deliveryTag) {
         this.deliveryTag = deliveryTag;
@@ -193,6 +211,7 @@ public class RabbitMQMessage {
 
     /**
      * get delivery tag of the message set by transport
+     *
      * @return delivery tag of the message
      */
     public long getDeliveryTag() {

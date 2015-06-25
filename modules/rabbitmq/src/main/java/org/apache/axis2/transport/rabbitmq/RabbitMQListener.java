@@ -34,7 +34,9 @@ import org.apache.axis2.transport.rabbitmq.utils.RabbitMQConstants;
  */
 public class RabbitMQListener extends AbstractTransportListenerEx<RabbitMQEndpoint> {
 
-    /** The ConnectionFactoryManager which centralizes the management of defined factories */
+    /**
+     * The ConnectionFactoryManager which centralizes the management of defined factories
+     */
     private RabbitMQConnectionFactoryManager rabbitMQConnectionFactoryManager;
 
     @Override

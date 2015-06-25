@@ -56,11 +56,12 @@ public class RabbitMQSender extends AbstractTransportSender {
     }
 
     @Override
-    public void stop(){
+    public void stop() {
         // clean up senders connection factory, connections
         rabbitMQConnectionFactoryManager.stop();
         super.stop();
     }
+
     /**
      * Performs the sending of the RabbitMQ AMQP message
      */

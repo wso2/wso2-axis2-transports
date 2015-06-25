@@ -35,8 +35,8 @@ public class ServiceTaskManagerFactory {
      * Create a ServiceTaskManager for the service passed in and its corresponding ConnectionFactory
      *
      * @param rabbitMQConnectionFactory the ConnectionFactory instance to used with ServiceTaskManager
-     * @param service the AxisService instance to send the ServiceTaskManager
-     * @param workerPool to be used with ServiceTaskManager
+     * @param service                   the AxisService instance to send the ServiceTaskManager
+     * @param workerPool                to be used with ServiceTaskManager
      * @return ServiceTaskManager
      */
     public static ServiceTaskManager createTaskManagerForService(

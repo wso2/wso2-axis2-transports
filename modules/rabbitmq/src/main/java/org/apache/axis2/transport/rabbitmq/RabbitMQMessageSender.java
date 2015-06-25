@@ -45,291 +45,290 @@ import java.util.UUID;
  */
 
 public class RabbitMQMessageSender {
-	private static final Log log = LogFactory.getLog(RabbitMQMessageSender.class);
+    private static final Log log = LogFactory.getLog(RabbitMQMessageSender.class);
 
-	private Connection connection = null;
-	private String targetEPR = null;
-	private Hashtable<String, String> properties;
+    private Connection connection = null;
+    private String targetEPR = null;
+    private Hashtable<String, String> properties;
 
-	/**
-	 * Create a RabbitMQSender using a ConnectionFactory and target EPR
-	 *
-	 * @param factory   the ConnectionFactory
-	 * @param targetEPR the targetAddress
-	 */
-	public RabbitMQMessageSender(RabbitMQConnectionFactory factory, String targetEPR) {
-		try {
-			this.connection = factory.getConnectionPool();
-		} catch (IOException e) {
-			handleException("Error while creating connection pool", e);
-		}
-		this.targetEPR = targetEPR;
-		if (!targetEPR.startsWith(RabbitMQConstants.RABBITMQ_PREFIX)) {
-			handleException("Invalid prefix for a AMQP EPR : " + targetEPR);
-		} else {
-			this.properties = BaseUtils.getEPRProperties(targetEPR);
-		}
-	}
+    /**
+     * Create a RabbitMQSender using a ConnectionFactory and target EPR
+     *
+     * @param factory   the ConnectionFactory
+     * @param targetEPR the targetAddress
+     */
+    public RabbitMQMessageSender(RabbitMQConnectionFactory factory, String targetEPR) {
+        try {
+            this.connection = factory.getConnectionPool();
+        } catch (IOException e) {
+            handleException("Error while creating connection pool", e);
+        }
+        this.targetEPR = targetEPR;
+        if (!targetEPR.startsWith(RabbitMQConstants.RABBITMQ_PREFIX)) {
+            handleException("Invalid prefix for a AMQP EPR : " + targetEPR);
+        } else {
+            this.properties = BaseUtils.getEPRProperties(targetEPR);
+        }
+    }
 
-	/**
-	 * Perform the creation of exchange/queue and the Outputstream
-	 *
-	 * @param message    the RabbitMQ AMQP message
-	 * @param msgContext the Axis2 MessageContext
-	 */
-	public void send(RabbitMQMessage message, MessageContext msgContext) throws
-			AxisRabbitMQException {
+    /**
+     * Perform the creation of exchange/queue and the Outputstream
+     *
+     * @param message    the RabbitMQ AMQP message
+     * @param msgContext the Axis2 MessageContext
+     */
+    public void send(RabbitMQMessage message, MessageContext msgContext) throws
+            AxisRabbitMQException {
 
-		String exchangeName = null;
-		AMQP.BasicProperties basicProperties = null;
-		byte[] messageBody = null;
-		if (connection != null) {
-			Channel channel = null;
-			String queueName = properties.get(RabbitMQConstants.QUEUE_NAME);
-			String routeKey = properties
-					.get(RabbitMQConstants.QUEUE_ROUTING_KEY);
-			exchangeName = properties.get(RabbitMQConstants.EXCHANGE_NAME);
-			String exchangeType = properties
-					.get(RabbitMQConstants.EXCHANGE_TYPE);
-			String durable = properties.get(RabbitMQConstants.EXCHANGE_DURABLE);
-			String replyTo = properties.get(RabbitMQConstants.RABBITMQ_REPLY_TO);
+        String exchangeName = null;
+        AMQP.BasicProperties basicProperties = null;
+        byte[] messageBody = null;
+        if (connection != null) {
+            Channel channel = null;
+            String queueName = properties.get(RabbitMQConstants.QUEUE_NAME);
+            String routeKey = properties
+                    .get(RabbitMQConstants.QUEUE_ROUTING_KEY);
+            exchangeName = properties.get(RabbitMQConstants.EXCHANGE_NAME);
+            String exchangeType = properties
+                    .get(RabbitMQConstants.EXCHANGE_TYPE);
+            String durable = properties.get(RabbitMQConstants.EXCHANGE_DURABLE);
+            String replyTo = properties.get(RabbitMQConstants.RABBITMQ_REPLY_TO);
 
-			//if the user defined any replyTo value it will be set
-			if (replyTo != null) {
-				message.setReplyTo(replyTo);
-			}
+            //if the user defined any replyTo value it will be set
+            if (replyTo != null) {
+                message.setReplyTo(replyTo);
+            }
 
-			try {
-				if (routeKey == null && !"x-consistent-hash".equals(exchangeType)) {
-					log.info(
-							"rabbitmq.queue.routing.key property not found. Using queue name as " +
-							"the routing key.");
-					routeKey = queueName;
-				}
+            try {
+                if (routeKey == null && !"x-consistent-hash".equals(exchangeType)) {
+                    log.info(
+                            "rabbitmq.queue.routing.key property not found. Using queue name as " +
+                                    "the routing key.");
+                    routeKey = queueName;
+                }
 
-				channel = connection.createChannel();
-				//Declaring the queue
-				if (queueName != null && !queueName.equals("")) {
+                channel = connection.createChannel();
+                //Declaring the queue
+                if (queueName != null && !queueName.equals("")) {
 
-					Boolean queueAvailable = false;
-					try {
-						// check availability of the named queue
-						// if an error is encountered, including if the
-						// queue does not exist and if the queue is
-						// exclusively owned by another connection
-						channel.queueDeclarePassive(queueName);
-						queueAvailable = true;
-					} catch (java.io.IOException e) {
-						log.info("Queue :" + queueName
-						         + " not found.Declaring queue.");
-					}
+                    Boolean queueAvailable = false;
+                    try {
+                        // check availability of the named queue
+                        // if an error is encountered, including if the
+                        // queue does not exist and if the queue is
+                        // exclusively owned by another connection
+                        channel.queueDeclarePassive(queueName);
+                        queueAvailable = true;
+                    } catch (java.io.IOException e) {
+                        log.info("Queue :" + queueName
+                                + " not found.Declaring queue.");
+                    }
 
-					if (!queueAvailable) {
-						// Declare the named queue if it does not exists.
-						if (!channel.isOpen()) {
-							channel = connection.createChannel();
-						}
-						try {
-							channel.queueDeclare(queueName, RabbitMQUtils
-									                     .isDurableQueue(properties),
-							                     RabbitMQUtils
-									                     .isExclusiveQueue(properties),
-							                     RabbitMQUtils
-									                     .isAutoDeleteQueue(properties),
-							                     null);
+                    if (!queueAvailable) {
+                        // Declare the named queue if it does not exists.
+                        if (!channel.isOpen()) {
+                            channel = connection.createChannel();
+                        }
+                        try {
+                            channel.queueDeclare(queueName, RabbitMQUtils
+                                            .isDurableQueue(properties),
+                                    RabbitMQUtils
+                                            .isExclusiveQueue(properties),
+                                    RabbitMQUtils
+                                            .isAutoDeleteQueue(properties),
+                                    null);
 
-						} catch (java.io.IOException e) {
-							handleException("Error while creating queue: "+queueName
-							                + e);
-							return;
-						}
-					}
-				}
+                        } catch (java.io.IOException e) {
+                            handleException("Error while creating queue: " + queueName
+                                    + e);
+                            return;
+                        }
+                    }
+                }
 
-				//Declaring the exchange
-				if (exchangeName != null && !exchangeName.equals("")) {
-					Boolean exchangeAvailable = false;
-					try {
-						// check availability of the named exchange
-						// Throws:java.io.IOException - the server will raise a
-						// 404 channel exception if the named exchange does not
-						// exists.
-						channel.exchangeDeclarePassive(exchangeName);
-						exchangeAvailable = true;
-					} catch (java.io.IOException e) {
-						log.info("Exchange :" + exchangeName + " not found.Declaring exchange.");
-					}
+                //Declaring the exchange
+                if (exchangeName != null && !exchangeName.equals("")) {
+                    Boolean exchangeAvailable = false;
+                    try {
+                        // check availability of the named exchange
+                        // Throws:java.io.IOException - the server will raise a
+                        // 404 channel exception if the named exchange does not
+                        // exists.
+                        channel.exchangeDeclarePassive(exchangeName);
+                        exchangeAvailable = true;
+                    } catch (java.io.IOException e) {
+                        log.info("Exchange :" + exchangeName + " not found.Declaring exchange.");
+                    }
 
-					if (!exchangeAvailable) {
-						// Declare the named exchange if it does not exists.
-						if (!channel.isOpen()) {
-							channel = connection.createChannel();
-						}
-						try {
-							if (exchangeType != null
-							    && !exchangeType.equals("")) {
-								if (durable != null && !durable.equals("")) {
-									channel.exchangeDeclare(exchangeName,
-									                        exchangeType,
-									                        Boolean.parseBoolean(durable));
-								} else {
-									channel.exchangeDeclare(exchangeName,
-									                        exchangeType, true);
-								}
-							} else {
-								channel.exchangeDeclare(exchangeName, "direct", true);
-							}
-						} catch (java.io.IOException e) {
-							handleException("Error occurred while declaring exchange.");
+                    if (!exchangeAvailable) {
+                        // Declare the named exchange if it does not exists.
+                        if (!channel.isOpen()) {
+                            channel = connection.createChannel();
+                        }
+                        try {
+                            if (exchangeType != null
+                                    && !exchangeType.equals("")) {
+                                if (durable != null && !durable.equals("")) {
+                                    channel.exchangeDeclare(exchangeName,
+                                            exchangeType,
+                                            Boolean.parseBoolean(durable));
+                                } else {
+                                    channel.exchangeDeclare(exchangeName,
+                                            exchangeType, true);
+                                }
+                            } else {
+                                channel.exchangeDeclare(exchangeName, "direct", true);
+                            }
+                        } catch (java.io.IOException e) {
+                            handleException("Error occurred while declaring exchange.");
 
-						}
+                        }
 
-					}
+                    }
 
-					if (queueName != null && !"x-consistent-hash".equals(exchangeType)) {
-						// Create bind between the queue &
-						// provided routeKey
-						try {
-							// no need to have configure permission to
-							// perform channel.queueBind
-							channel.queueBind(queueName, exchangeName, routeKey);
-						} catch (java.io.IOException e) {
-							handleException(
-									"Error occurred while creating the bind between the queue: "
-									+ queueName
-									+ " & exchange: "
-									+ exchangeName + e);
-						}
-					}
+                    if (queueName != null && !"x-consistent-hash".equals(exchangeType)) {
+                        // Create bind between the queue &
+                        // provided routeKey
+                        try {
+                            // no need to have configure permission to
+                            // perform channel.queueBind
+                            channel.queueBind(queueName, exchangeName, routeKey);
+                        } catch (java.io.IOException e) {
+                            handleException(
+                                    "Error occurred while creating the bind between the queue: "
+                                            + queueName
+                                            + " & exchange: "
+                                            + exchangeName + e);
+                        }
+                    }
 
-				}
+                }
 
-				AMQP.BasicProperties.Builder builder = buildBasicProperties(message);
+                AMQP.BasicProperties.Builder builder = buildBasicProperties(message);
 
-				// set delivery mode (default is Persistent): 1=NonPersistent , 2=Persistent
-				String deliveryModeString = properties
-						.get(RabbitMQConstants.QUEUE_DELIVERY_MODE);
-				int deliveryMode = 2;
-				if (deliveryModeString != null) {
-					deliveryMode = Integer.parseInt(deliveryModeString);
-				}
-				builder.deliveryMode(deliveryMode);
+                // set delivery mode (default is Persistent): 1=NonPersistent , 2=Persistent
+                String deliveryModeString = properties
+                        .get(RabbitMQConstants.QUEUE_DELIVERY_MODE);
+                int deliveryMode = 2;
+                if (deliveryModeString != null) {
+                    deliveryMode = Integer.parseInt(deliveryModeString);
+                }
+                builder.deliveryMode(deliveryMode);
 
-				basicProperties = builder.build();
-				OMOutputFormat format = BaseUtils.getOMOutputFormat(msgContext);
-				MessageFormatter messageFormatter = null;
-				ByteArrayOutputStream out = new ByteArrayOutputStream();
-				try {
-					messageFormatter = MessageProcessorSelector.getMessageFormatter(msgContext);
-				} catch (AxisFault axisFault) {
-					throw new AxisRabbitMQException(
-							"Unable to get the message formatter to use",
-							axisFault);
-				}
+                basicProperties = builder.build();
+                OMOutputFormat format = BaseUtils.getOMOutputFormat(msgContext);
+                MessageFormatter messageFormatter = null;
+                ByteArrayOutputStream out = new ByteArrayOutputStream();
+                try {
+                    messageFormatter = MessageProcessorSelector.getMessageFormatter(msgContext);
+                } catch (AxisFault axisFault) {
+                    throw new AxisRabbitMQException(
+                            "Unable to get the message formatter to use",
+                            axisFault);
+                }
 
-				//server plugging should be enabled before using x-consistent hashing
-				//for x-consistent-hashing only exchangeName, exchangeType and routingKey should be
-				// given. Queue/exchange creation, bindings should be done at the broker
-				try {
-					// generate random value as routeKey if the exchangeType is
-					// x-consistent-hash type
-					if (exchangeType != null
-					    && exchangeType.equals("x-consistent-hash")) {
-						routeKey = UUID.randomUUID().toString();
-					}
+                //server plugging should be enabled before using x-consistent hashing
+                //for x-consistent-hashing only exchangeName, exchangeType and routingKey should be
+                // given. Queue/exchange creation, bindings should be done at the broker
+                try {
+                    // generate random value as routeKey if the exchangeType is
+                    // x-consistent-hash type
+                    if (exchangeType != null
+                            && exchangeType.equals("x-consistent-hash")) {
+                        routeKey = UUID.randomUUID().toString();
+                    }
 
-				} catch (UnsupportedCharsetException ex) {
-					handleException(
-							"Unsupported encoding "
-							+ format.getCharSetEncoding(), ex);
-				}
-				try {
-					messageFormatter.writeTo(msgContext, format, out, false);
-					messageBody = out.toByteArray();
-				} catch (IOException e) {
-					handleException("IO Error while creating BytesMessage", e);
-				} finally {
-					if (out != null) {
-						out.close();
-						channel.abort();
-					}
-				}
+                } catch (UnsupportedCharsetException ex) {
+                    handleException(
+                            "Unsupported encoding "
+                                    + format.getCharSetEncoding(), ex);
+                }
+                try {
+                    messageFormatter.writeTo(msgContext, format, out, false);
+                    messageBody = out.toByteArray();
+                } catch (IOException e) {
+                    handleException("IO Error while creating BytesMessage", e);
+                } finally {
+                    if (out != null) {
+                        out.close();
+                        channel.abort();
+                    }
+                }
 
-			} catch (IOException e) {
-				handleException("Error while publishing message to the queue ",
-				                e);
-			}
-			try {
-				if (connection != null) {
-					try {
-						if((channel == null)||!channel.isOpen()) {
-							channel = connection.createChannel();
-						}
-						if (exchangeName != null && exchangeName != "") {
-							channel.basicPublish(exchangeName, routeKey, basicProperties,
-									messageBody);
-						}
-						else {
-							channel.basicPublish("", routeKey, basicProperties,
-									messageBody);
-						}
-					} catch (IOException e) {
-						log.error("Error while publishing the message");
-					} finally {
-						if (channel != null) {
-							channel.close();
-						}
-					}
+            } catch (IOException e) {
+                handleException("Error while publishing message to the queue ",
+                        e);
+            }
+            try {
+                if (connection != null) {
+                    try {
+                        if ((channel == null) || !channel.isOpen()) {
+                            channel = connection.createChannel();
+                        }
+                        if (exchangeName != null && exchangeName != "") {
+                            channel.basicPublish(exchangeName, routeKey, basicProperties,
+                                    messageBody);
+                        } else {
+                            channel.basicPublish("", routeKey, basicProperties,
+                                    messageBody);
+                        }
+                    } catch (IOException e) {
+                        log.error("Error while publishing the message");
+                    } finally {
+                        if (channel != null) {
+                            channel.close();
+                        }
+                    }
 
-				}
-			} catch (IOException e) {
-				handleException("Error while publishing message to the queue ", e);
-			}
-		}
-	}
+                }
+            } catch (IOException e) {
+                handleException("Error while publishing message to the queue ", e);
+            }
+        }
+    }
 
-	/**
-	 * Close the connection
-	 */
-	public void close() {
-		if (connection != null && connection.isOpen()) {
-			try {
-				connection.close();
-			} catch (IOException e) {
-				handleException("Error while closing the connection ..", e);
-			} finally {
-				connection = null;
-			}
-		}
-	}
+    /**
+     * Close the connection
+     */
+    public void close() {
+        if (connection != null && connection.isOpen()) {
+            try {
+                connection.close();
+            } catch (IOException e) {
+                handleException("Error while closing the connection ..", e);
+            } finally {
+                connection = null;
+            }
+        }
+    }
 
-	/**
-	 * Build and populate the AMQP.BasicProperties using the RabbitMQMessage
-	 *
-	 * @param message the RabbitMQMessage to be used to get the properties
-	 * @return AMQP.BasicProperties object
-	 */
-	private AMQP.BasicProperties.Builder buildBasicProperties(RabbitMQMessage message) {
-		AMQP.BasicProperties.Builder builder = new AMQP.BasicProperties().builder();
-		builder.messageId(message.getMessageId());
-		builder.contentType(message.getContentType());
-		builder.replyTo(message.getReplyTo());
-		builder.correlationId(message.getCorrelationId());
-		builder.contentEncoding(message.getContentEncoding());
-		Map<String, Object> headers = message.getHeaders();
-		headers.put(RabbitMQConstants.SOAP_ACTION, message.getSoapAction());
-		builder.headers(headers);
-		return builder;
-	}
+    /**
+     * Build and populate the AMQP.BasicProperties using the RabbitMQMessage
+     *
+     * @param message the RabbitMQMessage to be used to get the properties
+     * @return AMQP.BasicProperties object
+     */
+    private AMQP.BasicProperties.Builder buildBasicProperties(RabbitMQMessage message) {
+        AMQP.BasicProperties.Builder builder = new AMQP.BasicProperties().builder();
+        builder.messageId(message.getMessageId());
+        builder.contentType(message.getContentType());
+        builder.replyTo(message.getReplyTo());
+        builder.correlationId(message.getCorrelationId());
+        builder.contentEncoding(message.getContentEncoding());
+        Map<String, Object> headers = message.getHeaders();
+        headers.put(RabbitMQConstants.SOAP_ACTION, message.getSoapAction());
+        builder.headers(headers);
+        return builder;
+    }
 
-	private void handleException(String s) {
-		log.error(s);
-		throw new AxisRabbitMQException(s);
-	}
+    private void handleException(String s) {
+        log.error(s);
+        throw new AxisRabbitMQException(s);
+    }
 
-	private void handleException(String message, Exception e) {
-		log.error(message, e);
-		throw new AxisRabbitMQException(message, e);
-	}
+    private void handleException(String message, Exception e) {
+        log.error(message, e);
+        throw new AxisRabbitMQException(message, e);
+    }
 
 }

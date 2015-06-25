@@ -39,7 +39,7 @@ public class RabbitMQOutTransportInfo implements OutTransportInfo {
 
     private String targetEPR = null;
 
-    private Hashtable<String,String> properties = null;
+    private Hashtable<String, String> properties = null;
 
     private String contentTypeProperty;
 
@@ -65,9 +65,9 @@ public class RabbitMQOutTransportInfo implements OutTransportInfo {
     /**
      * Creates an instance using the given connection factory and destination
      *
-     * @param rabbitMQConnectionFactory   the connection factory
-     * @param replyTo             the destination
-     * @param contentTypeProperty the content type
+     * @param rabbitMQConnectionFactory the connection factory
+     * @param replyTo                   the destination
+     * @param contentTypeProperty       the content type
      */
     public RabbitMQOutTransportInfo(RabbitMQConnectionFactory rabbitMQConnectionFactory, String replyTo,
                                     String contentTypeProperty) {
