@@ -325,9 +325,10 @@ public class ServiceTaskManager {
             try {
                 if (!channel.isOpen()) {
                     channel = connection.createChannel();
+                    log.debug("Channel is not open. Creating a new channel for service " + serviceName);
                 }
-                //check availability of the named queue
-                //if an error is encountered, including if the queue does not exist and if the
+                // check availability of the named queue
+                // if an error is encountered, including if the queue does not exist and if the
                 // queue is exclusively owned by another connection
                 channel.queueDeclarePassive(queueName);
                 queueAvailable = true;
@@ -377,9 +378,9 @@ public class ServiceTaskManager {
                         channel = connection.createChannel();
                         log.debug("Channel is not open. Creating a new channel for service " + serviceName);
                     }
-                    //check availability of the named exchange
-                    //Throws:java.io.IOException - the server will raise a 404 channel exception
-                    // if the named exchange does not exists.
+                    // check availability of the named exchange.
+                    // The server will raise an IOException
+                    // if the named exchange already exists.
                     channel.exchangeDeclarePassive(exchangeName);
                     exchangeAvailable = true;
                 } catch (IOException e) {

@@ -26,6 +26,7 @@ import org.apache.axis2.transport.OutTransportInfo;
 import org.apache.axis2.transport.base.AbstractTransportSender;
 import org.apache.axis2.transport.rabbitmq.utils.AxisRabbitMQException;
 
+import java.io.IOException;
 import java.util.Hashtable;
 
 /**
@@ -94,9 +95,10 @@ public class RabbitMQSender extends AbstractTransportSender {
             RabbitMQMessage message = new RabbitMQMessage(msgContext);
             sender.send(message, msgContext);
         } catch (AxisRabbitMQException e) {
-            handleException("Error occured while sending message out", e);
+            handleException("Error occurred while sending message out", e);
+        } catch (IOException e) {
+            handleException("Error occurred while sending message out", e);
         }
-//TODO : if exception is thrown, it should invoke the fault sequece. Test that.
     }
 
     /**

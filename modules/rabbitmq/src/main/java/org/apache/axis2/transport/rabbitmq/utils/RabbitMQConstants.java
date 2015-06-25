@@ -67,4 +67,5 @@ public class RabbitMQConstants {
     public static final int DEFAULT_RETRY_COUNT = 3;
 
     public static final int DEFAULT_THREAD_COUNT = 20;
+    public static final int DEFAULT_DELIVERY_MODE = 2;
 }
