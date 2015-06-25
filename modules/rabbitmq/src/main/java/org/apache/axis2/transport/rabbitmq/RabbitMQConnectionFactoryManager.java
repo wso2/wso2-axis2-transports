@@ -18,10 +18,8 @@
 
 package org.apache.axis2.transport.rabbitmq;
 
-import com.rabbitmq.client.ConnectionFactory;
 import org.apache.axis2.description.Parameter;
 import org.apache.axis2.description.ParameterInclude;
-import org.apache.axis2.transport.rabbitmq.utils.AxisRabbitMQException;
 import org.apache.axis2.transport.rabbitmq.utils.RabbitMQConstants;
 
 import java.util.HashMap;
@@ -55,42 +53,13 @@ public class RabbitMQConnectionFactoryManager {
      * with the given properties exists
      */
     public RabbitMQConnectionFactory getConnectionFactory(Hashtable<String, String> props) {
-        RabbitMQConnectionFactory rabbitMQConnectionFactory = null;
         String hostName = props.get(RabbitMQConstants.SERVER_HOST_NAME);
         String portValue = props.get(RabbitMQConstants.SERVER_PORT);
         String hostAndPort = hostName + ":" + portValue;
-        rabbitMQConnectionFactory = connectionFactories.get(hostAndPort);
+        RabbitMQConnectionFactory rabbitMQConnectionFactory = connectionFactories.get(hostAndPort);
 
         if (rabbitMQConnectionFactory == null) {
-            ConnectionFactory factory = new ConnectionFactory();
-            if (hostName != null && !hostName.equals("")) {
-                factory.setHost(hostName);
-            } else {
-                throw new AxisRabbitMQException("Host name is not correctly defined");
-            }
-            int port = Integer.parseInt(portValue);
-            if (port > 0) {
-                factory.setPort(port);
-            }
-            String userName = props.get(RabbitMQConstants.SERVER_USER_NAME);
-
-            if (userName != null && !userName.equals("")) {
-                factory.setUsername(userName);
-            }
-
-            String password = props.get(RabbitMQConstants.SERVER_PASSWORD);
-
-            if (password != null && !password.equals("")) {
-                factory.setPassword(password);
-            }
-            String virtualHost = props.get(RabbitMQConstants.SERVER_VIRTUAL_HOST);
-
-            if (virtualHost != null && !virtualHost.equals("")) {
-                factory.setVirtualHost(virtualHost);
-            }
-            factory.setAutomaticRecoveryEnabled(true);
-            factory.setTopologyRecoveryEnabled(false); //Topology recovery should be done from broker end
-            rabbitMQConnectionFactory = new RabbitMQConnectionFactory(hostAndPort, factory);
+            rabbitMQConnectionFactory = new RabbitMQConnectionFactory(hostAndPort, props);
             connectionFactories.put(rabbitMQConnectionFactory.getName(), rabbitMQConnectionFactory);
         }
 

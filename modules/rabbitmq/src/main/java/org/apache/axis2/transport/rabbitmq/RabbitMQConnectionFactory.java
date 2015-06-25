@@ -84,6 +84,19 @@ public class RabbitMQConnectionFactory {
     }
 
     /**
+     * Create a connection factory based on given parameters
+     *
+     * @param name       Name of the connection factory
+     * @param parameters parameters containing the required to create the connection factory
+     */
+    public RabbitMQConnectionFactory(String name, Hashtable<String, String> parameters) {
+        this.name = name;
+        this.parameters = parameters;
+        initConnectionFactory();
+        log.info("RabbitMQ ConnectionFactory : " + name + " initialized");
+    }
+
+    /**
      * Create a rabbit mq connection
      *
      * @return a connection to the server
@@ -94,7 +107,7 @@ public class RabbitMQConnectionFactory {
             connection = RabbitMQUtils.createConnection(connectionFactory);
             log.info("Successfully connected to RabbitMQ Broker");
         } catch (IOException e) {
-            log.error("Error creating connection to RabbitMQ Broker. Reattempting to connect.");
+            log.error("Error creating connection to RabbitMQ Broker. Reattempting to connect.", e);
             int retryC = 0;
             while ((connection == null) && ((retryCount == -1) || (retryC < retryCount))) {
                 retryC++;
@@ -162,6 +175,16 @@ public class RabbitMQConnectionFactory {
     }
 
     /**
+     * Catch an exception an throw a AxisRabbitMQException with message
+     *
+     * @param msg message to set for the exception
+     */
+    private void handleException(String msg) {
+        log.error(msg);
+        throw new AxisRabbitMQException(msg);
+    }
+
+    /**
      * Get all rabbit mq parameters
      *
      * @return a map of parameters
@@ -187,7 +210,8 @@ public class RabbitMQConnectionFactory {
                 int heartbeatValue = Integer.parseInt(heartbeat);
                 connectionFactory.setRequestedHeartbeat(heartbeatValue);
             } catch (NumberFormatException e) {
-                log.error("Number format error in reading heartbeat value. Proceeding with default");
+                //proceeding with rabbitmq default value
+                log.warn("Number format error in reading heartbeat value. Proceeding with default");
             }
         }
         if (connectionTimeout != null && !("").equals(connectionTimeout)) {
@@ -195,7 +219,8 @@ public class RabbitMQConnectionFactory {
                 int connectionTimeoutValue = Integer.parseInt(connectionTimeout);
                 connectionFactory.setConnectionTimeout(connectionTimeoutValue);
             } catch (NumberFormatException e) {
-                log.error("Number format error in reading connection timeout value. Proceeding with default");
+                //proceeding with rabbitmq default value
+                log.warn("Number format error in reading connection timeout value. Proceeding with default");
             }
         }
 
@@ -203,9 +228,10 @@ public class RabbitMQConnectionFactory {
             try {
                 retryInterval = Integer.parseInt(retryIntervalV);
             } catch (NumberFormatException e) {
-                log.error("Number format error in reading retry interval value. Proceeding with default value (30000ms)");
+                log.warn("Number format error in reading retry interval value. Proceeding with default value (30000ms)", e);
             }
         }
+
         connectionFactory.setNetworkRecoveryInterval(retryInterval);
         connectionFactory.setAutomaticRecoveryEnabled(true);
         connectionFactory.setTopologyRecoveryEnabled(false); //Topology recovery should be done from broker end
@@ -214,32 +240,36 @@ public class RabbitMQConnectionFactory {
             try {
                 retryCount = Integer.parseInt(retryCountV);
             } catch (NumberFormatException e) {
-                log.error("Number format error in reading retry count value. Proceeding with default value (3)");
+                log.warn("Number format error in reading retry count value. Proceeding with default value (3)", e);
             }
         }
 
         if (hostName != null && !hostName.equals("")) {
             connectionFactory.setHost(hostName);
         } else {
-            throw new AxisRabbitMQException("Host name is not correctly defined");
+            handleException("Host name is not defined");
         }
-        int port = Integer.parseInt(portValue);
-        if (port > 0) {
-            connectionFactory.setPort(port);
-        }
-        String userName = parameters.get(RabbitMQConstants.SERVER_USER_NAME);
 
+        try {
+            int port = Integer.parseInt(portValue);
+            if (port > 0) {
+                connectionFactory.setPort(port);
+            }
+        } catch (NumberFormatException e) {
+            handleException("Number format error in port number", e);
+        }
+
+        String userName = parameters.get(RabbitMQConstants.SERVER_USER_NAME);
         if (userName != null && !userName.equals("")) {
             connectionFactory.setUsername(userName);
         }
 
         String password = parameters.get(RabbitMQConstants.SERVER_PASSWORD);
-
         if (password != null && !password.equals("")) {
             connectionFactory.setPassword(password);
         }
-        String virtualHost = parameters.get(RabbitMQConstants.SERVER_VIRTUAL_HOST);
 
+        String virtualHost = parameters.get(RabbitMQConstants.SERVER_VIRTUAL_HOST);
         if (virtualHost != null && !virtualHost.equals("")) {
             connectionFactory.setVirtualHost(virtualHost);
         }
