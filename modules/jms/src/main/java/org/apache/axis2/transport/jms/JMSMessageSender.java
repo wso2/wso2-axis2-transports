@@ -46,7 +46,7 @@ public class JMSMessageSender {
     private Destination destination = null;
     /** The level of cachability for resources */
     private int cacheLevel = JMSConstants.CACHE_CONNECTION;
-    /** Should this sender use JMS 1.1 ? (if false, defaults to 1.0.2b) */
+    /** JMS spec version (1.0.2b or 1.1 or 2.0) default is 1.1 */
     private boolean jmsSpec11 = true;
     /** Are we sending to a Queue ? */
     private Boolean isQueue = null;
@@ -107,6 +107,7 @@ public class JMSMessageSender {
         Boolean persistent   = getBooleanProperty(msgCtx, JMSConstants.JMS_DELIVERY_MODE);
         Integer priority     = getIntegerProperty(msgCtx, JMSConstants.JMS_PRIORITY);
         Integer timeToLive   = getIntegerProperty(msgCtx, JMSConstants.JMS_TIME_TO_LIVE);
+        Integer messageDelay = getIntegerProperty(msgCtx, JMSConstants.JMS_MESSAGE_DELAY);
 
         // Do not commit, if message is marked for rollback
         if (rollbackOnly != null && rollbackOnly) {
@@ -132,6 +133,16 @@ public class JMSMessageSender {
                 producer.setTimeToLive(timeToLive);
             } catch (JMSException e) {
                 handleException("Error setting JMS Producer TTL to : " + timeToLive, e);
+            }
+        }
+        /** JMS 2.0 feature : Message Delay time interval
+         *  This delay will be applied when the message is sent from Broker to consumers
+         * */
+        if (messageDelay != null) {
+            try {
+                producer.setDeliveryDelay(messageDelay);
+            } catch (JMSException e) {
+                handleException("Error setting JMS Producer Message Delivery Delay : " + messageDelay, e);
             }
         }
 
