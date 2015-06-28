@@ -27,10 +27,16 @@ import org.apache.axis2.description.ParameterIncludeImpl;
 import org.apache.axis2.transport.rabbitmq.utils.AxisRabbitMQException;
 import org.apache.axis2.transport.rabbitmq.utils.RabbitMQConstants;
 import org.apache.axis2.transport.rabbitmq.utils.RabbitMQUtils;
+import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import javax.net.ssl.KeyManagerFactory;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManagerFactory;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.security.KeyStore;
 import java.util.Hashtable;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
@@ -53,7 +59,6 @@ public class RabbitMQConnectionFactory {
     private Connection connection = null;
     private int retryInterval = RabbitMQConstants.DEFAULT_RETRY_INTERVAL;
     private int retryCount = RabbitMQConstants.DEFAULT_RETRY_COUNT;
-
 
     public RabbitMQConnectionFactory(String name, ConnectionFactory connectionFactory) {
         this.name = name;
@@ -125,8 +130,6 @@ public class RabbitMQConnectionFactory {
             }
             if (connection == null) {
                 handleException("Could not connect to RabbitMQ Broker. Error while creating connection", e);
-            } else {
-                log.info("Successfully reconnected to RabbitMQ Broker");
             }
         }
         return connection;
@@ -200,12 +203,17 @@ public class RabbitMQConnectionFactory {
         connectionFactory = new ConnectionFactory();
         String hostName = parameters.get(RabbitMQConstants.SERVER_HOST_NAME);
         String portValue = parameters.get(RabbitMQConstants.SERVER_PORT);
-        String retryIntervalV = parameters.get(RabbitMQConstants.RETRY_INTERVAL);
-        String retryCountV = parameters.get(RabbitMQConstants.RETRY_COUNT);
+        String serverRetryIntervalS = parameters.get(RabbitMQConstants.SERVER_RETRY_INTERVAL);
+        String retryIntervalS = parameters.get(RabbitMQConstants.RETRY_INTERVAL);
+        String retryCountS = parameters.get(RabbitMQConstants.RETRY_COUNT);
         String heartbeat = parameters.get(RabbitMQConstants.HEARTBEAT);
         String connectionTimeout = parameters.get(RabbitMQConstants.CONNECTION_TIMEOUT);
+        String sslEnabledS = parameters.get(RabbitMQConstants.SSL_ENABLED);
+        String userName = parameters.get(RabbitMQConstants.SERVER_USER_NAME);
+        String password = parameters.get(RabbitMQConstants.SERVER_PASSWORD);
+        String virtualHost = parameters.get(RabbitMQConstants.SERVER_VIRTUAL_HOST);
 
-        if (heartbeat != null && !("").equals(heartbeat)) {
+        if (!StringUtils.isEmpty(heartbeat)) {
             try {
                 int heartbeatValue = Integer.parseInt(heartbeat);
                 connectionFactory.setRequestedHeartbeat(heartbeatValue);
@@ -214,7 +222,7 @@ public class RabbitMQConnectionFactory {
                 log.warn("Number format error in reading heartbeat value. Proceeding with default");
             }
         }
-        if (connectionTimeout != null && !("").equals(connectionTimeout)) {
+        if (!StringUtils.isEmpty(connectionTimeout)) {
             try {
                 int connectionTimeoutValue = Integer.parseInt(connectionTimeout);
                 connectionFactory.setConnectionTimeout(connectionTimeoutValue);
@@ -224,27 +232,57 @@ public class RabbitMQConnectionFactory {
             }
         }
 
-        if (retryIntervalV != null && !("").equals(retryIntervalV)) {
+        if (!StringUtils.isEmpty(sslEnabledS)) {
             try {
-                retryInterval = Integer.parseInt(retryIntervalV);
-            } catch (NumberFormatException e) {
-                log.warn("Number format error in reading retry interval value. Proceeding with default value (30000ms)", e);
+                boolean sslEnabled = Boolean.parseBoolean(sslEnabledS);
+                if (sslEnabled) {
+                    String keyStoreLocation = parameters.get(RabbitMQConstants.SSL_KEYSTORE_LOCATION);
+                    String keyStoreType = parameters.get(RabbitMQConstants.SSL_KEYSTORE_TYPE);
+                    String keyStorePassword = parameters.get(RabbitMQConstants.SSL_KEYSTORE_PASSWORD);
+                    String trustStoreLocation = parameters.get(RabbitMQConstants.SSL_TRUSTSTORE_LOCATION);
+                    String trustStoreType = parameters.get(RabbitMQConstants.SSL_TRUSTSTORE_TYPE);
+                    String trustStorePassword = parameters.get(RabbitMQConstants.SSL_TRUSTSTORE_PASSWORD);
+                    String sslVersion = parameters.get(RabbitMQConstants.SSL_VERSION);
+
+                    if (StringUtils.isEmpty(keyStoreLocation) || StringUtils.isEmpty(keyStoreType) || StringUtils.isEmpty(keyStorePassword) ||
+                            StringUtils.isEmpty(trustStoreLocation) || StringUtils.isEmpty(trustStoreType) || StringUtils.isEmpty(trustStorePassword)) {
+                        log.warn("Trustore and keystore information is not provided correctly. Proceeding with default SSL configuration");
+                        connectionFactory.useSslProtocol();
+                    } else {
+                        char[] keyPassphrase = keyStorePassword.toCharArray();
+                        KeyStore ks = KeyStore.getInstance(keyStoreType);
+                        ks.load(new FileInputStream(keyStoreLocation), keyPassphrase);
+
+                        KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+                        kmf.init(ks, keyPassphrase);
+
+                        char[] trustPassphrase = trustStorePassword.toCharArray();
+                        KeyStore tks = KeyStore.getInstance(trustStoreType);
+                        tks.load(new FileInputStream(trustStoreLocation), trustPassphrase);
+
+                        TrustManagerFactory tmf = TrustManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+                        tmf.init(tks);
+
+                        SSLContext c = SSLContext.getInstance(sslVersion);
+                        c.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
+
+                        connectionFactory.useSslProtocol(c);
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("Format error in SSL enabled value. Proceeding without enabling SSL", e);
             }
         }
 
-        connectionFactory.setNetworkRecoveryInterval(retryInterval);
-        connectionFactory.setAutomaticRecoveryEnabled(true);
-        connectionFactory.setTopologyRecoveryEnabled(false); //Topology recovery should be done from broker end
-
-        if (retryCountV != null && !("").equals(retryCountV)) {
+        if (!StringUtils.isEmpty(retryCountS)) {
             try {
-                retryCount = Integer.parseInt(retryCountV);
+                retryCount = Integer.parseInt(retryCountS);
             } catch (NumberFormatException e) {
                 log.warn("Number format error in reading retry count value. Proceeding with default value (3)", e);
             }
         }
 
-        if (hostName != null && !hostName.equals("")) {
+        if (!StringUtils.isEmpty(hostName)) {
             connectionFactory.setHost(hostName);
         } else {
             handleException("Host name is not defined");
@@ -259,20 +297,37 @@ public class RabbitMQConnectionFactory {
             handleException("Number format error in port number", e);
         }
 
-        String userName = parameters.get(RabbitMQConstants.SERVER_USER_NAME);
-        if (userName != null && !userName.equals("")) {
+        if (!StringUtils.isEmpty(userName)) {
             connectionFactory.setUsername(userName);
         }
 
-        String password = parameters.get(RabbitMQConstants.SERVER_PASSWORD);
-        if (password != null && !password.equals("")) {
+        if (!StringUtils.isEmpty(password)) {
             connectionFactory.setPassword(password);
         }
 
-        String virtualHost = parameters.get(RabbitMQConstants.SERVER_VIRTUAL_HOST);
-        if (virtualHost != null && !virtualHost.equals("")) {
+        if (!StringUtils.isEmpty(virtualHost)) {
             connectionFactory.setVirtualHost(virtualHost);
         }
+
+        if (!StringUtils.isEmpty(retryIntervalS)) {
+            try {
+                retryInterval = Integer.parseInt(retryIntervalS);
+            } catch (NumberFormatException e) {
+                log.warn("Number format error in reading retry interval value. Proceeding with default value (30000ms)", e);
+            }
+        }
+
+        if (!StringUtils.isEmpty(serverRetryIntervalS)) {
+            try {
+                int serverRetryInterval = Integer.parseInt(serverRetryIntervalS);
+                connectionFactory.setNetworkRecoveryInterval(serverRetryInterval);
+            } catch (NumberFormatException e) {
+                log.warn("Number format error in reading server retry interval value. Proceeding with default value", e);
+            }
+        }
+
+        connectionFactory.setAutomaticRecoveryEnabled(true);
+        connectionFactory.setTopologyRecoveryEnabled(false); //TODO : Topology recovery should be done from broker end?
     }
 
     public int getRetryInterval() {

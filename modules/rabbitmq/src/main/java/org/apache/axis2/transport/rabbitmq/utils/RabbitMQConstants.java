@@ -35,6 +35,17 @@ public class RabbitMQConstants {
     public static final String HEARTBEAT = "rabbitmq.factory.heartbeat";
     public static final String CONNECTION_TIMEOUT = "rabbitmq.factory.connection.timeout";
 
+    //SSL related properties
+    public static final String SSL_ENABLED = "rabbitmq.connection.ssl.enabled";
+    public static final String SSL_KEYSTORE_LOCATION = "rabbitmq.connection.ssl.keystore.location";
+    public static final String SSL_KEYSTORE_TYPE = "rabbitmq.connection.ssl.keystore.type";
+    public static final String SSL_KEYSTORE_PASSWORD = "rabbitmq.connection.ssl.keystore.password";
+    public static final String SSL_TRUSTSTORE_LOCATION = "rabbitmq.connection.ssl.truststore.location";
+    public static final String SSL_TRUSTSTORE_TYPE = "rabbitmq.connection.ssl.truststore.type";
+    public static final String SSL_TRUSTSTORE_PASSWORD = "rabbitmq.connection.ssl.truststore.password";
+    public static final String SSL_VERSION = "rabbitmq.connection.ssl.version";
+
+    public static final String SERVER_RETRY_INTERVAL = "rabbitmq.server.retry.interval";
     public static final String RETRY_INTERVAL = "rabbitmq.connection.retry.interval";
     public static final String RETRY_COUNT = "rabbitmq.connection.retry.count";
 
