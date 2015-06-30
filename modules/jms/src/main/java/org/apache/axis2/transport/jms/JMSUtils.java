@@ -682,43 +682,54 @@ public class JMSUtils extends BaseUtils {
                 "Connection using credentials : (" + user + "/" + pass + ")");
         }
 
-        if (jmsSpec11 || isQueue == null) {
-            if (user != null && pass != null) {
-                connection = conFac.createConnection(user, pass);
-            } else {
-                connection = conFac.createConnection();
-            }
-            if(isDurable){
-                connection.setClientID(clientID);
-            }
+		try {
+			if (jmsSpec11 || isQueue == null) {
+				if (user != null && pass != null) {
+					connection = conFac.createConnection(user, pass);
+				} else {
+					connection = conFac.createConnection();
+				}
+				if (isDurable) {
+					connection.setClientID(clientID);
+				}
 
-        } else {
-            QueueConnectionFactory qConFac = null;
-            TopicConnectionFactory tConFac = null;
-            if (isQueue) {
-                qConFac = (QueueConnectionFactory) conFac;
-            } else {
-                tConFac = (TopicConnectionFactory) conFac;
-            }
+			} else {
+				QueueConnectionFactory qConFac = null;
+				TopicConnectionFactory tConFac = null;
+				if (isQueue) {
+					qConFac = (QueueConnectionFactory) conFac;
+				} else {
+					tConFac = (TopicConnectionFactory) conFac;
+				}
 
-            if (user != null && pass != null) {
-                if (qConFac != null) {
-                    connection = qConFac.createQueueConnection(user, pass);
-                } else if (tConFac != null) {
-                    connection = tConFac.createTopicConnection(user, pass);
-                }
-            } else {
-                if (qConFac != null) {
-                    connection = qConFac.createQueueConnection();
-                } else if (tConFac != null) {
-                    connection = tConFac.createTopicConnection();
-                }
-            }
-            if(isDurable){
-                connection.setClientID(clientID);
-            }
-        }
-        return connection;
+				if (user != null && pass != null) {
+					if (qConFac != null) {
+						connection = qConFac.createQueueConnection(user, pass);
+					} else if (tConFac != null) {
+						connection = tConFac.createTopicConnection(user, pass);
+					}
+				} else {
+					if (qConFac != null) {
+						connection = qConFac.createQueueConnection();
+					} else if (tConFac != null) {
+						connection = tConFac.createTopicConnection();
+					}
+				}
+				if (isDurable) {
+					connection.setClientID(clientID);
+				}
+			}
+		} catch (JMSException je) {
+			// Need to close the connection in the case if durable subscriptions
+			if (connection != null) {
+				try {
+					connection.close();
+				} catch (Exception e) {
+				}
+			}
+			throw je;
+		}
+		return connection;
     }
 
     /**
