@@ -1,5 +1,6 @@
 package org.apache.axis2.transport.mqtt;/*
-*  Copyright (c) 2005-2012, WSO2 Inc. (http://www.wso2.org) All Rights Reserved.
+/*
+*  Copyright (c) 2015, WSO2 Inc. (http://www.wso2.org) All Rights Reserved.
 *
 *  WSO2 Inc. licenses this file to you under the Apache License,
 *  Version 2.0 (the "License"); you may not use this file except
@@ -38,10 +39,11 @@ import java.util.Hashtable;
 public class MqttSender extends AbstractTransportSender {
 
     private MqttConnectionFactoryManager connectionFactoryManager;
-    private Hashtable<String,String> properties = new Hashtable<String, String>();
-    private String targetEPR;
+    private Hashtable<String, String> properties = new Hashtable<String, String>();
     private MqttConnectOptions mqttConnectOptions;
+    private String mqttBlockingSenderEnable;
 
+    MqttConnectionFactory mqttConnectionFactory;
 
     @Override
     public void init(ConfigurationContext cfgCtx, TransportOutDescription transportOutDescription) throws AxisFault {
@@ -51,90 +53,88 @@ public class MqttSender extends AbstractTransportSender {
     }
 
     @Override
-    public void sendMessage(MessageContext messageContext, String targetEPR, OutTransportInfo outTransportInfo) throws AxisFault {
+    public void sendMessage(MessageContext messageContext, String targetEPR, OutTransportInfo outTransportInfo) throws AxisFault{
         properties = BaseUtils.getEPRProperties(targetEPR);
-        String qos = properties.get(MqttConstants.MQTT_QOS);
         String username = properties.get(MqttConstants.MQTT_USERNAME);
         String password = properties.get(MqttConstants.MQTT_PASSWORD);
         String cleanSession = properties.get(MqttConstants.MQTT_SESSION_CLEAN);
+        String topicName = properties.get(MqttConstants.MQTT_TOPIC_NAME);
 
         mqttConnectOptions = new MqttConnectOptions();
-        if(cleanSession != null) {
+        if (cleanSession != null) {
             mqttConnectOptions.setCleanSession(Boolean.parseBoolean(cleanSession));
         }
-        if(password != null ) {
+        if (password != null) {
             mqttConnectOptions.setPassword(password.toCharArray());
         }
-        if(username != null) {
+        if (username != null) {
             mqttConnectOptions.setUserName(username);
         }
-
-
-        MqttConnectionFactory mqttConnectionFactory = new MqttConnectionFactory(properties);
+        mqttConnectionFactory = new MqttConnectionFactory(properties);
+        mqttBlockingSenderEnable = properties.get(MqttConstants.MQTT_BLOCKING_SENDER);
+        properties = BaseUtils.getEPRProperties(targetEPR);
+        String qos = properties.get(MqttConstants.MQTT_QOS);
         MqttClient mqttClient;
         MqttAsyncClient mqttAsyncClient;
-        String mqttBlockingSenderEnable = properties.get(MqttConstants.MQTT_BLOCKING_SENDER);
-        if(mqttBlockingSenderEnable != null && mqttBlockingSenderEnable.equalsIgnoreCase("true")) {
+        if (mqttBlockingSenderEnable != null && mqttBlockingSenderEnable.equalsIgnoreCase("true")) {
             mqttClient = mqttConnectionFactory.getMqttClient();
             try {
                 mqttClient.setCallback(new MqttPublisherCallback());
                 mqttClient.connect(mqttConnectOptions);
 
-                if(mqttClient.isConnected()){
-                    MqttTopic mqttTopic = mqttClient.getTopic(mqttConnectionFactory.getTopic());
+                if (mqttClient.isConnected()) {
+                    if (topicName == null) {
+                        log.error("The request doesn't contain the required topic fields");
+                    }
+                    MqttTopic mqttTopic = mqttClient.getTopic(topicName);
                     MqttMessage mqttMessage = createMqttMessage(messageContext);
                     mqttMessage.setRetained(true);
-                    if(qos != null) {
+                    if (qos != null) {
                         int qosValue = Integer.parseInt(qos);
-                        if(qosValue < 0 || qosValue >2) {
-                            log.info("Invalid value for qos. It should be an integer between 0 and 2");
-                        } else {
-                            mqttMessage.setQos(qosValue);
-                        }
+                        try {
+                            if (qosValue >=0 && qosValue <=2) {
+                                mqttMessage.setQos(qosValue);
+                            } else {
+                                throw new AxisFault("Invalid value for qos");
+                            }
+                        } catch (AxisMqttException e){handleException("Invalid value for qos: ", e);}
                     }
-
                     mqttTopic.publish(mqttMessage);
                 }
-                mqttClient.disconnect();
             } catch (MqttException e) {
-                log.error("Exception occured at sending message", e);
+                throw new AxisFault("Exception occured at sending message");//TODO  AXIS FAULT THROUGH FALSE SEQ
+            }finally {
+                if (mqttClient!=null) {
+                    try {
+                        mqttClient.disconnect();
+                    } catch (MqttException e) {
+                        log.error("Error while disconnecting the mqtt client");
+                    }
+                }
             }
-
-
         } else {
 
             mqttAsyncClient = mqttConnectionFactory.getMqttAsyncClient();
-
             try {
                 MqttAsyncCallback mqttAsyncClientCallback = new MqttAsyncCallback(mqttAsyncClient);
                 mqttAsyncClientCallback.setConOpt(mqttConnectOptions);
                 MqttMessage mqttMessage = createMqttMessage(messageContext);
                 mqttMessage.setRetained(true);
-                if(qos != null) {
+                if (qos != null) {
                     int qosValue = Integer.parseInt(qos);
-                    if(qosValue < 0 || qosValue >2) {
+                    if (qosValue < 0 || qosValue > 2) {
                         log.info("Invalid value for qos. It should be an integer between 0 and 2");
                     } else {
                         mqttMessage.setQos(qosValue);
                     }
                 }
-                mqttAsyncClientCallback.publish(mqttConnectionFactory.getTopic(), mqttMessage);
-
-            } catch(MqttException me) {
-                // Display full details of any exception that occurs
-                System.out.println("reason "+me.getReasonCode());
-                System.out.println("msg "+me.getMessage());
-                System.out.println("loc "+me.getLocalizedMessage());
-                System.out.println("cause "+me.getCause());
-                System.out.println("excep "+me);
-                me.printStackTrace();
+                mqttAsyncClientCallback.publish(topicName, mqttMessage);
+            } catch (MqttException me) {
+                log.error("Exception occured at sending message", me);
             } catch (Throwable th) {
-                System.out.println("Throwable caught "+th);
-                th.printStackTrace();
+                log.error("Exception occured while sending message",th);
             }
-
         }
-
     }
 
     private MqttMessage createMqttMessage(MessageContext messageContext) {
@@ -147,14 +147,14 @@ public class MqttSender extends AbstractTransportSender {
         }
 
         String contentType = messageFormatter.getContentType(
-                messageContext, format, messageContext.getSoapAction());
+                messageContext, format, messageContext.getSoapAction()); ///
 
         OutputStream out;
         StringWriter sw = new StringWriter();
         try {
             out = new WriterOutputStream(sw, format.getCharSetEncoding());
         } catch (UnsupportedCharsetException ex) {
-            throw  new AxisMqttException("Unsupported encoding " + format.getCharSetEncoding(), ex);
+            throw new AxisMqttException("Unsupported encoding " + format.getCharSetEncoding(), ex);
         }
 
         try {

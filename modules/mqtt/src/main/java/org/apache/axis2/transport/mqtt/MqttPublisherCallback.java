@@ -1,5 +1,6 @@
 package org.apache.axis2.transport.mqtt;/*
-*  Copyright (c) 2005-2012, WSO2 Inc. (http://www.wso2.org) All Rights Reserved.
+/*
+*  Copyright (c) 2015, WSO2 Inc. (http://www.wso2.org) All Rights Reserved.
 *
 *  WSO2 Inc. licenses this file to you under the Apache License,
 *  Version 2.0 (the "License"); you may not use this file except
@@ -21,11 +22,12 @@ import org.apache.commons.logging.LogFactory;
 import org.eclipse.paho.client.mqttv3.*;
 
 public class MqttPublisherCallback implements MqttCallback {
+    private String token = null;
 
     private Log log = LogFactory.getLog(MqttPublisherCallback.class);
 
     public void connectionLost(Throwable throwable) {
-        //ignoring for the moment...
+        log.error("Connection Lost");
     }
 
     public void messageArrived(String s, MqttMessage mqttMessage) throws Exception {
@@ -33,8 +35,6 @@ public class MqttPublisherCallback implements MqttCallback {
     }
 
     public void deliveryComplete(IMqttDeliveryToken iMqttDeliveryToken) {
-        log.info("message delivered .. : " + iMqttDeliveryToken.toString() );
+        log.info("message delivered .. : " + iMqttDeliveryToken.toString());
     }
-
-
 }

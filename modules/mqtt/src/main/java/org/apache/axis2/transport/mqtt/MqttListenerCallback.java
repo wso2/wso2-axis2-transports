@@ -1,5 +1,6 @@
 package org.apache.axis2.transport.mqtt;/*
-*  Copyright (c) 2005-2012, WSO2 Inc. (http://www.wso2.org) All Rights Reserved.
+/*
+*  Copyright (c) 2015, WSO2 Inc. (http://www.wso2.org) All Rights Reserved.
 *
 *  WSO2 Inc. licenses this file to you under the Apache License,
 *  Version 2.0 (the "License"); you may not use this file except
@@ -21,47 +22,35 @@ import org.apache.axis2.context.MessageContext;
 import org.apache.axis2.engine.AxisEngine;
 import org.eclipse.paho.client.mqttv3.*;
 import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 
-public class MqttListenerCallback implements MqttCallback{
 
-    private  ConfigurationContext configurationContext;
+public class MqttListenerCallback implements MqttCallback {
+
+    private ConfigurationContext configurationContext;
     private MqttEndpoint mqttEndpoint;
-    private  String contentType;
+    private String contentType;
 
-    public MqttListenerCallback(MqttEndpoint mqttEndpoint,String contentType) {
-        //this.configurationContext = configurationContext;
+    public MqttListenerCallback(MqttEndpoint mqttEndpoint, String contentType) {
         this.mqttEndpoint = mqttEndpoint;
-        this.contentType=contentType;
-
+        this.contentType = contentType;
     }
 
     public void connectionLost(Throwable throwable) {
-        // lets ignore this for the moment, till we get proper exception handling in place..
+    /**
+    * implements from MqttCallback
+    */
     }
 
     public void messageArrived(String s, MqttMessage mqttMessage) throws Exception {
         //build the message and hand it over to axisEngine
         MessageContext messageContext = mqttEndpoint.createMessageContext();
-
-        MqttUtils.setSOAPEnvelope(mqttMessage,messageContext,contentType);
+        MqttUtils.invoke(mqttMessage, messageContext, contentType);
         AxisEngine.receive(messageContext);
     }
 
     public void deliveryComplete(IMqttDeliveryToken iMqttDeliveryToken) {
-        throw new IllegalStateException();
-    }
-
-    public void messageArrived(MqttTopic mqttTopic, MqttMessage mqttMessage) throws Exception {
-        //build the message and hand it over to axisEngine
-        MessageContext messageContext = mqttEndpoint.createMessageContext();
-        MqttUtils.setSOAPEnvelope(mqttMessage,messageContext,null);
-        AxisEngine.receive(messageContext);
-
-    }
-
-    public void deliveryComplete(MqttDeliveryToken mqttDeliveryToken) {
-       throw new IllegalStateException();
-    }
+        /**
+         * implements from MqttCallback
+         */}
 
 }

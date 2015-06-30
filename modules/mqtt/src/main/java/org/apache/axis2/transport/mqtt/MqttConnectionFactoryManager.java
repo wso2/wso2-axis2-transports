@@ -1,5 +1,6 @@
 package org.apache.axis2.transport.mqtt;/*
-*  Copyright (c) 2005-2012, WSO2 Inc. (http://www.wso2.org) All Rights Reserved.
+/*
+*  Copyright (c) 2015, WSO2 Inc. (http://www.wso2.org) All Rights Reserved.
 *
 *  WSO2 Inc. licenses this file to you under the Apache License,
 *  Version 2.0 (the "License"); you may not use this file except
@@ -26,9 +27,8 @@ import java.util.Map;
 
 public class MqttConnectionFactoryManager {
 
-      private Log log = LogFactory.getLog(MqttConnectionFactoryManager.class);
-      private Map<String,MqttConnectionFactory> connectionFactoryMap = new HashMap<String, MqttConnectionFactory>();
-
+    private Log log = LogFactory.getLog(MqttConnectionFactoryManager.class);
+    private Map<String, MqttConnectionFactory> connectionFactoryMap = new HashMap<String, MqttConnectionFactory>();
 
     public MqttConnectionFactoryManager(ParameterInclude trpDesc) {
         loadConnectionFactoryDefinitions(trpDesc);
@@ -36,12 +36,8 @@ public class MqttConnectionFactoryManager {
 
     private void loadConnectionFactoryDefinitions(ParameterInclude trpDesc) {
         for (Parameter parameter : trpDesc.getParameters()) {
-            try {
                 MqttConnectionFactory mqttConnectionFactory = new MqttConnectionFactory(parameter);
                 connectionFactoryMap.put(mqttConnectionFactory.getName(), mqttConnectionFactory);
-            } catch (AxisMqttException e) {
-                log.error("Error setting up connection factory : " + parameter.getName(), e);
-            }
         }
     }
 

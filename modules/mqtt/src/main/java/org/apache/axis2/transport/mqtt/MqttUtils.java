@@ -1,5 +1,6 @@
 package org.apache.axis2.transport.mqtt;/*
-*  Copyright (c) 2005-2012, WSO2 Inc. (http://www.wso2.org) All Rights Reserved.
+/*
+*  Copyright (c) 2015, WSO2 Inc. (http://www.wso2.org) All Rights Reserved.
 *
 *  WSO2 Inc. licenses this file to you under the Apache License,
 *  Version 2.0 (the "License"); you may not use this file except
@@ -28,26 +29,27 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.eclipse.paho.client.mqttv3.MqttException;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
+import org.apache.axis2.format.TextMessageBuilderAdapter;
+import org.apache.axis2.format.TextMessageBuilder;
 
+
+import javax.jms.TextMessage;
 import java.io.ByteArrayInputStream;
 
 public class MqttUtils {
 
-    private static  Log log = LogFactory.getLog(MqttUtils.class);
+    private static Log log = LogFactory.getLog(MqttUtils.class);
 
-    public static void setSOAPEnvelope(MqttMessage mqttMessage, MessageContext msgContext, String contentType)
+    public static void invoke(MqttMessage mqttMessage, MessageContext msgContext, String contentType)
             throws AxisFault, AxisMqttException {
+                if (contentType == null) {
+                    contentType = "text/plain";         // TODO: ckecked with JMS
+                }
 
-        if (contentType == null) {
-                contentType = "text/xml";         // TODO: hardcoding for the SOAP11 builder
-        }
-
-        int index = contentType.indexOf(';');
-        String type = index > 0 ? contentType.substring(0, index) : contentType;
-        Builder builder = BuilderUtil.getBuilderFromSelector(type, msgContext);
+                Builder builder = BuilderUtil.getBuilderFromSelector(contentType, msgContext);
         if (builder == null) {
             if (log.isDebugEnabled()) {
-                log.debug("No message builder found for type '" + type + "'. Falling back to SOAP.");
+                log.debug("No message builder found for type '" + contentType + "'. Falling back to SOAP.");
             }
             builder = new SOAPBuilder();
         }
@@ -55,8 +57,7 @@ public class MqttUtils {
         OMElement documentElement = null;
         byte[] bytes = mqttMessage.getPayload();
         ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(bytes);
-        documentElement = builder.processDocument(byteArrayInputStream,contentType,msgContext);
-
+        documentElement = builder.processDocument(byteArrayInputStream, contentType, msgContext);
         msgContext.setEnvelope(TransportUtils.createSOAPEnvelope(documentElement));
     }
 
