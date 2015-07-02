@@ -152,7 +152,14 @@ public class JMSListener extends AbstractTransportListenerEx<JMSEndpoint> implem
                     jmsProperties.get(JMSConstants.PARAM_JMS_USERNAME),
                     jmsProperties.get(JMSConstants.PARAM_JMS_PASSWORD),
                     stm.isJmsSpec11(), null, false, "");
-        } catch (JMSException ignore){}   // we silently ignore this as a JMSException can be expected when connection is not available
+        } catch (JMSException ignore){
+            Throwable innerException = ignore.getLinkedException();
+            if(innerException != null){
+                log.warn("Error connecting to JMS.", innerException);    
+            }else{
+                log.warn("Error connecting to JMS.", ignore);
+            }            
+        }
 
         return (connection != null);
     }
