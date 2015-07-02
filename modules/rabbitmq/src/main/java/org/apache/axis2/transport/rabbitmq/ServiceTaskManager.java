@@ -440,11 +440,14 @@ public class ServiceTaskManager {
             try {
                 log.debug("Waiting for next delivery from queue for service " + serviceName);
                 delivery = consumer.nextDelivery();
-            } catch (ShutdownSignalException sse) {
+            } catch (ShutdownSignalException e) {
+                log.error("Error receiving message from RabbitMQ broker for service " + serviceName, e);
                 return null;
             } catch (InterruptedException e) {
+                log.error("Error receiving message from RabbitMQ broker for service " + serviceName, e);
                 return null;
             } catch (ConsumerCancelledException e) {
+                log.error("Error receiving message from RabbitMQ broker for service " + serviceName, e);
                 return null;
             }
 

@@ -18,6 +18,7 @@
 
 package org.apache.axis2.transport.rabbitmq;
 
+import com.ctc.wstx.util.StringUtil;
 import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
@@ -30,6 +31,7 @@ import org.apache.axis2.transport.rabbitmq.utils.AxisRabbitMQException;
 import org.apache.axis2.transport.rabbitmq.utils.RabbitMQConstants;
 import org.apache.axis2.transport.rabbitmq.utils.RabbitMQUtils;
 import org.apache.axis2.util.MessageProcessorSelector;
+import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -83,21 +85,24 @@ public class RabbitMQMessageSender {
         String exchangeName = null;
         AMQP.BasicProperties basicProperties = null;
         byte[] messageBody = null;
+
         if (connection != null) {
-            Channel channel = null;
             String queueName = properties.get(RabbitMQConstants.QUEUE_NAME);
             String routeKey = properties
                     .get(RabbitMQConstants.QUEUE_ROUTING_KEY);
             exchangeName = properties.get(RabbitMQConstants.EXCHANGE_NAME);
             String exchangeType = properties
                     .get(RabbitMQConstants.EXCHANGE_TYPE);
-            String durable = properties.get(RabbitMQConstants.EXCHANGE_DURABLE);
-            String replyTo = properties.get(RabbitMQConstants.RABBITMQ_REPLY_TO);
+            String replyTo = properties.get(RabbitMQConstants.REPLY_TO_NAME);
+            String correlationID = properties.get(RabbitMQConstants.CORRELATION_ID);
 
-            //if the user defined any replyTo value it will be set
-            if (replyTo != null) {
-                message.setReplyTo(replyTo);
+            message.setReplyTo(replyTo);
+
+            if ((!StringUtils.isEmpty(replyTo)) && (StringUtils.isEmpty(correlationID))) {
+                //if reply-to is enabled a correlationID must be available. If not specified, use messageID
+                correlationID = message.getMessageId();
             }
+            message.setCorrelationId(correlationID);
 
             if (queueName == null || queueName.equals("")) {
                 log.info("No queue name is specified");
@@ -113,116 +118,36 @@ public class RabbitMQMessageSender {
                 }
             }
 
-            channel = connection.createChannel();
+            Channel channel = connection.createChannel();
             log.debug("Creating a new channel.");
 
             //Declaring the queue
             if (queueName != null && !queueName.equals("")) {
-
-                Boolean queueAvailable = false;
-                try {
-                    if (!channel.isOpen()) {
-                        channel = connection.createChannel();
-                        log.debug("Channel is not open. Creating a new channel.");
-                    }
-                    // check availability of the named queue
-                    // if an error is encountered, including if the queue does not exist and if the
-                    // queue is exclusively owned by another connection
-                    channel.queueDeclarePassive(queueName);
-                    queueAvailable = true;
-                } catch (IOException e) {
-                    if (log.isDebugEnabled()) {
-                        log.debug("Queue :" + queueName + " not found or already declared exclusive. Trying to declare the queue.");
-                    }
-                }
-
-                if (!queueAvailable) {
-                    // Declare the named queue if it does not exists.
-                    if (!channel.isOpen()) {
-                        channel = connection.createChannel();
-                        log.debug("Channel is not open. Creating a new channel.");
-                    }
-                    try {
-                        channel.queueDeclare(queueName, RabbitMQUtils
-                                        .isDurableQueue(properties),
-                                RabbitMQUtils
-                                        .isExclusiveQueue(properties),
-                                RabbitMQUtils
-                                        .isAutoDeleteQueue(properties),
-                                null);
-
-                    } catch (IOException e) {
-                        handleException("Error while creating queue: " + queueName, e);
-                        return;
-                    }
-                }
+                RabbitMQUtils.declareQueue(connection, queueName, properties);
             }
 
             //Declaring the exchange
             if (exchangeName != null && !exchangeName.equals("")) {
-                Boolean exchangeAvailable = false;
-                try {
-                    if (!channel.isOpen()) {
-                        channel = connection.createChannel();
-                        log.debug("Channel is not open. Creating a new channel.");
-                    }
-                    // check availability of the named exchange.
-                    // The server will raise an IOException
-                    // if the named exchange already exists.
-                    channel.exchangeDeclarePassive(exchangeName);
-                    exchangeAvailable = true;
-                } catch (IOException e) {
-                    log.info("Exchange :" + exchangeName + " not found.Declaring exchange.");
-                }
-
-                if (!exchangeAvailable) {
-                    // Declare the named exchange if it does not exists.
-                    if (!channel.isOpen()) {
-                        channel = connection.createChannel();
-                        log.debug("Channel is not open. Creating a new channel.");
-                    }
-                    try {
-                        if (exchangeType != null
-                                && !exchangeType.equals("")) {
-                            if (durable != null && !durable.equals("")) {
-                                channel.exchangeDeclare(exchangeName,
-                                        exchangeType,
-                                        Boolean.parseBoolean(durable));
-                            } else {
-                                channel.exchangeDeclare(exchangeName,
-                                        exchangeType, true);
-                            }
-                        } else {
-                            channel.exchangeDeclare(exchangeName, "direct", true);
-                        }
-                    } catch (IOException e) {
-                        handleException("Error occurred while declaring exchange.", e);
-                    }
-                }
+                RabbitMQUtils.declareExchange(connection, exchangeName, properties);
 
                 if (queueName != null && !"x-consistent-hash".equals(exchangeType)) {
-                    // Create bind between the queue &
-                    // provided routeKey
+                    // Create bind between the queue and exchange with the routeKey
                     try {
                         if (!channel.isOpen()) {
                             channel = connection.createChannel();
                             log.debug("Channel is not open. Creating a new channel.");
                         }
-                        // no need to have configure permission to
-                        // perform channel.queueBind
                         channel.queueBind(queueName, exchangeName, routeKey);
                     } catch (IOException e) {
                         handleException(
                                 "Error occurred while creating the bind between the queue: "
-                                        + queueName + " & exchange: " + exchangeName + " with routekey " + routeKey, e);
+                                        + queueName + " & exchange: " + exchangeName + " with route-key " + routeKey, e);
                     }
                 }
-
             }
 
             AMQP.BasicProperties.Builder builder = buildBasicProperties(message);
 
-            // set delivery mode (default is Persistent): 1=NonPersistent , 2=Persistent
             String deliveryModeString = properties
                     .get(RabbitMQConstants.QUEUE_DELIVERY_MODE);
             int deliveryMode = RabbitMQConstants.DEFAULT_DELIVERY_MODE;
@@ -230,6 +155,8 @@ public class RabbitMQMessageSender {
                 deliveryMode = Integer.parseInt(deliveryModeString);
             }
             builder.deliveryMode(deliveryMode);
+            builder.replyTo(replyTo);
+            builder.correlationId(message.getCorrelationId());
 
             basicProperties = builder.build();
             OMOutputFormat format = BaseUtils.getOMOutputFormat(msgContext);
@@ -267,37 +194,29 @@ public class RabbitMQMessageSender {
             } finally {
                 if (out != null) {
                     out.close();
-                    channel.abort();
                 }
             }
 
-            try {
-                if (connection != null) {
-                    try {
-                        if ((channel == null) || !channel.isOpen()) {
-                            channel = connection.createChannel();
-                            log.debug("Channel is not open or unavailable. Creating a new channel.");
-                        }
-                        if (exchangeName != null && exchangeName != "") {
-                            channel.basicPublish(exchangeName, routeKey, basicProperties,
-                                    messageBody);
-                        } else {
-                            channel.basicPublish("", routeKey, basicProperties,
-                                    messageBody);
-                        }
-                    } catch (IOException e) {
-                        handleException(
-                                "Error while publishing the message",
-                                e);
-                    } finally {
-                        if (channel != null) {
-                            channel.close();
-                        }
+            if (connection != null) {
+                try {
+                    if ((channel == null) || !channel.isOpen()) {
+                        channel = connection.createChannel();
+                        log.debug("Channel is not open or unavailable. Creating a new channel.");
                     }
-
+                    if (exchangeName != null && exchangeName != "") {
+                        channel.basicPublish(exchangeName, routeKey, basicProperties,
+                                messageBody);
+                    } else {
+                        channel.basicPublish("", routeKey, basicProperties,
+                                messageBody);
+                    }
+                } catch (IOException e) {
+                    handleException("Error while publishing the message", e);
                 }
-            } catch (IOException e) {
-                handleException("Error while publishing message to the queue ", e);
+            }
+
+            if (channel != null) {
+                channel.close();
             }
         }
     }
