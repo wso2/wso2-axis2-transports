@@ -266,6 +266,7 @@ public class ServiceTaskManager {
                     message = getConsumerDelivery(queueingConsumer);
                 } catch (InterruptedException e) {
                     log.error("Error while consuming message", e);
+                    continue;
                 }
 
                 if (message != null) {
