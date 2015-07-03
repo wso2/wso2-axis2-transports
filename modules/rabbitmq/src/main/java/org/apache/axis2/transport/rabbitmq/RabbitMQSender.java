@@ -155,11 +155,11 @@ public class RabbitMQSender extends AbstractTransportSender {
                 }
             }
         } catch (ShutdownSignalException e) {
-            log.error("Error receiving message from RabbitMQ broker", e);
+            log.error("Error receiving message from RabbitMQ broker " + e.getLocalizedMessage());
         } catch (InterruptedException e) {
-            log.error("Error receiving message from RabbitMQ broker", e);
+            log.error("Error receiving message from RabbitMQ broker " + e.getLocalizedMessage());
         } catch (ConsumerCancelledException e) {
-            log.error("Error receiving message from RabbitMQ broker", e);
+            log.error("Error receiving message from RabbitMQ broker" + e.getLocalizedMessage());
         } finally {
             if (channel != null || channel.isOpen()) {
                 //stop consuming
