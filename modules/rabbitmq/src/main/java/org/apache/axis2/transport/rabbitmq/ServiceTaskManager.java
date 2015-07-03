@@ -28,6 +28,7 @@ import org.apache.axis2.transport.base.threads.WorkerPool;
 import org.apache.axis2.transport.rabbitmq.utils.AxisRabbitMQException;
 import org.apache.axis2.transport.rabbitmq.utils.RabbitMQConstants;
 import org.apache.axis2.transport.rabbitmq.utils.RabbitMQUtils;
+import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -59,7 +60,7 @@ public class ServiceTaskManager {
 
     private WorkerPool workerPool = null;
     private String serviceName;
-    private Hashtable<String, String> rabbitMQProperties = new Hashtable<String, String>();
+    private Hashtable<String, String> rabbitMQProperties = new Hashtable<>();
     private final RabbitMQConnectionFactory rabbitMQConnectionFactory;
     private final List<MessageListenerTask> pollingTasks =
             Collections.synchronizedList(new ArrayList<MessageListenerTask>());
@@ -138,6 +139,9 @@ public class ServiceTaskManager {
         private volatile int workerState = STATE_STOPPED;
         private volatile boolean idle = false;
         private volatile boolean connected = false;
+        private String queueName, routeKey, exchangeName;
+        private QueueingConsumer queueingConsumer;
+        private String consumerTagString;
 
         /**
          * As soon as we send a new polling task, add it to the STM for control later
@@ -165,6 +169,7 @@ public class ServiceTaskManager {
             workerState = STATE_STARTED;
             activeTaskCount++;
             try {
+                initConsumer();
                 while (workerState == STATE_STARTED) {
                     try {
                         startConsumer();
@@ -180,6 +185,8 @@ public class ServiceTaskManager {
                         waitForConnection();
                     }
                 }
+            } catch (IOException e) {
+                handleException("Error initializing consumer for service " + serviceName, e);
             } finally {
                 closeConnection();
                 workerState = STATE_STOPPED;
@@ -234,7 +241,6 @@ public class ServiceTaskManager {
             if (qos != null && !"".equals(qos)) {
                 channel.basicQos(Integer.parseInt(qos));
             }
-            QueueingConsumer queueingConsumer = createQueueConsumer(channel);
 
             //unable to connect to the queue
             if (queueingConsumer == null) {
@@ -260,7 +266,6 @@ public class ServiceTaskManager {
                     message = getConsumerDelivery(queueingConsumer);
                 } catch (InterruptedException e) {
                     log.error("Error while consuming message", e);
-                    continue;
                 }
 
                 if (message != null) {
@@ -295,20 +300,26 @@ public class ServiceTaskManager {
         /**
          * Create a queue consumer using the properties form transport listener configuration
          *
-         * @return the queue consumer
          * @throws IOException on error
          */
-        private QueueingConsumer createQueueConsumer(Channel channel) throws IOException {
-            QueueingConsumer consumer = null;
-            String queueName = rabbitMQProperties.get(RabbitMQConstants.QUEUE_NAME);
-            String routeKey = rabbitMQProperties.get(RabbitMQConstants.QUEUE_ROUTING_KEY);
-            String exchangeName = rabbitMQProperties.get(RabbitMQConstants.EXCHANGE_NAME);
+        private void initConsumer() throws IOException {
+            log.debug("Initializing consumer for service " + serviceName);
+            connection = getConnection();
+            channel = connection.createChannel();
+            queueName = rabbitMQProperties.get(RabbitMQConstants.QUEUE_NAME);
+            routeKey = rabbitMQProperties.get(RabbitMQConstants.QUEUE_ROUTING_KEY);
+            exchangeName = rabbitMQProperties.get(RabbitMQConstants.EXCHANGE_NAME);
+
             String autoAckStringValue = rabbitMQProperties.get(RabbitMQConstants.QUEUE_AUTO_ACK);
             if (autoAckStringValue != null) {
-                autoAck = Boolean.parseBoolean(autoAckStringValue);
+                try {
+                    autoAck = Boolean.parseBoolean(autoAckStringValue);
+                } catch (Exception e) {
+                    log.debug("Format error in rabbitmq.queue.auto.ack parameter");
+                }
             }
             //If no queue name is specified then service name will be used as queue name
-            if (queueName == null || queueName.equals("")) {
+            if (StringUtils.isEmpty(queueName)) {
                 queueName = serviceName;
                 log.info("No queue name is specified for " + serviceName + ". " +
                         "Service name will be used as queue name");
@@ -321,12 +332,13 @@ public class ServiceTaskManager {
                 routeKey = queueName;
             }
 
-            //Declaring the queue
-            if (queueName != null && !queueName.equals("")) {
+            if (!StringUtils.isEmpty(queueName)) {
+                //declaring queue
                 RabbitMQUtils.declareQueue(connection, queueName, rabbitMQProperties);
             }
 
-            if (exchangeName != null && !exchangeName.equals("")) {
+            if (!StringUtils.isEmpty(exchangeName)) {
+                //declaring exchange
                 RabbitMQUtils.declareExchange(connection, exchangeName, rabbitMQProperties);
 
                 if (!channel.isOpen()) {
@@ -341,17 +353,17 @@ public class ServiceTaskManager {
                 channel = connection.createChannel();
                 log.debug("Channel is not open. Creating a new channel for service " + serviceName);
             }
-            consumer = new QueueingConsumer(channel);
 
-            String consumerTagString = rabbitMQProperties.get(RabbitMQConstants.CONSUMER_TAG);
+            queueingConsumer = new QueueingConsumer(channel);
+
+            consumerTagString = rabbitMQProperties.get(RabbitMQConstants.CONSUMER_TAG);
             if (consumerTagString != null) {
-                channel.basicConsume(queueName, autoAck, consumerTagString, consumer);
-                log.debug("Start consuming queue '" + queueName + "' with consumer tag '" + consumerTagString + "'");
+                channel.basicConsume(queueName, autoAck, consumerTagString, queueingConsumer);
+                log.debug("Start consuming queue '" + queueName + "' with consumer tag '" + consumerTagString + "' for service " + serviceName);
             } else {
-                consumerTagString = channel.basicConsume(queueName, autoAck, consumer);
-                log.debug("Start consuming queue '" + queueName + "' with consumer tag '" + consumerTagString + "'");
+                consumerTagString = channel.basicConsume(queueName, autoAck, queueingConsumer);
+                log.debug("Start consuming queue '" + queueName + "' with consumer tag '" + consumerTagString + "' for service " + serviceName);
             }
-            return consumer;
         }
 
         /**
@@ -369,13 +381,10 @@ public class ServiceTaskManager {
                 log.debug("Waiting for next delivery from queue for service " + serviceName);
                 delivery = consumer.nextDelivery();
             } catch (ShutdownSignalException e) {
-                log.error("Error receiving message from RabbitMQ broker for service " + serviceName, e);
                 return null;
             } catch (InterruptedException e) {
-                log.error("Error receiving message from RabbitMQ broker for service " + serviceName, e);
                 return null;
             } catch (ConsumerCancelledException e) {
-                log.error("Error receiving message from RabbitMQ broker for service " + serviceName, e);
                 return null;
             }
 
