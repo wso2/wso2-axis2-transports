@@ -321,86 +321,13 @@ public class ServiceTaskManager {
                 routeKey = queueName;
             }
 
-            Boolean queueAvailable = false;
-            try {
-                if (!channel.isOpen()) {
-                    channel = connection.createChannel();
-                    log.debug("Channel is not open. Creating a new channel for service " + serviceName);
-                }
-                // check availability of the named queue
-                // if an error is encountered, including if the queue does not exist and if the
-                // queue is exclusively owned by another connection
-                channel.queueDeclarePassive(queueName);
-                queueAvailable = true;
-            } catch (IOException e) {
-                if (log.isDebugEnabled()) {
-                    log.debug("Queue :" + queueName + " not found or already declared exclusive. Trying to declare the queue.");
-                }
-            }
-
-            if (!queueAvailable) {
-                if (!channel.isOpen()) {
-                    channel = connection.createChannel();
-                    log.debug("Channel is not open. Creating a new channel for service " + serviceName);
-                }
-                try {
-                    channel.queueDeclare(queueName, RabbitMQUtils.isDurableQueue(rabbitMQProperties),
-                            RabbitMQUtils.isExclusiveQueue(rabbitMQProperties), RabbitMQUtils.isAutoDeleteQueue(rabbitMQProperties), null);
-                } catch (IOException e) {
-                    handleException("Error declaring queue " + queueName, e);
-                }
+            //Declaring the queue
+            if (queueName != null && !queueName.equals("")) {
+                RabbitMQUtils.declareQueue(connection, queueName, rabbitMQProperties);
             }
 
             if (exchangeName != null && !exchangeName.equals("")) {
-                Boolean exchangeAvailable = false;
-                try {
-                    if (!channel.isOpen()) {
-                        channel = connection.createChannel();
-                        log.debug("Channel is not open. Creating a new channel for service " + serviceName);
-                    }
-                    // check availability of the named exchange.
-                    // The server will raise an IOException
-                    // if the named exchange already exists.
-                    channel.exchangeDeclarePassive(exchangeName);
-                    exchangeAvailable = true;
-                } catch (IOException e) {
-                    log.info("Exchange :" + exchangeName + " not found.Declaring exchange.");
-                }
-
-                if (!exchangeAvailable) {
-                    String exchangeType = rabbitMQProperties.get(RabbitMQConstants.EXCHANGE_TYPE);
-
-                    if (!channel.isOpen()) {
-                        channel = connection.createChannel();
-                        log.debug("Channel is not open. Creating a new channel for service " + serviceName);
-                    }
-
-                    try {
-                        if (exchangeType != null) {
-                            String durable = rabbitMQProperties
-                                    .get(RabbitMQConstants.EXCHANGE_DURABLE);
-                            String autoDel = rabbitMQProperties
-                                    .get(RabbitMQConstants.EXCHANGE_AUTODELETE);
-                            boolean isAutoDel = false;
-                            if (autoDel != null) {
-                                isAutoDel = Boolean.parseBoolean(autoDel);
-                            }
-                            if (durable != null) {
-                                channel.exchangeDeclare(exchangeName, exchangeType,
-                                        Boolean.parseBoolean(durable), isAutoDel,
-                                        false, null);
-                            } else {
-                                channel.exchangeDeclare(exchangeName, exchangeType, true, isAutoDel,
-                                        false, null);
-                            }
-                        } else {
-                            channel.exchangeDeclare(exchangeName, "direct", true);
-                        }
-                    } catch (IOException e) {
-                        handleException(
-                                "Error occurred while declaring the exchange: " + exchangeName, e);
-                    }
-                }
+                RabbitMQUtils.declareExchange(connection, exchangeName, rabbitMQProperties);
 
                 if (!channel.isOpen()) {
                     channel = connection.createChannel();
@@ -409,6 +336,7 @@ public class ServiceTaskManager {
                 channel.queueBind(queueName, exchangeName, routeKey);
                 log.debug("Bind queue '" + queueName + "' to exchange '" + exchangeName + "' with route key '" + routeKey + "'");
             }
+
             if (!channel.isOpen()) {
                 channel = connection.createChannel();
                 log.debug("Channel is not open. Creating a new channel for service " + serviceName);
@@ -418,10 +346,10 @@ public class ServiceTaskManager {
             String consumerTagString = rabbitMQProperties.get(RabbitMQConstants.CONSUMER_TAG);
             if (consumerTagString != null) {
                 channel.basicConsume(queueName, autoAck, consumerTagString, consumer);
-                log.debug("Start consuming queue '" + queueName + "' with consumerTag '" + consumerTagString + "'");
+                log.debug("Start consuming queue '" + queueName + "' with consumer tag '" + consumerTagString + "'");
             } else {
-                channel.basicConsume(queueName, autoAck, consumer);
-                log.debug("Start consuming queue '" + queueName + "'");
+                consumerTagString = channel.basicConsume(queueName, autoAck, consumer);
+                log.debug("Start consuming queue '" + queueName + "' with consumer tag '" + consumerTagString + "'");
             }
             return consumer;
         }

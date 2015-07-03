@@ -110,26 +110,26 @@ public class RabbitMQConnectionFactory {
         Connection connection = null;
         try {
             connection = RabbitMQUtils.createConnection(connectionFactory);
-            log.info("Successfully connected to RabbitMQ Broker");
+            log.info("[" + name + "] Successfully connected to RabbitMQ Broker");
         } catch (IOException e) {
-            log.error("Error creating connection to RabbitMQ Broker. Reattempting to connect.", e);
+            log.error("[" + name + "] Error creating connection to RabbitMQ Broker. Reattempting to connect.", e);
             int retryC = 0;
             while ((connection == null) && ((retryCount == -1) || (retryC < retryCount))) {
                 retryC++;
-                log.info("Attempting to create connection to RabbitMQ Broker" +
+                log.info("[" + name + "] Attempting to create connection to RabbitMQ Broker" +
                         " in " + retryInterval + " ms");
                 try {
                     Thread.sleep(retryInterval);
                     connection = RabbitMQUtils.createConnection(connectionFactory);
-                    log.info("Successfully connected to RabbitMQ Broker");
+                    log.info("[" + name + "] Successfully connected to RabbitMQ Broker");
                 } catch (InterruptedException e1) {
-                    log.error("Error while trying to reconnect to RabbitMQ Broker", e1);
+                    log.error("[" + name + "] Error while trying to reconnect to RabbitMQ Broker", e1);
                 } catch (IOException e2) {
-                    log.error("Error while trying to reconnect to RabbitMQ Broker", e2);
+                    log.error("[" + name + "] Error while trying to reconnect to RabbitMQ Broker", e2);
                 }
             }
             if (connection == null) {
-                handleException("Could not connect to RabbitMQ Broker. Error while creating connection", e);
+                handleException("[" + name + "] Could not connect to RabbitMQ Broker. Error while creating connection", e);
             }
         }
         return connection;
@@ -327,7 +327,7 @@ public class RabbitMQConnectionFactory {
         }
 
         connectionFactory.setAutomaticRecoveryEnabled(true);
-        connectionFactory.setTopologyRecoveryEnabled(false); //TODO : Topology recovery should be done from broker end?
+        connectionFactory.setTopologyRecoveryEnabled(false);
     }
 
     public int getRetryInterval() {
