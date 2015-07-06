@@ -39,14 +39,15 @@ public class RabbitMQEndpoint extends ProtocolEndpoint {
     private final WorkerPool workerPool;
     private final RabbitMQListener rabbitMQListener;
 
-    private ConnectionFactory connectionFactory;
+    private RabbitMQConnectionFactory rabbitMQConnectionFactory;
     private Set<EndpointReference> endpointReferences = new HashSet<EndpointReference>();
     private ServiceTaskManager serviceTaskManager;
 
     /**
      * Create a rabbit mq endpoint
+     *
      * @param rabbitMQListener listener listening for messages from this EP
-     * @param workerPool worker pool to create service task manager
+     * @param workerPool       worker pool to create service task manager
      */
     public RabbitMQEndpoint(RabbitMQListener rabbitMQListener, WorkerPool workerPool) {
         this.rabbitMQListener = rabbitMQListener;
@@ -60,14 +61,16 @@ public class RabbitMQEndpoint extends ProtocolEndpoint {
 
     /**
      * Get connection factory of the EP
+     *
      * @return connection factory set to this EP
      */
-    public ConnectionFactory getConnectionFactory() {
-        return connectionFactory;
+    public RabbitMQConnectionFactory getRabbitMQConnectionFactory() {
+        return rabbitMQConnectionFactory;
     }
 
     /**
      * Get service task manager for this EP
+     *
      * @return service task manager set for this EP
      */
     public ServiceTaskManager getServiceTaskManager() {
@@ -76,7 +79,8 @@ public class RabbitMQEndpoint extends ProtocolEndpoint {
 
     /**
      * Set service task manager for the EP
-     * @param serviceTaskManager  service task manager to be set
+     *
+     * @param serviceTaskManager service task manager to be set
      */
     public void setServiceTaskManager(ServiceTaskManager serviceTaskManager) {
         this.serviceTaskManager = serviceTaskManager;
@@ -91,15 +95,15 @@ public class RabbitMQEndpoint extends ProtocolEndpoint {
 
         AxisService service = (AxisService) params;
 
-        connectionFactory = rabbitMQListener.getConnectionFactory(service);
-        if (connectionFactory == null) {
+        rabbitMQConnectionFactory = rabbitMQListener.getConnectionFactory(service);
+        if (rabbitMQConnectionFactory == null) {
             return false;
         }
 
         serviceTaskManager = ServiceTaskManagerFactory.
-                createTaskManagerForService(connectionFactory, service, workerPool);
+                createTaskManagerForService(rabbitMQConnectionFactory, service, workerPool);
         serviceTaskManager.setRabbitMQMessageReceiver(new RabbitMQMessageReceiver(rabbitMQListener,
-                                                                                  connectionFactory, this));
+                rabbitMQConnectionFactory, this));
 
         return true;
     }

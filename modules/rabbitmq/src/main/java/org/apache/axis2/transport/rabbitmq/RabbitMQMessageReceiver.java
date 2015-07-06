@@ -21,6 +21,7 @@ package org.apache.axis2.transport.rabbitmq;
 import org.apache.axis2.AxisFault;
 import org.apache.axis2.Constants;
 import org.apache.axis2.context.MessageContext;
+import org.apache.axis2.transport.rabbitmq.utils.RabbitMQConstants;
 import org.apache.axis2.transport.rabbitmq.utils.RabbitMQUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -33,19 +34,19 @@ public class RabbitMQMessageReceiver {
     private static final Log log = LogFactory.getLog(RabbitMQMessageReceiver.class);
     private final RabbitMQEndpoint endpoint;
     private final RabbitMQListener listener;
-    private final ConnectionFactory connectionFactory;
+    private final RabbitMQConnectionFactory rabbitMQConnectionFactory;
 
     /**
      * Create a new RabbitMQMessage receiver
      *
-     * @param listener            the AMQP transport Listener
-     * @param connectionFactory   the AMQP connection factory we are associated with
-     * @param endpoint            the RabbitMQEndpoint definition to be used
+     * @param listener                  the AMQP transport Listener
+     * @param rabbitMQConnectionFactory the AMQP connection factory we are associated with
+     * @param endpoint                  the RabbitMQEndpoint definition to be used
      */
     public RabbitMQMessageReceiver(RabbitMQListener listener,
-                                   ConnectionFactory connectionFactory, RabbitMQEndpoint endpoint) {
+                                   RabbitMQConnectionFactory rabbitMQConnectionFactory, RabbitMQEndpoint endpoint) {
         this.endpoint = endpoint;
-        this.connectionFactory = connectionFactory;
+        this.rabbitMQConnectionFactory = rabbitMQConnectionFactory;
         this.listener = listener;
     }
 
@@ -69,7 +70,7 @@ public class RabbitMQMessageReceiver {
      *
      * @param message the RabbitMQMessage
      * @return true if the caller should commit
-     * @throws AxisFault     on Axis2 errors
+     * @throws AxisFault on Axis2 errors
      */
     private boolean processThroughAxisEngine(RabbitMQMessage message) throws AxisFault {
 
@@ -102,7 +103,7 @@ public class RabbitMQMessageReceiver {
         String replyTo = message.getReplyTo();
         if (replyTo != null) {
             msgContext.setProperty(Constants.OUT_TRANSPORT_INFO,
-                                   new RabbitMQOutTransportInfo(connectionFactory, replyTo, contentType));
+                    new RabbitMQOutTransportInfo(rabbitMQConnectionFactory, replyTo, contentType));
 
         }
 

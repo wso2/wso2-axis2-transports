@@ -16,20 +16,21 @@
  * under the License.
  */
 
-package org.apache.axis2.transport.rabbitmq;
+package org.apache.axis2.transport.rabbitmq.utils;
 
 /**
  * This class represents RabbitMQ specific exceptions
  */
-public class AxisRabbitMQException extends RuntimeException{
+public class AxisRabbitMQException extends RuntimeException {
     public AxisRabbitMQException(String msg) {
         super(msg);
     }
 
     /**
      * Create an exception
+     *
      * @param msg exception message
-     * @param e throwable
+     * @param e   throwable
      */
     public AxisRabbitMQException(String msg, Exception e) {
         super(msg, e);

@@ -23,6 +23,7 @@ import org.apache.axis2.AxisFault;
 import org.apache.axis2.description.AxisService;
 import org.apache.axis2.description.Parameter;
 import org.apache.axis2.transport.base.AbstractTransportListenerEx;
+import org.apache.axis2.transport.rabbitmq.utils.RabbitMQConstants;
 
 /**
  * The RabbitMQ AMQP Transport listener implementation. Creates {@link ServiceTaskManager} instances
@@ -33,12 +34,14 @@ import org.apache.axis2.transport.base.AbstractTransportListenerEx;
  */
 public class RabbitMQListener extends AbstractTransportListenerEx<RabbitMQEndpoint> {
 
-    /** The ConnectionFactoryManager which centralizes the management of defined factories */
-    private ConnectionFactoryManager connectionFactoryManager;
+    /**
+     * The ConnectionFactoryManager which centralizes the management of defined factories
+     */
+    private RabbitMQConnectionFactoryManager rabbitMQConnectionFactoryManager;
 
     @Override
     protected void doInit() throws AxisFault {
-        connectionFactoryManager = new ConnectionFactoryManager(getTransportInDescription());
+        rabbitMQConnectionFactoryManager = new RabbitMQConnectionFactoryManager(getTransportInDescription());
         log.info("RabbitMQ AMQP Transport Receiver initialized...");
     }
 
@@ -84,10 +87,10 @@ public class RabbitMQListener extends AbstractTransportListenerEx<RabbitMQEndpoi
      * @param service the AxisService
      * @return the ConnectionFactory to be used, or null if reference is invalid
      */
-    public ConnectionFactory getConnectionFactory(AxisService service) {
+    public RabbitMQConnectionFactory getConnectionFactory(AxisService service) {
         Parameter conFacParam = service.getParameter(RabbitMQConstants.RABBITMQ_CON_FAC);
         if (conFacParam != null) {
-            return connectionFactoryManager.getAMQPConnectionFactory((String) conFacParam.getValue());
+            return rabbitMQConnectionFactoryManager.getConnectionFactory((String) conFacParam.getValue());
         }
         return null;
     }

@@ -18,14 +18,27 @@
 
 package org.apache.axis2.transport.rabbitmq;
 
+import com.rabbitmq.client.AMQP;
+import com.rabbitmq.client.Channel;
+import com.rabbitmq.client.Connection;
+import com.rabbitmq.client.ConsumerCancelledException;
+import com.rabbitmq.client.QueueingConsumer;
+import com.rabbitmq.client.ShutdownSignalException;
 import org.apache.axis2.AxisFault;
 import org.apache.axis2.context.ConfigurationContext;
 import org.apache.axis2.context.MessageContext;
 import org.apache.axis2.description.TransportOutDescription;
 import org.apache.axis2.transport.OutTransportInfo;
 import org.apache.axis2.transport.base.AbstractTransportSender;
+import org.apache.axis2.transport.base.BaseUtils;
+import org.apache.axis2.transport.rabbitmq.utils.AxisRabbitMQException;
+import org.apache.axis2.transport.rabbitmq.utils.RabbitMQConstants;
+import org.apache.axis2.transport.rabbitmq.utils.RabbitMQUtils;
+import org.apache.commons.lang.StringUtils;
 
+import java.io.IOException;
 import java.util.Hashtable;
+import java.util.Map;
 
 /**
  * The TransportSender for RabbitMQ AMQP Transport
@@ -35,7 +48,7 @@ public class RabbitMQSender extends AbstractTransportSender {
     /**
      * The connection factory manager to be used when sending messages out
      */
-    private ConnectionFactoryManager connectionFactoryManager;
+    private RabbitMQConnectionFactoryManager rabbitMQConnectionFactoryManager;
 
     /**
      * Initialize the transport sender by reading pre-defined connection factories for
@@ -49,35 +62,30 @@ public class RabbitMQSender extends AbstractTransportSender {
     public void init(ConfigurationContext cfgCtx, TransportOutDescription transportOut)
             throws AxisFault {
         super.init(cfgCtx, transportOut);
-        connectionFactoryManager = new ConnectionFactoryManager(transportOut);
+        rabbitMQConnectionFactoryManager = new RabbitMQConnectionFactoryManager(transportOut);
         log.info("RabbitMQ AMQP Transport Sender initialized...");
 
     }
 
     @Override
-    public void stop(){
+    public void stop() {
         // clean up senders connection factory, connections
-        connectionFactoryManager.stop();
+        rabbitMQConnectionFactoryManager.stop();
         super.stop();
     }
+
     /**
      * Performs the sending of the RabbitMQ AMQP message
      */
     @Override
     public void sendMessage(MessageContext msgCtx, String targetEPR,
                             OutTransportInfo outTransportInfo) throws AxisFault {
-
-        ConnectionFactory factory = null;
-        RabbitMQMessageSender sender = null;
-        RabbitMQOutTransportInfo transportOutInfo = null;
-
         if (targetEPR != null) {
-            transportOutInfo = new RabbitMQOutTransportInfo(targetEPR);
-            factory = getAMQPConnectionFactory(transportOutInfo);
-
+            RabbitMQOutTransportInfo transportOutInfo = new RabbitMQOutTransportInfo(targetEPR);
+            RabbitMQConnectionFactory factory = getConnectionFactory(transportOutInfo);
             if (factory != null) {
-                sender = new RabbitMQMessageSender(factory, targetEPR);
-                sendOverAMQP(msgCtx, sender);
+                RabbitMQMessageSender sender = new RabbitMQMessageSender(factory, targetEPR);
+                sendOverAMQP(factory, msgCtx, sender, targetEPR);
             }
         }
     }
@@ -85,16 +93,117 @@ public class RabbitMQSender extends AbstractTransportSender {
     /**
      * Perform actual sending of the AMQP message
      */
-
-    private void sendOverAMQP(MessageContext msgContext, RabbitMQMessageSender sender)
+    private void sendOverAMQP(RabbitMQConnectionFactory factory, MessageContext msgContext, RabbitMQMessageSender sender, String targetEPR)
             throws AxisFault {
         try {
             RabbitMQMessage message = new RabbitMQMessage(msgContext);
             sender.send(message, msgContext);
+
+            if (message.getReplyTo() != null) {
+                processResponse(factory, msgContext, message.getCorrelationId(), message.getReplyTo(), BaseUtils.getEPRProperties(targetEPR));
+            }
+
         } catch (AxisRabbitMQException e) {
-            handleException("Error occured while sending message out", e);
+            handleException("Error occurred while sending message out", e);
+        } catch (IOException e) {
+            handleException("Error occurred while sending message out", e);
+        }
+    }
+
+    private void processResponse(RabbitMQConnectionFactory factory, MessageContext msgContext, String correlationID, String replyTo, Hashtable<String, String> eprProperties) throws IOException {
+
+        Connection connection = factory.createConnection();
+
+        if (!RabbitMQUtils.isQueueAvailable(connection, replyTo)) {
+            handleException("Reply-to queue : " + replyTo + " not available.");
         }
 
+        Channel channel = connection.createChannel();
+        QueueingConsumer consumer = new QueueingConsumer(channel);
+        QueueingConsumer.Delivery delivery = null;
+        RabbitMQMessage message = new RabbitMQMessage();
+        boolean responseFound = false;
+
+        int timeout = RabbitMQConstants.DEFAULT_REPLY_TO_TIMEOUT;
+        String timeoutStr = eprProperties.get(RabbitMQConstants.REPLY_TO_TIMEOUT);
+        if (!StringUtils.isEmpty(timeoutStr)) {
+            try {
+                timeout = Integer.parseInt(timeoutStr);
+            } catch (NumberFormatException e) {
+                log.warn("Number format error in reading replyto timeout value. Proceeding with default value (30000ms)", e);
+            }
+        }
+
+        //start consuming without acknowledging
+        String consumerTag = channel.basicConsume(replyTo, false, consumer);
+
+        try {
+            while (!responseFound) {
+                log.debug("Waiting for next delivery from reply to queue " + replyTo);
+                delivery = consumer.nextDelivery(timeout);
+                if (delivery != null) {
+                    if (delivery.getProperties().getCorrelationId().equals(correlationID)) {
+                        responseFound = true;
+                        log.debug("Found matching response with correlation ID : " + correlationID + ". Sending ack");
+                        //acknowledge correct message
+                        channel.basicAck(delivery.getEnvelope().getDeliveryTag(), false);
+                    } else {
+                        //not acknowledge wrong messages and re-queue
+                        log.debug("Found messages with wrong correlation ID. Re-queueing and sending nack");
+                        channel.basicNack(delivery.getEnvelope().getDeliveryTag(), false, true);
+                    }
+                }
+            }
+        } catch (ShutdownSignalException e) {
+            log.error("Error receiving message from RabbitMQ broker " + e.getLocalizedMessage());
+        } catch (InterruptedException e) {
+            log.error("Error receiving message from RabbitMQ broker " + e.getLocalizedMessage());
+        } catch (ConsumerCancelledException e) {
+            log.error("Error receiving message from RabbitMQ broker" + e.getLocalizedMessage());
+        } finally {
+            if (channel != null || channel.isOpen()) {
+                //stop consuming
+                channel.basicCancel(consumerTag);
+            }
+        }
+
+        if (delivery != null) {
+            log.debug("Processing response from reply-to queue");
+            AMQP.BasicProperties properties = delivery.getProperties();
+            Map<String, Object> headers = properties.getHeaders();
+            message.setBody(delivery.getBody());
+            message.setDeliveryTag(delivery.getEnvelope().getDeliveryTag());
+            message.setReplyTo(properties.getReplyTo());
+            message.setMessageId(properties.getMessageId());
+
+            //get content type from message
+            String contentType = properties.getContentType();
+            if (contentType == null) {
+                //if not get content type from transport parameter
+                contentType = eprProperties.get(RabbitMQConstants.REPLY_TO_CONTENT_TYPE);
+                if (contentType == null) {
+                    //if none is given, set to default content type
+                    log.warn("Setting default content type " + RabbitMQConstants.DEFAULT_CONTENT_TYPE);
+                    contentType = RabbitMQConstants.DEFAULT_CONTENT_TYPE;
+                }
+            }
+            message.setContentType(contentType);
+            message.setContentEncoding(properties.getContentEncoding());
+            message.setCorrelationId(properties.getCorrelationId());
+
+            if (headers != null) {
+                message.setHeaders(headers);
+                if (headers.get(RabbitMQConstants.SOAP_ACTION) != null) {
+                    message.setSoapAction(headers.get(
+                            RabbitMQConstants.SOAP_ACTION).toString());
+                }
+            }
+
+            MessageContext responseMsgCtx = createResponseMessageContext(msgContext);
+            RabbitMQUtils.setSOAPEnvelope(message, responseMsgCtx, contentType);
+            handleIncomingMessage(responseMsgCtx, RabbitMQUtils.getTransportHeaders(message),
+                    message.getSoapAction(), message.getContentType());
+        }
     }
 
     /**
@@ -104,9 +213,9 @@ public class RabbitMQSender extends AbstractTransportSender {
      * @param transportInfo the transport-out information
      * @return the corresponding ConnectionFactory, if any
      */
-    private ConnectionFactory getAMQPConnectionFactory(RabbitMQOutTransportInfo transportInfo) {
+    private RabbitMQConnectionFactory getConnectionFactory(RabbitMQOutTransportInfo transportInfo) {
         Hashtable<String, String> props = transportInfo.getProperties();
-        ConnectionFactory factory = connectionFactoryManager.getAMQPConnectionFactory(props);
+        RabbitMQConnectionFactory factory = rabbitMQConnectionFactoryManager.getConnectionFactory(props);
         return factory;
     }
 }

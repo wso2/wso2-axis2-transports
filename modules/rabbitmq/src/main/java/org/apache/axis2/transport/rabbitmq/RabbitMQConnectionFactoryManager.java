@@ -20,23 +20,25 @@ package org.apache.axis2.transport.rabbitmq;
 
 import org.apache.axis2.description.Parameter;
 import org.apache.axis2.description.ParameterInclude;
+import org.apache.axis2.transport.rabbitmq.utils.RabbitMQConstants;
 
 import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.Map;
 
 /**
- * Class managing a set of {@link ConnectionFactory} objects.
+ * Class managing a set of {@link RabbitMQConnectionFactory} objects.
  */
-public class ConnectionFactoryManager {
-    private final Map<String, ConnectionFactory> connectionFactories =
-            new HashMap<String, ConnectionFactory>();
+public class RabbitMQConnectionFactoryManager {
+    private final Map<String, RabbitMQConnectionFactory> connectionFactories =
+            new HashMap<String, RabbitMQConnectionFactory>();
 
     /**
      * Construct a Connection factory manager for the RabbitMQ transport sender or receiver
+     *
      * @param description
      */
-    public ConnectionFactoryManager(ParameterInclude description) {
+    public RabbitMQConnectionFactoryManager(ParameterInclude description) {
         loadConnectionFactoryDefinitions(description);
     }
 
@@ -48,49 +50,31 @@ public class ConnectionFactoryManager {
      *
      * @param props a Map of connection factory properties and name
      * @return the connection factory or null if no connection factory compatible
-     *         with the given properties exists
+     * with the given properties exists
      */
-    public ConnectionFactory getAMQPConnectionFactory(Hashtable<String, String> props) {
-        ConnectionFactory connectionFactory = null;
-        String hostName = props.get(RabbitMQConstants.SERVER_HOST_NAME);
-        String portValue = props.get(RabbitMQConstants.SERVER_PORT);
-        String hostAndPort = hostName + ":" + portValue;
-        connectionFactory = connectionFactories.get(hostAndPort);
+    public RabbitMQConnectionFactory getConnectionFactory(Hashtable<String, String> props) {
+        //add all properties to connection factory name in order to have a unique name
+        String connectionFactoryName =
+                props.get(RabbitMQConstants.SERVER_HOST_NAME) + "_" +
+                        props.get(RabbitMQConstants.SERVER_PORT) + "_" +
+                        props.get(RabbitMQConstants.SERVER_USER_NAME) + "_" +
+                        props.get(RabbitMQConstants.SERVER_PASSWORD) + "_" +
+                        props.get(RabbitMQConstants.SSL_ENABLED) + "_" +
+                        props.get(RabbitMQConstants.SERVER_VIRTUAL_HOST) + "_" +
+                        props.get(RabbitMQConstants.SERVER_RETRY_INTERVAL) + "_" +
+                        props.get(RabbitMQConstants.RETRY_INTERVAL) + "_" +
+                        props.get(RabbitMQConstants.RETRY_COUNT) + "_" +
+                        props.get(RabbitMQConstants.HEARTBEAT) + "_" +
+                        props.get(RabbitMQConstants.CONNECTION_TIMEOUT);
 
-        if (connectionFactory == null) {
-            com.rabbitmq.client.ConnectionFactory factory = new com.rabbitmq.client.ConnectionFactory();
-            if (hostName != null && !hostName.equals("")) {
-                factory.setHost(hostName);
-            } else {
-                throw new AxisRabbitMQException("Host name is not correctly defined");
-            }
-            int port = Integer.parseInt(portValue);
-            if (port > 0) {
-                factory.setPort(port);
-            }
-            String userName = props.get(RabbitMQConstants.SERVER_USER_NAME);
+        RabbitMQConnectionFactory rabbitMQConnectionFactory = connectionFactories.get(connectionFactoryName);
 
-            if (userName != null && !userName.equals("")) {
-                factory.setUsername(userName);
-            }
-
-            String password = props.get(RabbitMQConstants.SERVER_PASSWORD);
-
-            if (password != null && !password.equals("")) {
-                factory.setPassword(password);
-            }
-            String virtualHost = props.get(RabbitMQConstants.SERVER_VIRTUAL_HOST);
-
-            if (virtualHost != null && !virtualHost.equals("")) {
-                factory.setVirtualHost(virtualHost);
-            }
-            factory.setAutomaticRecoveryEnabled(true);
-            factory.setTopologyRecoveryEnabled(false);
-            connectionFactory = new ConnectionFactory(hostAndPort, factory);
-            connectionFactories.put(connectionFactory.getName(), connectionFactory);
+        if (rabbitMQConnectionFactory == null) {
+            rabbitMQConnectionFactory = new RabbitMQConnectionFactory(connectionFactoryName, props);
+            connectionFactories.put(rabbitMQConnectionFactory.getName(), rabbitMQConnectionFactory);
         }
 
-        return connectionFactory;
+        return rabbitMQConnectionFactory;
     }
 
 
@@ -99,9 +83,9 @@ public class ConnectionFactoryManager {
      *
      * @param connectionFactoryName the name of the AMQP connection factory
      * @return the AMQP connection factory or null if no connection factory with
-     *         the given name exists
+     * the given name exists
      */
-    public ConnectionFactory getAMQPConnectionFactory(String connectionFactoryName) {
+    public RabbitMQConnectionFactory getConnectionFactory(String connectionFactoryName) {
         return connectionFactories.get(connectionFactoryName);
     }
 
@@ -113,15 +97,16 @@ public class ConnectionFactoryManager {
      */
     private void loadConnectionFactoryDefinitions(ParameterInclude trpDesc) {
         for (Parameter parameter : trpDesc.getParameters()) {
-            ConnectionFactory amqpConFactory = new ConnectionFactory(parameter);
+            RabbitMQConnectionFactory amqpConFactory = new RabbitMQConnectionFactory(parameter);
             connectionFactories.put(amqpConFactory.getName(), amqpConFactory);
         }
     }
+
     /**
      * Stop all connection factories.
      */
     public void stop() {
-        for (ConnectionFactory conFac : connectionFactories.values()) {
+        for (RabbitMQConnectionFactory conFac : connectionFactories.values()) {
             conFac.stop();
         }
     }

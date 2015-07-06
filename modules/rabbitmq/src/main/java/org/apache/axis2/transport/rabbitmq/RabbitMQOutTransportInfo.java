@@ -20,6 +20,8 @@ package org.apache.axis2.transport.rabbitmq;
 
 import org.apache.axis2.transport.OutTransportInfo;
 import org.apache.axis2.transport.base.BaseUtils;
+import org.apache.axis2.transport.rabbitmq.utils.AxisRabbitMQException;
+import org.apache.axis2.transport.rabbitmq.utils.RabbitMQConstants;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -34,14 +36,10 @@ import java.util.Hashtable;
 public class RabbitMQOutTransportInfo implements OutTransportInfo {
 
     private static final Log log = LogFactory.getLog(RabbitMQOutTransportInfo.class);
-
     private String targetEPR = null;
-
-    private Hashtable<String,String> properties = null;
-
+    private Hashtable<String, String> properties = null;
     private String contentTypeProperty;
-
-    private ConnectionFactory connectionFactory;
+    private RabbitMQConnectionFactory rabbitMQConnectionFactory;
     private String replyTo;
 
 
@@ -53,7 +51,7 @@ public class RabbitMQOutTransportInfo implements OutTransportInfo {
     public RabbitMQOutTransportInfo(String targetEPR) {
         this.targetEPR = targetEPR;
         if (!targetEPR.startsWith(RabbitMQConstants.RABBITMQ_PREFIX)) {
-            handleException("Invalid prefix for a AMQP EPR : " + targetEPR);
+            handleException("Invalid prefix for a RabbitMQ AMQP EPR : " + targetEPR);
         } else {
             properties = BaseUtils.getEPRProperties(targetEPR);
             contentTypeProperty = properties.get(RabbitMQConstants.CONTENT_TYPE_PROPERTY_PARAM);
@@ -63,13 +61,13 @@ public class RabbitMQOutTransportInfo implements OutTransportInfo {
     /**
      * Creates an instance using the given connection factory and destination
      *
-     * @param connectionFactory   the connection factory
-     * @param replyTo             the destination
-     * @param contentTypeProperty the content type
+     * @param rabbitMQConnectionFactory the connection factory
+     * @param replyTo                   the destination
+     * @param contentTypeProperty       the content type
      */
-    public RabbitMQOutTransportInfo(ConnectionFactory connectionFactory, String replyTo,
+    public RabbitMQOutTransportInfo(RabbitMQConnectionFactory rabbitMQConnectionFactory, String replyTo,
                                     String contentTypeProperty) {
-        this.connectionFactory = connectionFactory;
+        this.rabbitMQConnectionFactory = rabbitMQConnectionFactory;
         this.replyTo = replyTo;
         this.contentTypeProperty = contentTypeProperty;
     }
