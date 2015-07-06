@@ -19,27 +19,36 @@
   -->
 
 <project
-    xmlns="http://maven.apache.org/POM/4.0.0"
-    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+        xmlns="http://maven.apache.org/POM/4.0.0"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>org.apache.axis2.transport</groupId>
+        <artifactId>axis2-transports</artifactId>
+        <version>1.1.0-wso2v15-SNAPSHOT</version>
+        <relativePath>../../pom.xml</relativePath>
+    </parent>
+
     <groupId>org.apache.axis2</groupId>
     <artifactId>axis2-transport-mqtt</artifactId>
     <version>1.0.0</version>
     <name>Apache Axis2 - Transport - MQTT</name>
     <description>Apache Axis2 - MQTT Transport</description>
     <packaging>jar</packaging>
-      <build>
-	 <plugins>
-         <plugin>
-             <groupId>org.apache.maven.plugins</groupId>
-             <artifactId>maven-compiler-plugin</artifactId>
-             <version>2.0</version>
-             <configuration>
-                 <source>1.5</source>
-                 <target>1.5</target>
-             </configuration>
-         </plugin>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>2.0</version>
+                <configuration>
+                    <source>1.5</source>
+                    <target>1.5</target>
+                </configuration>
+            </plugin>
             <plugin>
                 <groupId>org.apache.felix</groupId>
                 <artifactId>maven-bundle-plugin</artifactId>
@@ -80,22 +89,24 @@
                 <checksumPolicy>ignore</checksumPolicy>
             </releases>
         </repository>
-</repositories>
+    </repositories>
     <dependencies>
         <dependency>
             <groupId>org.apache.axis2</groupId>
             <artifactId>axis2-kernel</artifactId>
-            <version>1.6.1-wso2v10</version>
         </dependency>
         <dependency>
             <groupId>org.apache.axis2</groupId>
             <artifactId>axis2-transport-base</artifactId>
-            <version>1.1.0-wso2v9</version>
         </dependency>
         <dependency>
             <groupId>org.eclipse.paho</groupId>
             <artifactId>mqtt-client</artifactId>
-            <version>0.4.0</version>
+        </dependency>
+        <dependency>
+            <groupId>javax.jms</groupId>
+            <artifactId>jms</artifactId>
+            <version>1.1</version>
         </dependency>
     </dependencies>
 </project>
