@@ -20,6 +20,7 @@ package org.apache.axis2.transport.mqtt;/*
 import org.apache.axis2.context.ConfigurationContext;
 import org.apache.axis2.context.MessageContext;
 import org.apache.axis2.engine.AxisEngine;
+import org.apache.commons.logging.LogFactory;
 import org.eclipse.paho.client.mqttv3.*;
 import org.apache.commons.logging.Log;
 
@@ -29,6 +30,8 @@ public class MqttListenerCallback implements MqttCallback {
     private ConfigurationContext configurationContext;
     private MqttEndpoint mqttEndpoint;
     private String contentType;
+    private Log log = LogFactory.getLog(MqttPublisherCallback.class);
+
 
     public MqttListenerCallback(MqttEndpoint mqttEndpoint, String contentType) {
         this.mqttEndpoint = mqttEndpoint;
@@ -36,9 +39,10 @@ public class MqttListenerCallback implements MqttCallback {
     }
 
     public void connectionLost(Throwable throwable) {
-    /**
-    * implements from MqttCallback
-    */
+        log.error("Connection Lost - Client Disconnected");
+        /**
+         * implements from MqttCallback
+         */
     }
 
     public void messageArrived(String s, MqttMessage mqttMessage) throws Exception {
@@ -51,6 +55,7 @@ public class MqttListenerCallback implements MqttCallback {
     public void deliveryComplete(IMqttDeliveryToken iMqttDeliveryToken) {
         /**
          * implements from MqttCallback
-         */}
+         */
+    }
 
 }

@@ -102,7 +102,7 @@ public class MqttSender extends AbstractTransportSender {
                     mqttTopic.publish(mqttMessage);
                 }
             } catch (MqttException e) {
-                throw new AxisFault("Exception occured at sending message");//TODO  AXIS FAULT THROUGH FALSE SEQ
+                throw new AxisFault("Exception occured at sending message");
             }finally {
                 if (mqttClient!=null) {
                     try {
@@ -145,10 +145,6 @@ public class MqttSender extends AbstractTransportSender {
         } catch (AxisFault axisFault) {
             throw new AxisMqttException("Unable to get the message formatter to use");
         }
-
-        String contentType = messageFormatter.getContentType(
-                messageContext, format, messageContext.getSoapAction()); ///
-
         OutputStream out;
         StringWriter sw = new StringWriter();
         try {
@@ -156,17 +152,14 @@ public class MqttSender extends AbstractTransportSender {
         } catch (UnsupportedCharsetException ex) {
             throw new AxisMqttException("Unsupported encoding " + format.getCharSetEncoding(), ex);
         }
-
         try {
             messageFormatter.writeTo(messageContext, format, out, true);
             out.close();
         } catch (IOException e) {
             throw new AxisMqttException("IO Error while creating BytesMessage", e);
         }
-
         MqttMessage mqttMessage = new MqttMessage();
         mqttMessage.setPayload(sw.toString().getBytes());
-
         return mqttMessage;
     }
 }

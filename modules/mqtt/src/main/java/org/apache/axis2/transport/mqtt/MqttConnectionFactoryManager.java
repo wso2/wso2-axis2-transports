@@ -36,8 +36,8 @@ public class MqttConnectionFactoryManager {
 
     private void loadConnectionFactoryDefinitions(ParameterInclude trpDesc) {
         for (Parameter parameter : trpDesc.getParameters()) {
-                MqttConnectionFactory mqttConnectionFactory = new MqttConnectionFactory(parameter);
-                connectionFactoryMap.put(mqttConnectionFactory.getName(), mqttConnectionFactory);
+            MqttConnectionFactory mqttConnectionFactory = new MqttConnectionFactory(parameter);
+            connectionFactoryMap.put(mqttConnectionFactory.getName(), mqttConnectionFactory);
         }
     }
 

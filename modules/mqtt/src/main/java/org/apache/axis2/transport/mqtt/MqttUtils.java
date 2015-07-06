@@ -42,11 +42,10 @@ public class MqttUtils {
 
     public static void invoke(MqttMessage mqttMessage, MessageContext msgContext, String contentType)
             throws AxisFault, AxisMqttException {
-                if (contentType == null) {
-                    contentType = "text/plain";         // TODO: ckecked with JMS
-                }
-
-                Builder builder = BuilderUtil.getBuilderFromSelector(contentType, msgContext);
+        if (contentType == null) {
+            contentType = "text/plain";
+        }
+        Builder builder = BuilderUtil.getBuilderFromSelector(contentType, msgContext);
         if (builder == null) {
             if (log.isDebugEnabled()) {
                 log.debug("No message builder found for type '" + contentType + "'. Falling back to SOAP.");
@@ -60,5 +59,4 @@ public class MqttUtils {
         documentElement = builder.processDocument(byteArrayInputStream, contentType, msgContext);
         msgContext.setEnvelope(TransportUtils.createSOAPEnvelope(documentElement));
     }
-
 }

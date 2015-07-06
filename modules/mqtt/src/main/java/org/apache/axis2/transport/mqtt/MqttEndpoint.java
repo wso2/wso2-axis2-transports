@@ -82,7 +82,7 @@ public class MqttEndpoint extends ProtocolEndpoint {
         }
         mqttClient.setCallback(new MqttListenerCallback(this, contentType));
         try {
-            mqttClient.connect(); // TODO DONE RECONNECTING
+            mqttClient.connect();
             if ( topic!= null) {
                 mqttClient.subscribe(topic);
                 log.info("Connected to the remote server.");

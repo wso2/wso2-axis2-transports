@@ -75,7 +75,9 @@ public class MqttConnectionFactory {
         String uniqueClientId = parameters.get(MqttConstants.MQTT_CLIENT_ID);
         String sslEnable = parameters.get(MqttConstants.MQTT_SSL_ENABLE);
         String qosValue=qosLevel;
-        if(qosValue== null){qosValue=parameters.get(MqttConstants.MQTT_QOS);}
+        if(qosValue== null){
+            qosValue=parameters.get(MqttConstants.MQTT_QOS);
+        }
         //This sample stores in a temporary directory... where messages temporarily
         // stored until the message has been delivered to the server.
         //..a real application ought to store them somewhere
@@ -86,7 +88,6 @@ public class MqttConnectionFactory {
             int qos = Integer.parseInt(qosValue);
             {
                 if (qos == 2 || qos == 1) {
-
                     if (tmpDir != null) {
                         dataStore = new MqttDefaultFilePersistence(tmpDir);
                     } else {
