@@ -130,7 +130,7 @@ public class RabbitMQSender extends AbstractTransportSender {
             try {
                 timeout = Integer.parseInt(timeoutStr);
             } catch (NumberFormatException e) {
-                log.warn("Number format error in reading replyto timeout value. Proceeding with default value (10000ms)", e);
+                log.warn("Number format error in reading replyto timeout value. Proceeding with default value (30000ms)", e);
             }
         }
 

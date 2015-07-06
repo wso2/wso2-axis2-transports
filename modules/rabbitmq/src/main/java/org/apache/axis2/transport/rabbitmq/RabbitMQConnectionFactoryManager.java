@@ -53,13 +53,24 @@ public class RabbitMQConnectionFactoryManager {
      * with the given properties exists
      */
     public RabbitMQConnectionFactory getConnectionFactory(Hashtable<String, String> props) {
-        String hostName = props.get(RabbitMQConstants.SERVER_HOST_NAME);
-        String portValue = props.get(RabbitMQConstants.SERVER_PORT);
-        String hostAndPort = hostName + ":" + portValue;
-        RabbitMQConnectionFactory rabbitMQConnectionFactory = connectionFactories.get(hostAndPort);
+        //add all properties to connection factory name in order to have a unique name
+        String connectionFactoryName =
+                props.get(RabbitMQConstants.SERVER_HOST_NAME) + "_" +
+                        props.get(RabbitMQConstants.SERVER_PORT) + "_" +
+                        props.get(RabbitMQConstants.SERVER_USER_NAME) + "_" +
+                        props.get(RabbitMQConstants.SERVER_PASSWORD) + "_" +
+                        props.get(RabbitMQConstants.SSL_ENABLED) + "_" +
+                        props.get(RabbitMQConstants.SERVER_VIRTUAL_HOST) + "_" +
+                        props.get(RabbitMQConstants.SERVER_RETRY_INTERVAL) + "_" +
+                        props.get(RabbitMQConstants.RETRY_INTERVAL) + "_" +
+                        props.get(RabbitMQConstants.RETRY_COUNT) + "_" +
+                        props.get(RabbitMQConstants.HEARTBEAT) + "_" +
+                        props.get(RabbitMQConstants.CONNECTION_TIMEOUT);
+
+        RabbitMQConnectionFactory rabbitMQConnectionFactory = connectionFactories.get(connectionFactoryName);
 
         if (rabbitMQConnectionFactory == null) {
-            rabbitMQConnectionFactory = new RabbitMQConnectionFactory(hostAndPort, props);
+            rabbitMQConnectionFactory = new RabbitMQConnectionFactory(connectionFactoryName, props);
             connectionFactories.put(rabbitMQConnectionFactory.getName(), rabbitMQConnectionFactory);
         }
 
