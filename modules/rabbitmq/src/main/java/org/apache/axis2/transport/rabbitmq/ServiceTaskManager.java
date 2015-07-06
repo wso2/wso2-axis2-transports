@@ -197,7 +197,7 @@ public class ServiceTaskManager {
             }
         }
 
-        private void waitForConnection() {
+        private void waitForConnection() throws IOException {
             int retryInterval = rabbitMQConnectionFactory.getRetryInterval();
             int retryCountMax = rabbitMQConnectionFactory.getRetryCount();
             int retryCount = 0;
@@ -215,6 +215,7 @@ public class ServiceTaskManager {
             }
             if (connection.isOpen()) {
                 log.info("Successfully reconnected to RabbitMQ Broker for the service " + serviceName);
+                initConsumer();
             } else {
                 log.error("Could not reconnect to the RabbitMQ Broker for the service " + serviceName +
                         ". Connection is closed.");
