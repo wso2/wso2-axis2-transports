@@ -258,6 +258,14 @@ public class JMSConnectionFactory {
     }
 
     /**
+     *  JMS Spec. Version. This will be used in Transport Sender
+     *  Added with JMS 2.0 update
+     */
+    public String jmsSpecVersion() {
+        return parameters.get(JMSConstants.PARAM_JMS_SPEC_VER);
+    }
+
+    /**
      * Return the type of the JMS CF Destination
      * @return TRUE if a Queue, FALSE for a Topic and NULL for a JMS 1.1 Generic Destination
      */

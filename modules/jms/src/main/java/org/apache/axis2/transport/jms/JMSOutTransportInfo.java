@@ -390,7 +390,7 @@ public class JMSOutTransportInfo implements OutTransportInfo {
                 destination,
                 jmsConnectionFactory == null ?
                         this.cacheLevel : jmsConnectionFactory.getCacheLevel(),
-                false,
+                "1.0.2b",
                 destType == -1 ?
                         null : destType == JMSConstants.QUEUE ? Boolean.TRUE : Boolean.FALSE
         );

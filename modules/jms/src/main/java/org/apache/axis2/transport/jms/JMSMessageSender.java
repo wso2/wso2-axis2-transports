@@ -46,8 +46,8 @@ public class JMSMessageSender {
     private Destination destination = null;
     /** The level of cachability for resources */
     private int cacheLevel = JMSConstants.CACHE_CONNECTION;
-    /** JMS spec version (1.0.2b or 1.1 or 2.0) default is 1.1 */
-    private boolean jmsSpec11 = true;
+    /** JMS spec version (1.0.2b or 1.1 or 2.0) default is 1.0.2b */
+    private String jmsSpecVersion = null;
     /** Are we sending to a Queue ? */
     private Boolean isQueue = null;
 
@@ -58,18 +58,18 @@ public class JMSMessageSender {
      * @param producer the MessageProducer
      * @param destination the JMS Destination
      * @param cacheLevel cacheLevel - None | Connection | Session | Producer
-     * @param jmsSpec11 true if the JMS 1.1 API should be used
+     * @param jmsSpecVersion JMS spec version set to (1.0.2b)
      * @param isQueue posting to a Queue?
      */
     public JMSMessageSender(Connection connection, Session session, MessageProducer producer,
-        Destination destination, int cacheLevel, boolean jmsSpec11, Boolean isQueue) {
+        Destination destination, int cacheLevel, String jmsSpecVersion, Boolean isQueue) {
 
         this.connection = connection;
         this.session = session;
         this.producer = producer;
         this.destination = destination;
         this.cacheLevel = cacheLevel;
-        this.jmsSpec11 = jmsSpec11;
+        this.jmsSpecVersion = jmsSpecVersion;
         this.isQueue = isQueue;
     }
 
@@ -82,7 +82,7 @@ public class JMSMessageSender {
     public JMSMessageSender(JMSConnectionFactory jmsConnectionFactory, String targetAddress) {
 
         this.cacheLevel  = jmsConnectionFactory.getCacheLevel();
-        this.jmsSpec11   = jmsConnectionFactory.isJmsSpec11();
+        this.jmsSpecVersion   = jmsConnectionFactory.jmsSpecVersion();
         this.connection  = jmsConnectionFactory.getConnection();
         this.session     = jmsConnectionFactory.getSession(connection);
         boolean isQueue = jmsConnectionFactory.isQueue() == null ? true : jmsConnectionFactory.isQueue();
@@ -149,7 +149,7 @@ public class JMSMessageSender {
         boolean sendingSuccessful = false;
         // perform actual message sending
         try {
-            if (jmsSpec11 || isQueue == null) {
+            if ("1.1".equals(jmsSpecVersion) || "2.0".equals(jmsSpecVersion) || isQueue == null) {
                 producer.send(message);
 
             } else {
