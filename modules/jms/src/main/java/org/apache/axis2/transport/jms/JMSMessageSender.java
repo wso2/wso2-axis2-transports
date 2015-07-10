@@ -138,7 +138,7 @@ public class JMSMessageSender {
         /** JMS 2.0 feature : Message Delay time interval
          *  This delay will be applied when the message is sent from Broker to consumers
          * */
-        if (messageDelay != null) {
+        if ("2.0".equals(jmsSpecVersion) && messageDelay != null) {
             try {
                 producer.setDeliveryDelay(messageDelay);
             } catch (JMSException e) {
