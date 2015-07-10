@@ -266,6 +266,22 @@ public class JMSConnectionFactory {
     }
 
     /**
+     *  Should JMS 2.0 spec be used - default is false
+     *  Added with JMS 2.0 update
+     */
+    public boolean isJmsSpec20() {
+        return "2.0".equals(parameters.get(JMSConstants.PARAM_JMS_SPEC_VER));
+    }
+
+    /**
+     *  Should JMS Classic API be used (both 1.1 and 2.0 spec versions uses classic API)
+     *  Added with JMS 2.0 update
+     */
+    public boolean isClassicAPI() {
+        return isJmsSpec11() || isJmsSpec20();
+    }
+
+    /**
      * Return the type of the JMS CF Destination
      * @return TRUE if a Queue, FALSE for a Topic and NULL for a JMS 1.1 Generic Destination
      */
@@ -328,7 +344,7 @@ public class JMSConnectionFactory {
                 conFactory,
                 parameters.get(JMSConstants.PARAM_JMS_USERNAME),
                 parameters.get(JMSConstants.PARAM_JMS_PASSWORD),
-                isJmsSpec11(), isQueue(), isDurable(), getClientId());
+                isClassicAPI(), isQueue(), isDurable(), getClientId());
 
             if (log.isDebugEnabled()) {
                 log.debug("New JMS Connection from JMS CF : " + name + " created");
@@ -352,7 +368,7 @@ public class JMSConnectionFactory {
                 log.debug("Creating a new JMS Session from JMS CF : " + name);
             }
             return JMSUtils.createSession(
-                connection, isSessionTransacted(), Session.AUTO_ACKNOWLEDGE, isJmsSpec11(), isQueue());
+                connection, isSessionTransacted(), Session.AUTO_ACKNOWLEDGE, isClassicAPI(), isQueue());
 
         } catch (JMSException e) {
             handleException("Error creating JMS session from JMS CF : " + name, e);
@@ -373,7 +389,7 @@ public class JMSConnectionFactory {
             }
 
             return JMSUtils.createProducer(
-                session, destination, isQueue(), isJmsSpec11());
+                session, destination, isQueue(), isClassicAPI());
 
         } catch (JMSException e) {
             handleException("Error creating JMS producer from JMS CF : " + name,e);
