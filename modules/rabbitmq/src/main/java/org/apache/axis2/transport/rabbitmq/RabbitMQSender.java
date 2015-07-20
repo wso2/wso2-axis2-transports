@@ -115,7 +115,8 @@ public class RabbitMQSender extends AbstractTransportSender {
         Connection connection = factory.createConnection();
 
         if (!RabbitMQUtils.isQueueAvailable(connection, replyTo)) {
-            handleException("Reply-to queue : " + replyTo + " not available.");
+            log.info("Reply-to queue : " + replyTo + " not available, hence creating a new one");
+            RabbitMQUtils.declareQueue(connection, replyTo, eprProperties);
         }
 
         Channel channel = connection.createChannel();
