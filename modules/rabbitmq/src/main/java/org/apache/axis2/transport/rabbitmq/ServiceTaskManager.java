@@ -182,7 +182,7 @@ public class ServiceTaskManager {
                             waitForConnection();
                         }
                     } catch (OMException e) {
-                        log.error("Invalid Message Format", e);
+                        log.error("Invalid Message Format while Consuming the message", e);
                     } catch (IOException e) {
                         log.error("RabbitMQ Listener of the service " + serviceName +
                                 " was disconnected", e);
