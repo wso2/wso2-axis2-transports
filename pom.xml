@@ -59,6 +59,7 @@
                 <module>modules/mail</module>
                 <module>modules/jms</module>
                 <module>modules/rabbitmq</module>
+                <module>modules/mqtt</module>
                 <module>modules/sms</module>
                 <module>modules/testkit</module>
 
