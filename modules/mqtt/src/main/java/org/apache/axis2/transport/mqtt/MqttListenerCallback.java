@@ -40,6 +40,7 @@ public class MqttListenerCallback implements MqttCallback {
 
     public void connectionLost(Throwable throwable) {
         log.error("Connection Lost - Client Disconnected");
+        mqttEndpoint.subscribeToTopic();
         /**
          * implements from MqttCallback
          */
