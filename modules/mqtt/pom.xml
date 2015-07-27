@@ -31,12 +31,10 @@
         <relativePath>../../pom.xml</relativePath>
     </parent>
 
-    <groupId>org.apache.axis2</groupId>
     <artifactId>axis2-transport-mqtt</artifactId>
-    <version>1.0.0</version>
     <name>Apache Axis2 - Transport - MQTT</name>
     <description>Apache Axis2 - MQTT Transport</description>
-    <packaging>jar</packaging>
+    <packaging>bundle</packaging>
 
     <build>
         <plugins>
