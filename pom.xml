@@ -262,7 +262,7 @@
             <dependency>
                 <groupId>org.smslib</groupId>
                 <artifactId>smslib</artifactId>
-                <version>3.4.1</version>
+                <version>3.4.5</version>
             </dependency>
             <dependency>
                 <groupId>org.apache.axis2</groupId>
@@ -368,6 +368,16 @@
             </snapshots>
             <releases>
                 <enabled>false</enabled>
+            </releases>
+        </repository>
+        <repository>
+            <id>smslib.releases</id>
+            <name>smslib Repository</name>
+            <url>http://smslib.org/maven2/v3/</url>
+            <releases>
+                <enabled>true</enabled>
+                <updatePolicy>daily</updatePolicy>
+                <checksumPolicy>ignore</checksumPolicy>
             </releases>
         </repository>
     </repositories>
