@@ -69,6 +69,7 @@
                 <module>features/org.apache.axis2.transport.udp.feature</module>
                 <module>features/org.apache.axis2.transport.xmpp.feature</module>
                 <module>features/org.apache.axis2.transport.rabbitmq.feature</module>
+                <module>features/org.apache.axis2.transport.mqtt.feature</module>
             </modules>
         </profile>
         <profile>
@@ -88,6 +89,7 @@
                 <module>modules/rabbitmq</module>
                 <module>modules/sms</module>
                 <module>modules/testkit</module>
+                <module>modules/mqtt</module>
             </modules>
         </profile>
     </profiles>
@@ -144,6 +146,11 @@
             <dependency>
                 <groupId>org.apache.axis2.transport</groupId>
                 <artifactId>axis2-transport-testkit</artifactId>
+                <version>${axis2.transports.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.axis2.transport</groupId>
+                <artifactId>axis2-transport-mqtt</artifactId>
                 <version>${axis2.transports.version}</version>
             </dependency>
 
