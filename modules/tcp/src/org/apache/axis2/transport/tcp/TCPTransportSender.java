@@ -59,6 +59,8 @@ public class TCPTransportSender extends AbstractTransportSender {
                 }
             } catch (IOException e) {
                 handleException("Error while sending a TCP request", e);
+            } finally {
+                closeConnection(socket);
             }
 
         } else if (outTransportInfo != null && (outTransportInfo instanceof TCPOutTransportInfo)) {
