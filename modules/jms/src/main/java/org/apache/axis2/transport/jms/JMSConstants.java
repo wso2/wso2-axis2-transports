@@ -353,13 +353,4 @@ public class JMSConstants {
      */
     public static final String JMS_MESSAGE_DELAY = "JMS_MESSAGE_DELAY";
 
-    /**
-     * JMS Version
-     * This is added to give JMS spec version and used only in JMS Sender.
-     * if this is not given version "1.1" will be used as default
-     * else JMS "1.0.2B" or JMS "2.0" can be specified.
-     * For JMS 2.0 classic API will be used
-     */
-    public static final String JMS_SPEC_VERSION = "JMS_MESSAGE_DELAY";
-
 }
