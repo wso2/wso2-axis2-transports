@@ -115,7 +115,7 @@ public class ServiceTaskManager {
     /** Progression factory for geometric series that calculates re-connection times */
     private double reconnectionProgressionFactor = 2.0; // default to [bounded] exponential
     /** Upper limit on reconnection attempt duration */
-    private long maxReconnectDuration = 1000 * 60 * 60; // 1 hour
+    private long maxReconnectDuration = 1000 * 60 * 1; // 1 min
 	/** Reconnect duration in case of a failure */
 	private Long reconnectDuration = null; // default null
     /** The JNDI context properties and other general properties */

@@ -85,7 +85,7 @@ public class JMSListener extends AbstractTransportListenerEx<JMSEndpoint> implem
         int r = 1;
         long retryDuration = 10000;
         double reconnectionProgressionFactor = 2.0;
-        long maxReconnectDuration = stm.getMaxReconnectDuration(); // default 1 hour
+        long maxReconnectDuration = stm.getMaxReconnectDuration(); // default 1 min
         Hashtable<String, String> jmsProperties = stm.getJmsProperties();
 
         // First we will check whether jms provider is started or not, as if not it will throw a continuous error log
