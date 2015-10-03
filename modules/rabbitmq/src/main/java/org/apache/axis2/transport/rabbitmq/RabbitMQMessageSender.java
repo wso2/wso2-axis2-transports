@@ -18,7 +18,6 @@
 
 package org.apache.axis2.transport.rabbitmq;
 
-import com.ctc.wstx.util.StringUtil;
 import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
@@ -96,13 +95,29 @@ public class RabbitMQMessageSender {
             String replyTo = properties.get(RabbitMQConstants.REPLY_TO_NAME);
             String correlationID = properties.get(RabbitMQConstants.CORRELATION_ID);
 
+            String queueAutoDeclareStr = properties.get(RabbitMQConstants.QUEUE_AUTODECLARE);
+            String exchangeAutoDeclareStr = properties.get(RabbitMQConstants.EXCHANGE_AUTODECLARE);
+            boolean queueAutoDeclare = true;
+            boolean exchangeAutoDeclare = true;
+
+            if (!StringUtils.isEmpty(queueAutoDeclareStr)) {
+                queueAutoDeclare = Boolean.parseBoolean(queueAutoDeclareStr);
+            }
+
+            if (!StringUtils.isEmpty(exchangeAutoDeclareStr)) {
+                exchangeAutoDeclare = Boolean.parseBoolean(exchangeAutoDeclareStr);
+            }
+
             message.setReplyTo(replyTo);
 
             if ((!StringUtils.isEmpty(replyTo)) && (StringUtils.isEmpty(correlationID))) {
                 //if reply-to is enabled a correlationID must be available. If not specified, use messageID
                 correlationID = message.getMessageId();
             }
-            message.setCorrelationId(correlationID);
+
+            if(!StringUtils.isEmpty(correlationID)) {
+                message.setCorrelationId(correlationID);
+            }
 
             if (queueName == null || queueName.equals("")) {
                 log.info("No queue name is specified");
@@ -121,14 +136,15 @@ public class RabbitMQMessageSender {
             Channel channel = connection.createChannel();
             log.debug("Creating a new channel.");
 
+
             //Declaring the queue
-            if (queueName != null && !queueName.equals("")) {
-                RabbitMQUtils.declareQueue(connection, queueName, properties);
+            if (queueAutoDeclare && queueName != null && !queueName.equals("")) {
+                RabbitMQUtils.declareQueue(connection, channel, queueName, properties);
             }
 
             //Declaring the exchange
-            if (exchangeName != null && !exchangeName.equals("")) {
-                RabbitMQUtils.declareExchange(connection, exchangeName, properties);
+            if (exchangeAutoDeclare && exchangeName != null && !exchangeName.equals("")) {
+                RabbitMQUtils.declareExchange(connection, channel, exchangeName, properties);
 
                 if (queueName != null && !"x-consistent-hash".equals(exchangeType)) {
                     // Create bind between the queue and exchange with the routeKey
@@ -265,4 +281,7 @@ public class RabbitMQMessageSender {
         throw new AxisRabbitMQException(message, e);
     }
 
+    public Connection getConnection() {
+        return connection;
+    }
 }

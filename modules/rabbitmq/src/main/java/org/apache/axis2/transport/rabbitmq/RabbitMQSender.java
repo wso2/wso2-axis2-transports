@@ -100,7 +100,8 @@ public class RabbitMQSender extends AbstractTransportSender {
             sender.send(message, msgContext);
 
             if (message.getReplyTo() != null) {
-                processResponse(factory, msgContext, message.getCorrelationId(), message.getReplyTo(), BaseUtils.getEPRProperties(targetEPR));
+                Connection connection = sender.getConnection();
+                processResponse(connection, msgContext, message.getCorrelationId(), message.getReplyTo(), BaseUtils.getEPRProperties(targetEPR));
             }
 
         } catch (AxisRabbitMQException e) {
@@ -110,16 +111,22 @@ public class RabbitMQSender extends AbstractTransportSender {
         }
     }
 
-    private void processResponse(RabbitMQConnectionFactory factory, MessageContext msgContext, String correlationID, String replyTo, Hashtable<String, String> eprProperties) throws IOException {
-
-        Connection connection = factory.createConnection();
-
-        if (!RabbitMQUtils.isQueueAvailable(connection, replyTo)) {
-            log.info("Reply-to queue : " + replyTo + " not available, hence creating a new one");
-            RabbitMQUtils.declareQueue(connection, replyTo, eprProperties);
-        }
+    private void processResponse(Connection connection, MessageContext msgContext, String correlationID, String replyTo, Hashtable<String, String> eprProperties) throws IOException {
 
         Channel channel = connection.createChannel();
+
+        String queueAutoDeclareStr = eprProperties.get(RabbitMQConstants.QUEUE_AUTODECLARE);
+        boolean queueAutoDeclare = true;
+
+        if (!StringUtils.isEmpty(queueAutoDeclareStr)) {
+            queueAutoDeclare = Boolean.parseBoolean(queueAutoDeclareStr);
+        }
+
+        if (queueAutoDeclare && !RabbitMQUtils.isQueueAvailable(connection, channel, replyTo)) {
+            log.info("Reply-to queue : " + replyTo + " not available, hence creating a new one");
+            RabbitMQUtils.declareQueue(connection, channel, replyTo, eprProperties);
+        }
+
         QueueingConsumer consumer = new QueueingConsumer(channel);
         QueueingConsumer.Delivery delivery = null;
         RabbitMQMessage message = new RabbitMQMessage();
@@ -143,15 +150,17 @@ public class RabbitMQSender extends AbstractTransportSender {
                 log.debug("Waiting for next delivery from reply to queue " + replyTo);
                 delivery = consumer.nextDelivery(timeout);
                 if (delivery != null) {
-                    if (delivery.getProperties().getCorrelationId().equals(correlationID)) {
-                        responseFound = true;
-                        log.debug("Found matching response with correlation ID : " + correlationID + ". Sending ack");
-                        //acknowledge correct message
-                        channel.basicAck(delivery.getEnvelope().getDeliveryTag(), false);
-                    } else {
-                        //not acknowledge wrong messages and re-queue
-                        log.debug("Found messages with wrong correlation ID. Re-queueing and sending nack");
-                        channel.basicNack(delivery.getEnvelope().getDeliveryTag(), false, true);
+                    if (!StringUtils.isEmpty(delivery.getProperties().getCorrelationId())) {
+                        if (delivery.getProperties().getCorrelationId().equals(correlationID)) {
+                            responseFound = true;
+                            log.debug("Found matching response with correlation ID : " + correlationID + ". Sending ack");
+                            //acknowledge correct message
+                            channel.basicAck(delivery.getEnvelope().getDeliveryTag(), false);
+                        } else {
+                            //not acknowledge wrong messages and re-queue
+                            log.debug("Found messages with wrong correlation ID. Re-queueing and sending nack");
+                            channel.basicNack(delivery.getEnvelope().getDeliveryTag(), false, true);
+                        }
                     }
                 }
             }
@@ -165,6 +174,7 @@ public class RabbitMQSender extends AbstractTransportSender {
             if (channel != null || channel.isOpen()) {
                 //stop consuming
                 channel.basicCancel(consumerTag);
+                channel.close();
             }
         }
 

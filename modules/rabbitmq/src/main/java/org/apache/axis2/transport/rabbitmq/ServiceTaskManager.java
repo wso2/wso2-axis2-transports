@@ -338,14 +338,27 @@ public class ServiceTaskManager {
                 routeKey = queueName;
             }
 
-            if (!StringUtils.isEmpty(queueName)) {
-                //declaring queue
-                RabbitMQUtils.declareQueue(connection, queueName, rabbitMQProperties);
+            String queueAutoDeclareStr = rabbitMQProperties.get(RabbitMQConstants.QUEUE_AUTODECLARE);
+            String exchangeAutoDeclareStr = rabbitMQProperties.get(RabbitMQConstants.EXCHANGE_AUTODECLARE);
+
+            boolean queueAutoDeclare = true;
+            boolean exchangeAutoDeclare = true;
+
+            if (!StringUtils.isEmpty(queueAutoDeclareStr)) {
+                queueAutoDeclare = Boolean.parseBoolean(queueAutoDeclareStr);
             }
 
-            if (!StringUtils.isEmpty(exchangeName)) {
+            if (!StringUtils.isEmpty(exchangeAutoDeclareStr)) {
+                exchangeAutoDeclare = Boolean.parseBoolean(exchangeAutoDeclareStr);
+            }
+            if (queueAutoDeclare && !StringUtils.isEmpty(queueName)) {
+                //declaring queue
+                RabbitMQUtils.declareQueue(connection, channel, queueName, rabbitMQProperties);
+            }
+
+            if (exchangeAutoDeclare && !StringUtils.isEmpty(exchangeName)) {
                 //declaring exchange
-                RabbitMQUtils.declareExchange(connection, exchangeName, rabbitMQProperties);
+                RabbitMQUtils.declareExchange(connection, channel, exchangeName, rabbitMQProperties);
 
                 if (!channel.isOpen()) {
                     channel = connection.createChannel();

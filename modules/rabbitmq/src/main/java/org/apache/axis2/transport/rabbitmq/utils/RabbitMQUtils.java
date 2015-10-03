@@ -138,8 +138,10 @@ public class RabbitMQUtils {
         return autoDelete != null && Boolean.parseBoolean(autoDelete);
     }
 
-    public static boolean isQueueAvailable(Connection connection, String queueName) throws IOException {
-        Channel channel = connection.createChannel();
+    public static boolean isQueueAvailable(Connection connection, Channel channel, String queueName) throws IOException {
+        if (!channel.isOpen()) {
+            channel = connection.createChannel();
+        }
         try {
             // check availability of the named queue
             // if an error is encountered, including if the queue does not exist and if the
@@ -151,11 +153,13 @@ public class RabbitMQUtils {
         }
     }
 
-    public static void declareQueue(Connection connection, String queueName, boolean isDurable,
+    public static void declareQueue(Connection connection, Channel channel, String queueName, boolean isDurable,
                                     boolean isExclusive, boolean isAutoDelete) throws IOException {
+        if (!channel.isOpen()) {
+            channel = connection.createChannel();
+        }
 
-        boolean queueAvailable = isQueueAvailable(connection, queueName);
-        Channel channel = connection.createChannel();
+        boolean queueAvailable = isQueueAvailable(connection, channel, queueName);
 
         if (!queueAvailable) {
             if (log.isDebugEnabled()) {
@@ -174,10 +178,14 @@ public class RabbitMQUtils {
         }
     }
 
-    public static void declareQueue(Connection connection, String queueName,
+    public static void declareQueue(Connection connection, Channel channel, String queueName,
                                     Hashtable<String, String> properties) throws IOException {
-        Boolean queueAvailable = isQueueAvailable(connection, queueName);
-        Channel channel = connection.createChannel();
+
+        if (!channel.isOpen()) {
+            channel = connection.createChannel();
+        }
+
+        Boolean queueAvailable = isQueueAvailable(connection, channel, queueName);
 
         if (!queueAvailable) {
             // Declare the named queue if it does not exists.
@@ -196,9 +204,11 @@ public class RabbitMQUtils {
     }
 
 
-    public static void declareExchange(Connection connection, String exchangeName, Hashtable<String, String> properties) throws IOException {
+    public static void declareExchange(Connection connection, Channel channel, String exchangeName, Hashtable<String, String> properties) throws IOException {
         Boolean exchangeAvailable = false;
-        Channel channel = connection.createChannel();
+        if (!channel.isOpen()) {
+            channel = connection.createChannel();
+        }
         String exchangeType = properties
                 .get(RabbitMQConstants.EXCHANGE_TYPE);
         String durable = properties.get(RabbitMQConstants.EXCHANGE_DURABLE);
@@ -236,7 +246,6 @@ public class RabbitMQUtils {
                 handleException("Error occurred while declaring exchange.", e);
             }
         }
-        channel.close();
     }
 
     public static void handleException(String message, Exception e) {

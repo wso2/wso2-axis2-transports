@@ -51,6 +51,9 @@ public class RabbitMQConstants {
     public static final String REPLY_TO_TIMEOUT = "rabbitmq.replyto.timeout";
     public static final String REPLY_TO_CONTENT_TYPE = "rabbitmq.replyto.content.type";
 
+    public static final String QUEUE_AUTODECLARE = "rabbitmq.queue.autodeclare";
+    public static final String EXCHANGE_AUTODECLARE = "rabbitmq.exchange.autodeclare";
+
     //SSL related properties
     public static final String SSL_ENABLED = "rabbitmq.connection.ssl.enabled";
     public static final String SSL_KEYSTORE_LOCATION = "rabbitmq.connection.ssl.keystore.location";
