@@ -24,6 +24,8 @@ import org.apache.axiom.om.OMElement;
 import org.apache.axis2.AxisFault;
 import org.apache.axis2.description.Parameter;
 import org.apache.axis2.description.ParameterIncludeImpl;
+import org.apache.axis2.transport.rabbitmq.rpc.RPCChannel;
+import org.apache.axis2.transport.rabbitmq.rpc.RPCChannelPool;
 import org.apache.axis2.transport.rabbitmq.utils.AxisRabbitMQException;
 import org.apache.axis2.transport.rabbitmq.utils.RabbitMQConstants;
 import org.apache.axis2.transport.rabbitmq.utils.RabbitMQUtils;
@@ -53,6 +55,7 @@ public class RabbitMQConnectionFactory {
     private static final Log log = LogFactory.getLog(RabbitMQConnectionFactory.class);
 
     private ConnectionFactory connectionFactory = null;
+    private RPCChannelPool rpcChannelPool = null;
     private String name;
     private Hashtable<String, String> parameters = new Hashtable<String, String>();
     private ExecutorService es = Executors.newFixedThreadPool(RabbitMQConstants.DEFAULT_THREAD_COUNT);
@@ -60,10 +63,6 @@ public class RabbitMQConnectionFactory {
     private int retryInterval = RabbitMQConstants.DEFAULT_RETRY_INTERVAL;
     private int retryCount = RabbitMQConstants.DEFAULT_RETRY_COUNT;
 
-    public RabbitMQConnectionFactory(String name, ConnectionFactory connectionFactory) {
-        this.name = name;
-        this.connectionFactory = connectionFactory;
-    }
 
     /**
      * Digest a AMQP CF definition from an axis2.xml 'Parameter' and construct
@@ -85,6 +84,7 @@ public class RabbitMQConnectionFactory {
             parameters.put(p.getName(), (String) p.getValue());
         }
         initConnectionFactory();
+        initConnectionPool();
         log.info("RabbitMQ ConnectionFactory : " + name + " initialized");
     }
 
@@ -98,6 +98,7 @@ public class RabbitMQConnectionFactory {
         this.name = name;
         this.parameters = parameters;
         initConnectionFactory();
+        initConnectionPool();
         log.info("RabbitMQ ConnectionFactory : " + name + " initialized");
     }
 
@@ -131,19 +132,6 @@ public class RabbitMQConnectionFactory {
             if (connection == null) {
                 handleException("[" + name + "] Could not connect to RabbitMQ Broker. Error while creating connection", e);
             }
-        }
-        return connection;
-    }
-
-    /**
-     * Create a connection from pool
-     *
-     * @return a connection to the server
-     * @throws IOException
-     */
-    public Connection getConnectionPool() throws IOException {
-        if ((connection == null) || (!connection.isOpen())) {
-            connection = connectionFactory.newConnection(es);
         }
         return connection;
     }
@@ -328,6 +316,18 @@ public class RabbitMQConnectionFactory {
 
         connectionFactory.setAutomaticRecoveryEnabled(true);
         connectionFactory.setTopologyRecoveryEnabled(false);
+    }
+
+    private void initConnectionPool() {
+        rpcChannelPool = new RPCChannelPool(this);//TODO : clear this at server shutdown
+    }
+
+    public RPCChannel getRPCChannel() throws InterruptedException {
+        return rpcChannelPool.take();
+    }
+
+    public void pushRPCChannel(RPCChannel rpcChannel) throws InterruptedException {
+        rpcChannelPool.push(rpcChannel);
     }
 
     public int getRetryInterval() {

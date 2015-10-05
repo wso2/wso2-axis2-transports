@@ -54,21 +54,21 @@ public class RabbitMQMessageSender {
 
     /**
      * Create a RabbitMQSender using a ConnectionFactory and target EPR
-     *
-     * @param factory   the ConnectionFactory
+     *  @param factory   the ConnectionFactory
      * @param targetEPR the targetAddress
+     * @param epProperties
      */
-    public RabbitMQMessageSender(RabbitMQConnectionFactory factory, String targetEPR) {
-        try {
-            this.connection = factory.getConnectionPool();
-        } catch (IOException e) {
-            handleException("Error while creating connection pool", e);
-        }
+    public RabbitMQMessageSender(RabbitMQConnectionFactory factory, String targetEPR, Hashtable<String, String> epProperties) {
+//        try {
+//            this.connection = factory.getConnectionPool();
+//        } catch (IOException e) {
+//            handleException("Error while creating connection pool", e);
+//        }
         this.targetEPR = targetEPR;
         if (!targetEPR.startsWith(RabbitMQConstants.RABBITMQ_PREFIX)) {
             handleException("Invalid prefix for a AMQP EPR : " + targetEPR);
         } else {
-            this.properties = BaseUtils.getEPRProperties(targetEPR);
+            this.properties = epProperties;//BaseUtils.getEPRProperties(targetEPR);
         }
     }
 

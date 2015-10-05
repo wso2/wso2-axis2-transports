@@ -31,6 +31,7 @@ import org.apache.axis2.description.TransportOutDescription;
 import org.apache.axis2.transport.OutTransportInfo;
 import org.apache.axis2.transport.base.AbstractTransportSender;
 import org.apache.axis2.transport.base.BaseUtils;
+import org.apache.axis2.transport.rabbitmq.rpc.RabbitMQRPCMessageSender;
 import org.apache.axis2.transport.rabbitmq.utils.AxisRabbitMQException;
 import org.apache.axis2.transport.rabbitmq.utils.RabbitMQConstants;
 import org.apache.axis2.transport.rabbitmq.utils.RabbitMQUtils;
@@ -84,8 +85,7 @@ public class RabbitMQSender extends AbstractTransportSender {
             RabbitMQOutTransportInfo transportOutInfo = new RabbitMQOutTransportInfo(targetEPR);
             RabbitMQConnectionFactory factory = getConnectionFactory(transportOutInfo);
             if (factory != null) {
-                RabbitMQMessageSender sender = new RabbitMQMessageSender(factory, targetEPR);
-                sendOverAMQP(factory, msgCtx, sender, targetEPR);
+                sendOverAMQP(factory, msgCtx, targetEPR);
             }
         }
     }
@@ -93,15 +93,25 @@ public class RabbitMQSender extends AbstractTransportSender {
     /**
      * Perform actual sending of the AMQP message
      */
-    private void sendOverAMQP(RabbitMQConnectionFactory factory, MessageContext msgContext, RabbitMQMessageSender sender, String targetEPR)
+    private void sendOverAMQP(RabbitMQConnectionFactory factory, MessageContext msgContext, String targetEPR)
             throws AxisFault {
         try {
-            RabbitMQMessage message = new RabbitMQMessage(msgContext);
-            sender.send(message, msgContext);
 
-            if (message.getReplyTo() != null) {
-                Connection connection = sender.getConnection();
-                processResponse(connection, msgContext, message.getCorrelationId(), message.getReplyTo(), BaseUtils.getEPRProperties(targetEPR));
+            RabbitMQMessage message = new RabbitMQMessage(msgContext);
+            Hashtable<String, String> epProperties = BaseUtils.getEPRProperties(targetEPR);
+
+            if (!StringUtils.isEmpty(epProperties.get(RabbitMQConstants.REPLY_TO_NAME) )){
+                // request-response scenario
+                RabbitMQRPCMessageSender sender = new RabbitMQRPCMessageSender(factory, targetEPR, epProperties);
+                RabbitMQMessage responseMessage = sender.send(message, msgContext);
+                MessageContext responseMsgCtx = createResponseMessageContext(msgContext);
+                RabbitMQUtils.setSOAPEnvelope(responseMessage, responseMsgCtx, responseMessage.getContentType());
+                handleIncomingMessage(responseMsgCtx, RabbitMQUtils.getTransportHeaders(responseMessage),
+                        responseMessage.getSoapAction(), responseMessage.getContentType());
+            } else {
+                //Basic out only publish
+                RabbitMQMessageSender sender = new RabbitMQMessageSender(factory, targetEPR, epProperties);
+                sender.send(message, msgContext);
             }
 
         } catch (AxisRabbitMQException e) {
