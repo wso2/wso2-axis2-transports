@@ -53,8 +53,7 @@ public class RabbitMQRPCMessageSender {
 
     private RPCChannel rpcChannel = null;
     private String targetEPR = null;
-    private Hashtable<String, String> properties;
-    private String correlationId;
+    private Hashtable<String, String> epProperties;
 
     /**
      * Create a RabbitMQSender using a ConnectionFactory and target EPR
@@ -77,7 +76,7 @@ public class RabbitMQRPCMessageSender {
         if (!this.targetEPR.startsWith(RabbitMQConstants.RABBITMQ_PREFIX)) {
             handleException("Invalid prefix for a AMQP EPR : " + targetEPR);
         } else {
-            this.properties = epProperties;
+            this.epProperties = epProperties;
 //            this.properties = BaseUtils.getEPRProperties(targetEPR);
         }
     }
@@ -86,9 +85,11 @@ public class RabbitMQRPCMessageSender {
             AxisRabbitMQException, IOException {
 
         publish(message, msgContext);
-        processResponse(message.getCorrelationId(), message.getReplyTo(), BaseUtils.getEPRProperties(targetEPR));
+//        String responseQueue = properties.get(RabbitMQConstants.REPLY_TO_NAME);
+//        System.out.println("Response is getting from : " + responseQueue);
+        RabbitMQMessage responseMessage = processResponse(message.getCorrelationId());
 
-        return message;
+        return responseMessage;
     }
 
     /**
@@ -105,14 +106,15 @@ public class RabbitMQRPCMessageSender {
         byte[] messageBody = null;
 
         if (rpcChannel.isOpen()) {
-            String queueName = properties.get(RabbitMQConstants.QUEUE_NAME);
-            String routeKey = properties
+            String queueName = epProperties.get(RabbitMQConstants.QUEUE_NAME);
+            String routeKey = epProperties
                     .get(RabbitMQConstants.QUEUE_ROUTING_KEY);
-            exchangeName = properties.get(RabbitMQConstants.EXCHANGE_NAME);
-            String exchangeType = properties
+            exchangeName = epProperties.get(RabbitMQConstants.EXCHANGE_NAME);
+            String exchangeType = epProperties
                     .get(RabbitMQConstants.EXCHANGE_TYPE);
-            String replyTo = properties.get(RabbitMQConstants.REPLY_TO_NAME);
-            String correlationID = properties.get(RabbitMQConstants.CORRELATION_ID);
+            //String replyTo = properties.get(RabbitMQConstants.REPLY_TO_NAME);
+            String correlationID = epProperties.get(RabbitMQConstants.CORRELATION_ID);
+            String replyTo = rpcChannel.getReplyToQueue();
 
 //            String queueAutoDeclareStr = properties.get(RabbitMQConstants.QUEUE_AUTODECLARE);
 //            String exchangeAutoDeclareStr = properties.get(RabbitMQConstants.EXCHANGE_AUTODECLARE);
@@ -135,7 +137,6 @@ public class RabbitMQRPCMessageSender {
             }
 
             if (!StringUtils.isEmpty(correlationID)) {
-                correlationID += "-" + Thread.currentThread().getId();
                 message.setCorrelationId(correlationID);
             }
 
@@ -184,7 +185,7 @@ public class RabbitMQRPCMessageSender {
 */
             AMQP.BasicProperties.Builder builder = buildBasicProperties(message);
 
-            String deliveryModeString = properties
+            String deliveryModeString = epProperties
                     .get(RabbitMQConstants.QUEUE_DELIVERY_MODE);
             int deliveryMode = RabbitMQConstants.DEFAULT_DELIVERY_MODE;
             if (deliveryModeString != null) {
@@ -240,9 +241,11 @@ public class RabbitMQRPCMessageSender {
 //                        log.debug("Channel is not open or unavailable. Creating a new channel.");
 //                    }
                 if (exchangeName != null && exchangeName != "") {
+                    log.debug("Publishing message to exchange " + exchangeName + " with route key " + routeKey);
                     channel.basicPublish(exchangeName, routeKey, basicProperties,
                             messageBody);
                 } else {
+                    log.debug("Publishing message with route key " + routeKey);
                     channel.basicPublish("", routeKey, basicProperties,
                             messageBody);
                 }
@@ -260,7 +263,7 @@ public class RabbitMQRPCMessageSender {
     }
 
 
-    private RabbitMQMessage processResponse(String correlationID, String replyTo, Hashtable<String, String> eprProperties) throws IOException {
+    private RabbitMQMessage processResponse(String correlationID) throws IOException {
 
 //        String queueAutoDeclareStr = eprProperties.get(RabbitMQConstants.QUEUE_AUTODECLARE);
 //        boolean queueAutoDeclare = true;
@@ -277,7 +280,7 @@ public class RabbitMQRPCMessageSender {
         }*/
 
         int timeout = RabbitMQConstants.DEFAULT_REPLY_TO_TIMEOUT;
-        String timeoutStr = eprProperties.get(RabbitMQConstants.REPLY_TO_TIMEOUT);
+        String timeoutStr = epProperties.get(RabbitMQConstants.REPLY_TO_TIMEOUT);
         if (!StringUtils.isEmpty(timeoutStr)) {
             try {
                 timeout = Integer.parseInt(timeoutStr);
@@ -290,8 +293,8 @@ public class RabbitMQRPCMessageSender {
         QueueingConsumer.Delivery delivery = null;
         RabbitMQMessage message = new RabbitMQMessage();
         Channel channel = rpcChannel.getChannel();
-        System.out.println("REPLYTO QUEUE:" + rpcChannel.getReplyToQueue());
-        System.out.println("CORRELATIONID:" + correlationID);
+        String replyToQueue = rpcChannel.getReplyToQueue();
+
         boolean responseFound = false;
 
 
@@ -301,7 +304,7 @@ public class RabbitMQRPCMessageSender {
 
         try {
             while (!responseFound) {
-                log.debug("Waiting for next delivery from reply to queue " + replyTo);
+                log.debug("Waiting for next delivery from reply to queue " + replyToQueue);
                 delivery = consumer.nextDelivery(timeout);
                 if (delivery != null) {
                     if (!StringUtils.isEmpty(delivery.getProperties().getCorrelationId())) {
@@ -344,7 +347,7 @@ public class RabbitMQRPCMessageSender {
             String contentType = properties.getContentType();
             if (contentType == null) {
                 //if not get content type from transport parameter
-                contentType = eprProperties.get(RabbitMQConstants.REPLY_TO_CONTENT_TYPE);
+                contentType = epProperties.get(RabbitMQConstants.REPLY_TO_CONTENT_TYPE);
                 if (contentType == null) {
                     //if none is given, set to default content type
                     log.warn("Setting default content type " + RabbitMQConstants.DEFAULT_CONTENT_TYPE);
