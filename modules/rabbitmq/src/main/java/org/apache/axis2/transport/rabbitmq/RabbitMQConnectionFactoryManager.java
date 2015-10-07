@@ -70,8 +70,14 @@ public class RabbitMQConnectionFactoryManager {
         RabbitMQConnectionFactory rabbitMQConnectionFactory = connectionFactories.get(connectionFactoryName);
 
         if (rabbitMQConnectionFactory == null) {
-            rabbitMQConnectionFactory = new RabbitMQConnectionFactory(connectionFactoryName, props);
-            connectionFactories.put(rabbitMQConnectionFactory.getName(), rabbitMQConnectionFactory);
+            synchronized (connectionFactories) {
+                // ensure that connection factories are created only once in a concurrent environment
+                rabbitMQConnectionFactory = connectionFactories.get(connectionFactoryName);
+                if (rabbitMQConnectionFactory == null) {
+                    rabbitMQConnectionFactory = new RabbitMQConnectionFactory(connectionFactoryName, props);
+                    connectionFactories.put(rabbitMQConnectionFactory.getName(), rabbitMQConnectionFactory);
+                }
+            }
         }
 
         return rabbitMQConnectionFactory;

@@ -24,8 +24,8 @@ import org.apache.axiom.om.OMElement;
 import org.apache.axis2.AxisFault;
 import org.apache.axis2.description.Parameter;
 import org.apache.axis2.description.ParameterIncludeImpl;
-import org.apache.axis2.transport.rabbitmq.rpc.RPCChannel;
-import org.apache.axis2.transport.rabbitmq.rpc.RPCChannelPool;
+import org.apache.axis2.transport.rabbitmq.rpc.DualChannel;
+import org.apache.axis2.transport.rabbitmq.rpc.DualChannelPool;
 import org.apache.axis2.transport.rabbitmq.utils.AxisRabbitMQException;
 import org.apache.axis2.transport.rabbitmq.utils.RabbitMQConstants;
 import org.apache.axis2.transport.rabbitmq.utils.RabbitMQUtils;
@@ -55,7 +55,7 @@ public class RabbitMQConnectionFactory {
     private static final Log log = LogFactory.getLog(RabbitMQConnectionFactory.class);
 
     private ConnectionFactory connectionFactory = null;
-    private RPCChannelPool rpcChannelPool = null;
+    private DualChannelPool dualChannelPool = null;
     private String name;
     private Hashtable<String, String> parameters = new Hashtable<String, String>();
     private ExecutorService es = Executors.newFixedThreadPool(RabbitMQConstants.DEFAULT_THREAD_COUNT);
@@ -319,15 +319,15 @@ public class RabbitMQConnectionFactory {
     }
 
     private void initConnectionPool() {
-        rpcChannelPool = new RPCChannelPool(this);//TODO : clear this at server shutdown
+        dualChannelPool = new DualChannelPool(this);//TODO : clear this at server shutdown
     }
 
-    public RPCChannel getRPCChannel() throws InterruptedException {
-        return rpcChannelPool.take();
+    public DualChannel getRPCChannel() throws InterruptedException {
+        return dualChannelPool.take();
     }
 
-    public void pushRPCChannel(RPCChannel rpcChannel) throws InterruptedException {
-        rpcChannelPool.push(rpcChannel);
+    public void pushRPCChannel(DualChannel dualChannel) throws InterruptedException {
+        dualChannelPool.push(dualChannel);
     }
 
     public int getRetryInterval() {

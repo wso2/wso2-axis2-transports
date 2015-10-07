@@ -20,6 +20,7 @@ package org.apache.axis2.transport.rabbitmq.rpc;
 
 import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.Channel;
+import com.rabbitmq.client.ConnectionFactory;
 import com.rabbitmq.client.ConsumerCancelledException;
 import com.rabbitmq.client.QueueingConsumer;
 import com.rabbitmq.client.ShutdownSignalException;
@@ -51,9 +52,10 @@ import java.util.UUID;
 public class RabbitMQRPCMessageSender {
     private static final Log log = LogFactory.getLog(RabbitMQRPCMessageSender.class);
 
-    private RPCChannel rpcChannel = null;
+    private DualChannel dualChannel = null;
     private String targetEPR = null;
     private Hashtable<String, String> epProperties;
+    private RabbitMQConnectionFactory connectionFactory;
 
     /**
      * Create a RabbitMQSender using a ConnectionFactory and target EPR
@@ -66,9 +68,10 @@ public class RabbitMQRPCMessageSender {
     public RabbitMQRPCMessageSender(RabbitMQConnectionFactory connectionFactory, String targetEPR, Hashtable<String, String> epProperties) {
 
         this.targetEPR = targetEPR;
+        this.connectionFactory = connectionFactory;
 
         try {
-            rpcChannel = connectionFactory.getRPCChannel();
+            dualChannel = connectionFactory.getRPCChannel();
         } catch (InterruptedException e) {
             handleException("Error while getting RPC channel", e);
         }
@@ -89,6 +92,13 @@ public class RabbitMQRPCMessageSender {
 //        System.out.println("Response is getting from : " + responseQueue);
         RabbitMQMessage responseMessage = processResponse(message.getCorrelationId());
 
+        //release the dual channel to the pool
+        try {
+            connectionFactory.pushRPCChannel(dualChannel);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
         return responseMessage;
     }
 
@@ -105,7 +115,7 @@ public class RabbitMQRPCMessageSender {
         AMQP.BasicProperties basicProperties = null;
         byte[] messageBody = null;
 
-        if (rpcChannel.isOpen()) {
+        if (dualChannel.isOpen()) {
             String queueName = epProperties.get(RabbitMQConstants.QUEUE_NAME);
             String routeKey = epProperties
                     .get(RabbitMQConstants.QUEUE_ROUTING_KEY);
@@ -114,7 +124,7 @@ public class RabbitMQRPCMessageSender {
                     .get(RabbitMQConstants.EXCHANGE_TYPE);
             //String replyTo = properties.get(RabbitMQConstants.REPLY_TO_NAME);
             String correlationID = epProperties.get(RabbitMQConstants.CORRELATION_ID);
-            String replyTo = rpcChannel.getReplyToQueue();
+            String replyTo = dualChannel.getReplyToQueue();
 
 //            String queueAutoDeclareStr = properties.get(RabbitMQConstants.QUEUE_AUTODECLARE);
 //            String exchangeAutoDeclareStr = properties.get(RabbitMQConstants.EXCHANGE_AUTODECLARE);
@@ -154,7 +164,7 @@ public class RabbitMQRPCMessageSender {
                 }
             }
 
-            Channel channel = rpcChannel.getChannel();
+            Channel channel = dualChannel.getChannel();
 
             //Declaring the queue
             //TODO : fix this with channel reuse logic
@@ -289,13 +299,13 @@ public class RabbitMQRPCMessageSender {
             }
         }
 
-        QueueingConsumer consumer = rpcChannel.getConsumer();
+        QueueingConsumer consumer = dualChannel.getConsumer();
         QueueingConsumer.Delivery delivery = null;
         RabbitMQMessage message = new RabbitMQMessage();
-        Channel channel = rpcChannel.getChannel();
-        String replyToQueue = rpcChannel.getReplyToQueue();
+        Channel channel = dualChannel.getChannel();
+        String replyToQueue = dualChannel.getReplyToQueue();
 
-        boolean responseFound = false;
+        //boolean responseFound = false;
 
 
 //
@@ -303,22 +313,26 @@ public class RabbitMQRPCMessageSender {
 //        String consumerTag = channel.basicConsume(replyTo, false, consumer);
 
         try {
-            while (!responseFound) {
-                log.debug("Waiting for next delivery from reply to queue " + replyToQueue);
-                delivery = consumer.nextDelivery(timeout);
-                if (delivery != null) {
-                    if (!StringUtils.isEmpty(delivery.getProperties().getCorrelationId())) {
-                        if (delivery.getProperties().getCorrelationId().equals(correlationID)) {
-                            responseFound = true;
-                            log.debug("Found matching response with correlation ID : " + correlationID + ". Sending ack");
-                            //acknowledge correct message
-                            channel.basicAck(delivery.getEnvelope().getDeliveryTag(), false);
-                        } else {
-                            channel.basicNack(delivery.getEnvelope().getDeliveryTag(), false, true);
-                        }
+            //while (!responseFound) {
+            //FIXME : release the thread.. only the first message should match. if not its an error..
+            log.debug("Waiting for delivery from reply to queue " + replyToQueue);
+            delivery = consumer.nextDelivery(timeout);
+            if (delivery != null) {
+                if (!StringUtils.isEmpty(delivery.getProperties().getCorrelationId())) {
+                    if (delivery.getProperties().getCorrelationId().equals(correlationID)) {
+                        //responseFound = true;
+                        log.debug("Found matching response with correlation ID : " + correlationID + ". Sending ack");
+                        //acknowledge correct message
+                        channel.basicAck(delivery.getEnvelope().getDeliveryTag(), false);
+                    } else {
+                        channel.basicNack(delivery.getEnvelope().getDeliveryTag(), false, true);
+                        log.error("Response not queued in " + replyToQueue);
                     }
                 }
+            }else {
+                log.error("Response not queued in " + replyToQueue);
             }
+            // }
         } catch (ShutdownSignalException e) {
             log.error("Error receiving message from RabbitMQ broker " + e.getLocalizedMessage());
         } catch (InterruptedException e) {

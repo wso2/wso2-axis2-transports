@@ -6,20 +6,20 @@ import com.rabbitmq.client.QueueingConsumer;
 
 import java.io.IOException;
 
-public class RPCChannel {
+public class DualChannel {
 
     private Channel channel;
     private QueueingConsumer consumer;
     private String replyToQueue;
     private Connection connection;
 
-    public RPCChannel(Connection connection, Channel channel, QueueingConsumer consumer, String replyToQueue) {
+    public DualChannel(Connection connection, Channel channel, QueueingConsumer consumer, String replyToQueue) {
         this.channel = channel;
         this.consumer = consumer;
         this.replyToQueue = replyToQueue;
         this.connection = connection;
         try {
-            this.channel.basicConsume("REPLYQ", false, consumer);//TODO remove this from constructor. Start consuming at send?
+            this.channel.basicConsume(replyToQueue, false, consumer);//TODO remove this from constructor. Start consuming at send?
         } catch (IOException e) {
             e.printStackTrace();
         }

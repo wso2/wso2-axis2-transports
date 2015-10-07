@@ -2,7 +2,6 @@ package org.apache.axis2.transport.rabbitmq.rpc;
 
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
-import com.rabbitmq.client.ConnectionFactory;
 import com.rabbitmq.client.QueueingConsumer;
 import org.apache.axis2.transport.rabbitmq.RabbitMQConnectionFactory;
 
@@ -10,13 +9,13 @@ import java.io.IOException;
 import java.util.concurrent.BlockingDeque;
 import java.util.concurrent.LinkedBlockingDeque;
 
-public class RPCChannelPool {
+public class DualChannelPool {
 
-    private BlockingDeque<RPCChannel> rpcChannelPool;
+    private BlockingDeque<DualChannel> dualChannelPool;
 
-    public RPCChannelPool(RabbitMQConnectionFactory connectionFactory) {
+    public DualChannelPool(RabbitMQConnectionFactory connectionFactory) {
 
-        rpcChannelPool = new LinkedBlockingDeque<>();
+        dualChannelPool = new LinkedBlockingDeque<>();
         //TODO : connection recovery
         try {
             Connection connection = connectionFactory.createConnection();
@@ -25,7 +24,7 @@ public class RPCChannelPool {
                 QueueingConsumer consumer = new QueueingConsumer(channel);
                 String replyQueueName = channel.queueDeclare().getQueue();
                 channel.basicConsume(replyQueueName, false, consumer);
-                rpcChannelPool.add(new RPCChannel(connection, channel, consumer, replyQueueName));
+                dualChannelPool.add(new DualChannel(connection, channel, consumer, replyQueueName));
             }
         } catch (IOException e) {
             e.printStackTrace();
@@ -33,15 +32,15 @@ public class RPCChannelPool {
     }
 
 
-    public RPCChannel take() throws InterruptedException {
-        return rpcChannelPool.take();
+    public DualChannel take() throws InterruptedException {
+        return dualChannelPool.take();
     }
 
-    public void push(RPCChannel rpcChannel){
-         rpcChannelPool.push(rpcChannel);
+    public void push(DualChannel dualChannel){
+         dualChannelPool.push(dualChannel);
     }
 
     public void clear(){
-        rpcChannelPool.clear();
+        dualChannelPool.clear();
     }
 }
