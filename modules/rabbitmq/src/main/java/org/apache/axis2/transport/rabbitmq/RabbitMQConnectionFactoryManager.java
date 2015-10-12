@@ -65,7 +65,8 @@ public class RabbitMQConnectionFactoryManager {
                         props.get(RabbitMQConstants.RETRY_INTERVAL) + "_" +
                         props.get(RabbitMQConstants.RETRY_COUNT) + "_" +
                         props.get(RabbitMQConstants.HEARTBEAT) + "_" +
-                        props.get(RabbitMQConstants.CONNECTION_TIMEOUT);
+                        props.get(RabbitMQConstants.CONNECTION_TIMEOUT + "_" +
+                        props.get(RabbitMQConstants.CONNECTION_POOL_SIZE));
 
         RabbitMQConnectionFactory rabbitMQConnectionFactory = connectionFactories.get(connectionFactoryName);
 

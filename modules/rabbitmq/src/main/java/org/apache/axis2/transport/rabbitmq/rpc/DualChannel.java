@@ -19,7 +19,7 @@ public class DualChannel {
         this.replyToQueue = replyToQueue;
         this.connection = connection;
         try {
-            this.channel.basicConsume(replyToQueue, false, consumer);//TODO remove this from constructor. Start consuming at send?
+            this.channel.basicConsume(replyToQueue, true, consumer);//TODO remove this from constructor. Start consuming at send?
         } catch (IOException e) {
             e.printStackTrace();
         }

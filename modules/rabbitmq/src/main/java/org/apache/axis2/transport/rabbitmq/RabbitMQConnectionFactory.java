@@ -55,13 +55,14 @@ public class RabbitMQConnectionFactory {
     private static final Log log = LogFactory.getLog(RabbitMQConnectionFactory.class);
 
     private ConnectionFactory connectionFactory = null;
-    private DualChannelPool dualChannelPool = null;
+    private DualChannelPool dualChannelPool = null; //channel pool for request-response
+    private RMQChannelPool rmqChannelPool = null; //channel pool for out only publish
     private String name;
     private Hashtable<String, String> parameters = new Hashtable<String, String>();
     private ExecutorService es = Executors.newFixedThreadPool(RabbitMQConstants.DEFAULT_THREAD_COUNT);
-    private Connection connection = null;
     private int retryInterval = RabbitMQConstants.DEFAULT_RETRY_INTERVAL;
     private int retryCount = RabbitMQConstants.DEFAULT_RETRY_COUNT;
+    private int connectionPoolSize = RabbitMQConstants.DEFAULT_CONNECTION_POOL_SIZE;
 
 
     /**
@@ -200,6 +201,7 @@ public class RabbitMQConnectionFactory {
         String userName = parameters.get(RabbitMQConstants.SERVER_USER_NAME);
         String password = parameters.get(RabbitMQConstants.SERVER_PASSWORD);
         String virtualHost = parameters.get(RabbitMQConstants.SERVER_VIRTUAL_HOST);
+        String connectionPoolSizeS = parameters.get(RabbitMQConstants.CONNECTION_POOL_SIZE);
 
         if (!StringUtils.isEmpty(heartbeat)) {
             try {
@@ -214,6 +216,15 @@ public class RabbitMQConnectionFactory {
             try {
                 int connectionTimeoutValue = Integer.parseInt(connectionTimeout);
                 connectionFactory.setConnectionTimeout(connectionTimeoutValue);
+            } catch (NumberFormatException e) {
+                //proceeding with rabbitmq default value
+                log.warn("Number format error in reading connection timeout value. Proceeding with default");
+            }
+        }
+
+        if (!StringUtils.isEmpty(connectionPoolSizeS)) {
+            try {
+                connectionPoolSize = Integer.parseInt(connectionPoolSizeS);
             } catch (NumberFormatException e) {
                 //proceeding with rabbitmq default value
                 log.warn("Number format error in reading connection timeout value. Proceeding with default");
@@ -319,7 +330,8 @@ public class RabbitMQConnectionFactory {
     }
 
     private void initConnectionPool() {
-        dualChannelPool = new DualChannelPool(this);//TODO : clear this at server shutdown
+        dualChannelPool = new DualChannelPool(this, connectionPoolSize);//TODO : clear this at server shutdown
+        rmqChannelPool = new RMQChannelPool(this, connectionPoolSize);
     }
 
     public DualChannel getRPCChannel() throws InterruptedException {
@@ -328,6 +340,14 @@ public class RabbitMQConnectionFactory {
 
     public void pushRPCChannel(DualChannel dualChannel) throws InterruptedException {
         dualChannelPool.push(dualChannel);
+    }
+
+    public RMQChannel getRMQChannel() throws InterruptedException {
+        return rmqChannelPool.take();
+    }
+
+    public void pushRMQChannel(RMQChannel channel) throws InterruptedException {
+        rmqChannelPool.push(channel);
     }
 
     public int getRetryInterval() {

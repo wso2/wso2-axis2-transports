@@ -13,17 +13,17 @@ public class DualChannelPool {
 
     private BlockingDeque<DualChannel> dualChannelPool;
 
-    public DualChannelPool(RabbitMQConnectionFactory connectionFactory) {
+    public DualChannelPool(RabbitMQConnectionFactory connectionFactory, int connectionPoolSize) {
 
         dualChannelPool = new LinkedBlockingDeque<>();
-        //TODO : connection recovery
+        //TODO : connection recovery - verify
         try {
             Connection connection = connectionFactory.createConnection();
-            for (int i = 0; i < 200; i++) {
+            for (int i = 0; i < connectionPoolSize; i++) {
                 Channel channel = connection.createChannel();
                 QueueingConsumer consumer = new QueueingConsumer(channel);
                 String replyQueueName = channel.queueDeclare().getQueue();
-                channel.basicConsume(replyQueueName, false, consumer);
+                //channel.basicConsume(replyQueueName, false, consumer);
                 dualChannelPool.add(new DualChannel(connection, channel, consumer, replyQueueName));
             }
         } catch (IOException e) {
@@ -36,11 +36,11 @@ public class DualChannelPool {
         return dualChannelPool.take();
     }
 
-    public void push(DualChannel dualChannel){
-         dualChannelPool.push(dualChannel);
+    public void push(DualChannel dualChannel) {
+        dualChannelPool.push(dualChannel);
     }
 
-    public void clear(){
+    public void clear() {
         dualChannelPool.clear();
     }
 }

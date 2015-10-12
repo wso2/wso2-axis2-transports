@@ -28,7 +28,6 @@ import org.apache.axis2.transport.MessageFormatter;
 import org.apache.axis2.transport.base.BaseUtils;
 import org.apache.axis2.transport.rabbitmq.utils.AxisRabbitMQException;
 import org.apache.axis2.transport.rabbitmq.utils.RabbitMQConstants;
-import org.apache.axis2.transport.rabbitmq.utils.RabbitMQUtils;
 import org.apache.axis2.util.MessageProcessorSelector;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
@@ -48,27 +47,46 @@ import java.util.UUID;
 public class RabbitMQMessageSender {
     private static final Log log = LogFactory.getLog(RabbitMQMessageSender.class);
 
-    private Connection connection = null;
+    private RMQChannel rmqChannel = null;
     private String targetEPR = null;
     private Hashtable<String, String> properties;
+    private RabbitMQConnectionFactory connectionFactory;
 
     /**
      * Create a RabbitMQSender using a ConnectionFactory and target EPR
-     *  @param factory   the ConnectionFactory
-     * @param targetEPR the targetAddress
+     *
+     * @param factory      the ConnectionFactory
+     * @param targetEPR    the targetAddress
      * @param epProperties
      */
     public RabbitMQMessageSender(RabbitMQConnectionFactory factory, String targetEPR, Hashtable<String, String> epProperties) {
-//        try {
-//            this.connection = factory.getConnectionPool();
-//        } catch (IOException e) {
-//            handleException("Error while creating connection pool", e);
-//        }
         this.targetEPR = targetEPR;
+        this.connectionFactory = factory;
+
+        try {
+            rmqChannel = connectionFactory.getRMQChannel();
+        } catch (InterruptedException e) {
+            handleException("Error while getting RPC channel", e);
+        }
+
+
         if (!targetEPR.startsWith(RabbitMQConstants.RABBITMQ_PREFIX)) {
             handleException("Invalid prefix for a AMQP EPR : " + targetEPR);
         } else {
             this.properties = epProperties;//BaseUtils.getEPRProperties(targetEPR);
+        }
+
+    }
+
+    public void send(RabbitMQMessage message, MessageContext msgContext) throws
+            AxisRabbitMQException, IOException {
+        publish(message, msgContext);
+
+        //release the dual channel to the pool
+        try {
+            connectionFactory.pushRMQChannel(rmqChannel);
+        } catch (InterruptedException e) {
+            handleException(e.getMessage());
         }
     }
 
@@ -78,14 +96,14 @@ public class RabbitMQMessageSender {
      * @param message    the RabbitMQ AMQP message
      * @param msgContext the Axis2 MessageContext
      */
-    public void send(RabbitMQMessage message, MessageContext msgContext) throws
+    public void publish(RabbitMQMessage message, MessageContext msgContext) throws
             AxisRabbitMQException, IOException {
 
         String exchangeName = null;
         AMQP.BasicProperties basicProperties = null;
         byte[] messageBody = null;
 
-        if (connection != null) {
+        if (rmqChannel.isOpen()) {
             String queueName = properties.get(RabbitMQConstants.QUEUE_NAME);
             String routeKey = properties
                     .get(RabbitMQConstants.QUEUE_ROUTING_KEY);
@@ -95,6 +113,7 @@ public class RabbitMQMessageSender {
             String replyTo = properties.get(RabbitMQConstants.REPLY_TO_NAME);
             String correlationID = properties.get(RabbitMQConstants.CORRELATION_ID);
 
+            /*
             String queueAutoDeclareStr = properties.get(RabbitMQConstants.QUEUE_AUTODECLARE);
             String exchangeAutoDeclareStr = properties.get(RabbitMQConstants.EXCHANGE_AUTODECLARE);
             boolean queueAutoDeclare = true;
@@ -107,15 +126,15 @@ public class RabbitMQMessageSender {
             if (!StringUtils.isEmpty(exchangeAutoDeclareStr)) {
                 exchangeAutoDeclare = Boolean.parseBoolean(exchangeAutoDeclareStr);
             }
-
+            */
             message.setReplyTo(replyTo);
 
-            if ((!StringUtils.isEmpty(replyTo)) && (StringUtils.isEmpty(correlationID))) {
+            if (/*(!StringUtils.isEmpty(replyTo)) && */(StringUtils.isEmpty(correlationID))) {
                 //if reply-to is enabled a correlationID must be available. If not specified, use messageID
                 correlationID = message.getMessageId();
             }
 
-            if(!StringUtils.isEmpty(correlationID)) {
+            if (!StringUtils.isEmpty(correlationID)) {
                 message.setCorrelationId(correlationID);
             }
 
@@ -133,34 +152,31 @@ public class RabbitMQMessageSender {
                 }
             }
 
-            Channel channel = connection.createChannel();
-            log.debug("Creating a new channel.");
-
-
+            Channel channel = rmqChannel.getChannel();
+/*
             //Declaring the queue
             if (queueAutoDeclare && queueName != null && !queueName.equals("")) {
-                RabbitMQUtils.declareQueue(connection, channel, queueName, properties);
+                RabbitMQUtils.declareQueue(channel, queueName, properties);
             }
 
             //Declaring the exchange
             if (exchangeAutoDeclare && exchangeName != null && !exchangeName.equals("")) {
-                RabbitMQUtils.declareExchange(connection, channel, exchangeName, properties);
+                RabbitMQUtils.declareExchange(channel, exchangeName, properties);
 
                 if (queueName != null && !"x-consistent-hash".equals(exchangeType)) {
                     // Create bind between the queue and exchange with the routeKey
                     try {
-                        if (!channel.isOpen()) {
-                            channel = connection.createChannel();
-                            log.debug("Channel is not open. Creating a new channel.");
+                        if (!rmqChannel.isOpen()) {
+channel = rmqChannel.getChannel();
+                            channel.queueBind(queueName, exchangeName, routeKey);
                         }
-                        channel.queueBind(queueName, exchangeName, routeKey);
                     } catch (IOException e) {
                         handleException(
                                 "Error occurred while creating the bind between the queue: "
                                         + queueName + " & exchange: " + exchangeName + " with route-key " + routeKey, e);
                     }
                 }
-            }
+            }*/
 
             AMQP.BasicProperties.Builder builder = buildBasicProperties(message);
 
@@ -213,44 +229,32 @@ public class RabbitMQMessageSender {
                 }
             }
 
-            if (connection != null) {
-                try {
-                    if ((channel == null) || !channel.isOpen()) {
-                        channel = connection.createChannel();
-                        log.debug("Channel is not open or unavailable. Creating a new channel.");
-                    }
-                    if (exchangeName != null && exchangeName != "") {
-                        channel.basicPublish(exchangeName, routeKey, basicProperties,
-                                messageBody);
-                    } else {
-                        channel.basicPublish("", routeKey, basicProperties,
-                                messageBody);
-                    }
-                } catch (IOException e) {
-                    handleException("Error while publishing the message", e);
-                }
-            }
-
-            if (channel != null) {
-                channel.close();
-            }
-        }
-    }
-
-    /**
-     * Close the connection
-     */
-    public void close() {
-        if (connection != null && connection.isOpen()) {
+            //if (connection != null) {
             try {
-                connection.close();
+//                    if ((channel == null) || !channel.isOpen()) {
+//                        channel = connection.createChannel();
+//                        log.debug("Channel is not open or unavailable. Creating a new channel.");
+//                    }
+                if (exchangeName != null && exchangeName != "") {
+                    channel.basicPublish(exchangeName, routeKey, basicProperties,
+                            messageBody);
+                } else {
+                    channel.basicPublish("", routeKey, basicProperties,
+                            messageBody);
+                }
             } catch (IOException e) {
-                handleException("Error while closing the connection ..", e);
-            } finally {
-                connection = null;
+                handleException("Error while publishing the message", e);
             }
+            //}
+
+//            if (channel != null) {
+//                channel.close();
+//            }
+        } else {
+            handleException("Channel cannot be created");
         }
     }
+
 
     /**
      * Build and populate the AMQP.BasicProperties using the RabbitMQMessage
@@ -281,7 +285,4 @@ public class RabbitMQMessageSender {
         throw new AxisRabbitMQException(message, e);
     }
 
-    public Connection getConnection() {
-        return connection;
-    }
 }

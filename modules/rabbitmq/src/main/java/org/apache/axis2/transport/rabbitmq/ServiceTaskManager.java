@@ -24,7 +24,6 @@ import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConsumerCancelledException;
 import com.rabbitmq.client.QueueingConsumer;
 import com.rabbitmq.client.ShutdownSignalException;
-
 import org.apache.axiom.om.OMException;
 import org.apache.axis2.transport.base.threads.WorkerPool;
 import org.apache.axis2.transport.rabbitmq.utils.AxisRabbitMQException;

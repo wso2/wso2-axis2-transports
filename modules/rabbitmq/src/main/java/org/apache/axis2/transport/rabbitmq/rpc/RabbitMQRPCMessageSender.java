@@ -20,7 +20,6 @@ package org.apache.axis2.transport.rabbitmq.rpc;
 
 import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.Channel;
-import com.rabbitmq.client.ConnectionFactory;
 import com.rabbitmq.client.ConsumerCancelledException;
 import com.rabbitmq.client.QueueingConsumer;
 import com.rabbitmq.client.ShutdownSignalException;
@@ -96,7 +95,7 @@ public class RabbitMQRPCMessageSender {
         try {
             connectionFactory.pushRPCChannel(dualChannel);
         } catch (InterruptedException e) {
-            e.printStackTrace();
+            handleException(e.getMessage());
         }
 
         return responseMessage;
@@ -315,21 +314,22 @@ public class RabbitMQRPCMessageSender {
         try {
             //while (!responseFound) {
             //FIXME : release the thread.. only the first message should match. if not its an error..
-            log.debug("Waiting for delivery from reply to queue " + replyToQueue);
+            log.debug("Waiting for delivery from reply to queue " + replyToQueue + " corr id : " + correlationID);
             delivery = consumer.nextDelivery(timeout);
             if (delivery != null) {
                 if (!StringUtils.isEmpty(delivery.getProperties().getCorrelationId())) {
                     if (delivery.getProperties().getCorrelationId().equals(correlationID)) {
                         //responseFound = true;
-                        log.debug("Found matching response with correlation ID : " + correlationID + ". Sending ack");
+                        log.debug("Found matching response with correlation ID : " + correlationID + ".");
                         //acknowledge correct message
-                        channel.basicAck(delivery.getEnvelope().getDeliveryTag(), false);
+                        //channel.basicAck(delivery.getEnvelope().getDeliveryTag(), false);
                     } else {
-                        channel.basicNack(delivery.getEnvelope().getDeliveryTag(), false, true);
-                        log.error("Response not queued in " + replyToQueue);
+                        //channel.basicNack(delivery.getEnvelope().getDeliveryTag(), false, true);
+                        log.error("Response not queued in " + replyToQueue + " for correlation ID : " + correlationID);
+                        return null;
                     }
                 }
-            }else {
+            } else {
                 log.error("Response not queued in " + replyToQueue);
             }
             // }
