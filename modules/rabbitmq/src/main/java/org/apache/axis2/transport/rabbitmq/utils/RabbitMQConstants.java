@@ -41,7 +41,7 @@ public class RabbitMQConstants {
     public static final String RETRY_INTERVAL = "rabbitmq.connection.retry.interval";
     public static final String RETRY_COUNT = "rabbitmq.connection.retry.count";
     public static final String RECEIVE_TIMEOUT = "rabbitmq.connection.receive.timeout";
-    public static final String CONNECTION_POOL_SIZE = "rabbitmq.connection.pool";
+    public static final String CONNECTION_POOL_SIZE = "rabbitmq.connection.pool.size";
 
     public static final String CORRELATION_ID = "rabbitmq.message.correlation.id";
     public static final String MESSAGE_ID = "rabbitmq.message.id";

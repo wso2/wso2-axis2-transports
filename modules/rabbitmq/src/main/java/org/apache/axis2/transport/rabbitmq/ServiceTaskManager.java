@@ -134,9 +134,8 @@ public class ServiceTaskManager {
     private class MessageListenerTask implements Runnable {
 
         private Connection connection = null;
-        private Channel channel = null;
         private boolean autoAck = false;
-
+        private RMQChannel rmqChannel = null;
         private volatile int workerState = STATE_STOPPED;
         private volatile boolean idle = false;
         private volatile boolean connected = false;
@@ -235,11 +234,7 @@ public class ServiceTaskManager {
          * @throws IOException
          */
         private void startConsumer() throws ShutdownSignalException, IOException {
-            connection = getConnection();
-            if (channel == null || !channel.isOpen()) {
-                channel = connection.createChannel();
-                log.debug("Channel is not open. Creating a new channel for service " + serviceName);
-            }
+            Channel channel = rmqChannel.getChannel();
             //set the qos value for the consumer
             String qos = rabbitMQProperties.get(RabbitMQConstants.CONSUMER_QOS);
             if (qos != null && !"".equals(qos)) {
@@ -310,7 +305,7 @@ public class ServiceTaskManager {
         private void initConsumer() throws IOException {
             log.debug("Initializing consumer for service " + serviceName);
             connection = getConnection();
-            channel = connection.createChannel();
+            RMQChannel rmqChannel = new RMQChannel(connection, connection.createChannel());
             queueName = rabbitMQProperties.get(RabbitMQConstants.QUEUE_NAME);
             routeKey = rabbitMQProperties.get(RabbitMQConstants.QUEUE_ROUTING_KEY);
             exchangeName = rabbitMQProperties.get(RabbitMQConstants.EXCHANGE_NAME);
@@ -352,34 +347,24 @@ public class ServiceTaskManager {
             }
             if (queueAutoDeclare && !StringUtils.isEmpty(queueName)) {
                 //declaring queue
-                RabbitMQUtils.declareQueue(connection, channel, queueName, rabbitMQProperties);
+                RabbitMQUtils.declareQueue(rmqChannel, queueName, rabbitMQProperties);
             }
 
             if (exchangeAutoDeclare && !StringUtils.isEmpty(exchangeName)) {
                 //declaring exchange
-                RabbitMQUtils.declareExchange(connection, channel, exchangeName, rabbitMQProperties);
-
-                if (!channel.isOpen()) {
-                    channel = connection.createChannel();
-                    log.debug("Channel is not open. Creating a new channel for service " + serviceName);
-                }
-                channel.queueBind(queueName, exchangeName, routeKey);
+                RabbitMQUtils.declareExchange(rmqChannel, exchangeName, rabbitMQProperties);
+                rmqChannel.getChannel().queueBind(queueName, exchangeName, routeKey);
                 log.debug("Bind queue '" + queueName + "' to exchange '" + exchangeName + "' with route key '" + routeKey + "'");
             }
 
-            if (!channel.isOpen()) {
-                channel = connection.createChannel();
-                log.debug("Channel is not open. Creating a new channel for service " + serviceName);
-            }
-
-            queueingConsumer = new QueueingConsumer(channel);
+            queueingConsumer = new QueueingConsumer(rmqChannel.getChannel());
 
             consumerTagString = rabbitMQProperties.get(RabbitMQConstants.CONSUMER_TAG);
             if (consumerTagString != null) {
-                channel.basicConsume(queueName, autoAck, consumerTagString, queueingConsumer);
+                rmqChannel.getChannel().basicConsume(queueName, autoAck, consumerTagString, queueingConsumer);
                 log.debug("Start consuming queue '" + queueName + "' with consumer tag '" + consumerTagString + "' for service " + serviceName);
             } else {
-                consumerTagString = channel.basicConsume(queueName, autoAck, queueingConsumer);
+                consumerTagString = rmqChannel.getChannel().basicConsume(queueName, autoAck, queueingConsumer);
                 log.debug("Start consuming queue '" + queueName + "' with consumer tag '" + consumerTagString + "' for service " + serviceName);
             }
         }

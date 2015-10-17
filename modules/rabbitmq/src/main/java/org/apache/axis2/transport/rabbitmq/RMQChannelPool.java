@@ -14,7 +14,6 @@ public class RMQChannelPool {
     public RMQChannelPool(RabbitMQConnectionFactory connectionFactory, int connectionPoolSize) {
 
         RMQChannelPool = new LinkedBlockingDeque<>();
-        //TODO : connection recovery - verify
         try {
             Connection connection = connectionFactory.createConnection();
             for (int i = 0; i < connectionPoolSize; i++) {
@@ -22,7 +21,7 @@ public class RMQChannelPool {
                 QueueingConsumer consumer = new QueueingConsumer(channel);
                 String replyQueueName = channel.queueDeclare().getQueue();
                 channel.basicConsume(replyQueueName, false, consumer);
-                RMQChannelPool.add(new RMQChannel(connection, channel, consumer, replyQueueName));
+                RMQChannelPool.add(new RMQChannel(connection, channel));
             }
         } catch (IOException e) {
             e.printStackTrace();

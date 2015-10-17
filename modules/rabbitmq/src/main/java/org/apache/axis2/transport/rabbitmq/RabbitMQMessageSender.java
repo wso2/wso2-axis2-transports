@@ -28,6 +28,7 @@ import org.apache.axis2.transport.MessageFormatter;
 import org.apache.axis2.transport.base.BaseUtils;
 import org.apache.axis2.transport.rabbitmq.utils.AxisRabbitMQException;
 import org.apache.axis2.transport.rabbitmq.utils.RabbitMQConstants;
+import org.apache.axis2.transport.rabbitmq.utils.RabbitMQUtils;
 import org.apache.axis2.util.MessageProcessorSelector;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
@@ -69,20 +70,18 @@ public class RabbitMQMessageSender {
             handleException("Error while getting RPC channel", e);
         }
 
-
         if (!targetEPR.startsWith(RabbitMQConstants.RABBITMQ_PREFIX)) {
             handleException("Invalid prefix for a AMQP EPR : " + targetEPR);
         } else {
-            this.properties = epProperties;//BaseUtils.getEPRProperties(targetEPR);
+            this.properties = epProperties;
         }
-
     }
 
     public void send(RabbitMQMessage message, MessageContext msgContext) throws
             AxisRabbitMQException, IOException {
         publish(message, msgContext);
 
-        //release the dual channel to the pool
+        //release the rmq channel to the pool
         try {
             connectionFactory.pushRMQChannel(rmqChannel);
         } catch (InterruptedException e) {
@@ -112,8 +111,7 @@ public class RabbitMQMessageSender {
                     .get(RabbitMQConstants.EXCHANGE_TYPE);
             String replyTo = properties.get(RabbitMQConstants.REPLY_TO_NAME);
             String correlationID = properties.get(RabbitMQConstants.CORRELATION_ID);
-
-            /*
+            
             String queueAutoDeclareStr = properties.get(RabbitMQConstants.QUEUE_AUTODECLARE);
             String exchangeAutoDeclareStr = properties.get(RabbitMQConstants.EXCHANGE_AUTODECLARE);
             boolean queueAutoDeclare = true;
@@ -126,10 +124,10 @@ public class RabbitMQMessageSender {
             if (!StringUtils.isEmpty(exchangeAutoDeclareStr)) {
                 exchangeAutoDeclare = Boolean.parseBoolean(exchangeAutoDeclareStr);
             }
-            */
+
             message.setReplyTo(replyTo);
 
-            if (/*(!StringUtils.isEmpty(replyTo)) && */(StringUtils.isEmpty(correlationID))) {
+            if (StringUtils.isEmpty(correlationID)){
                 //if reply-to is enabled a correlationID must be available. If not specified, use messageID
                 correlationID = message.getMessageId();
             }
@@ -152,31 +150,26 @@ public class RabbitMQMessageSender {
                 }
             }
 
-            Channel channel = rmqChannel.getChannel();
-/*
             //Declaring the queue
             if (queueAutoDeclare && queueName != null && !queueName.equals("")) {
-                RabbitMQUtils.declareQueue(channel, queueName, properties);
+                RabbitMQUtils.declareQueue(rmqChannel, queueName, properties);
             }
 
             //Declaring the exchange
             if (exchangeAutoDeclare && exchangeName != null && !exchangeName.equals("")) {
-                RabbitMQUtils.declareExchange(channel, exchangeName, properties);
+                RabbitMQUtils.declareExchange(rmqChannel, exchangeName, properties);
 
                 if (queueName != null && !"x-consistent-hash".equals(exchangeType)) {
                     // Create bind between the queue and exchange with the routeKey
                     try {
-                        if (!rmqChannel.isOpen()) {
-channel = rmqChannel.getChannel();
-                            channel.queueBind(queueName, exchangeName, routeKey);
-                        }
+                        rmqChannel.getChannel().queueBind(queueName, exchangeName, routeKey);
                     } catch (IOException e) {
                         handleException(
                                 "Error occurred while creating the bind between the queue: "
                                         + queueName + " & exchange: " + exchangeName + " with route-key " + routeKey, e);
                     }
                 }
-            }*/
+            }
 
             AMQP.BasicProperties.Builder builder = buildBasicProperties(message);
 
@@ -229,32 +222,21 @@ channel = rmqChannel.getChannel();
                 }
             }
 
-            //if (connection != null) {
             try {
-//                    if ((channel == null) || !channel.isOpen()) {
-//                        channel = connection.createChannel();
-//                        log.debug("Channel is not open or unavailable. Creating a new channel.");
-//                    }
                 if (exchangeName != null && exchangeName != "") {
-                    channel.basicPublish(exchangeName, routeKey, basicProperties,
+                    rmqChannel.getChannel().basicPublish(exchangeName, routeKey, basicProperties,
                             messageBody);
                 } else {
-                    channel.basicPublish("", routeKey, basicProperties,
+                    rmqChannel.getChannel().basicPublish("", routeKey, basicProperties,
                             messageBody);
                 }
             } catch (IOException e) {
                 handleException("Error while publishing the message", e);
             }
-            //}
-
-//            if (channel != null) {
-//                channel.close();
-//            }
         } else {
             handleException("Channel cannot be created");
         }
     }
-
 
     /**
      * Build and populate the AMQP.BasicProperties using the RabbitMQMessage

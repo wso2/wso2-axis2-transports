@@ -3,50 +3,30 @@ package org.apache.axis2.transport.rabbitmq.rpc;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.QueueingConsumer;
+import org.apache.axis2.transport.rabbitmq.RMQChannel;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 
 import java.io.IOException;
 
-public class DualChannel {
+public class DualChannel extends RMQChannel {
 
-    private Channel channel;
-    private QueueingConsumer consumer;
+    private static final Log log = LogFactory.getLog(DualChannel.class);
+
     private String replyToQueue;
-    private Connection connection;
+    private QueueingConsumer consumer;
 
     public DualChannel(Connection connection, Channel channel, QueueingConsumer consumer, String replyToQueue) {
-        this.channel = channel;
-        this.consumer = consumer;
+        super(connection, channel);
+
         this.replyToQueue = replyToQueue;
-        this.connection = connection;
+        this.consumer = consumer;
+
         try {
-            this.channel.basicConsume(replyToQueue, true, consumer);//TODO remove this from constructor. Start consuming at send?
+            getChannel().basicConsume(replyToQueue, true, consumer);
         } catch (IOException e) {
-            e.printStackTrace();
+            log.error("Error initiating consumer for queue " + replyToQueue, e);
         }
-    }
-
-    public boolean isOpen() {
-        if (!channel.isOpen()) {
-            try {
-                connection.createChannel();
-            } catch (IOException e) {
-                e.printStackTrace();
-                return false;
-            }
-        }
-        return true;
-    }
-
-    public Channel getChannel() {
-        if (!channel.isOpen()) {
-            try {
-                connection.createChannel();
-            } catch (IOException e) {
-                e.printStackTrace();
-                return null;
-            }
-        }
-        return channel;
     }
 
     public QueueingConsumer getConsumer() {

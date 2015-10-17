@@ -32,6 +32,7 @@ import org.apache.axis2.transport.rabbitmq.RabbitMQConnectionFactory;
 import org.apache.axis2.transport.rabbitmq.RabbitMQMessage;
 import org.apache.axis2.transport.rabbitmq.utils.AxisRabbitMQException;
 import org.apache.axis2.transport.rabbitmq.utils.RabbitMQConstants;
+import org.apache.axis2.transport.rabbitmq.utils.RabbitMQUtils;
 import org.apache.axis2.util.MessageProcessorSelector;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
@@ -79,7 +80,6 @@ public class RabbitMQRPCMessageSender {
             handleException("Invalid prefix for a AMQP EPR : " + targetEPR);
         } else {
             this.epProperties = epProperties;
-//            this.properties = BaseUtils.getEPRProperties(targetEPR);
         }
     }
 
@@ -87,8 +87,6 @@ public class RabbitMQRPCMessageSender {
             AxisRabbitMQException, IOException {
 
         publish(message, msgContext);
-//        String responseQueue = properties.get(RabbitMQConstants.REPLY_TO_NAME);
-//        System.out.println("Response is getting from : " + responseQueue);
         RabbitMQMessage responseMessage = processResponse(message.getCorrelationId());
 
         //release the dual channel to the pool
@@ -121,22 +119,21 @@ public class RabbitMQRPCMessageSender {
             exchangeName = epProperties.get(RabbitMQConstants.EXCHANGE_NAME);
             String exchangeType = epProperties
                     .get(RabbitMQConstants.EXCHANGE_TYPE);
-            //String replyTo = properties.get(RabbitMQConstants.REPLY_TO_NAME);
             String correlationID = epProperties.get(RabbitMQConstants.CORRELATION_ID);
             String replyTo = dualChannel.getReplyToQueue();
 
-//            String queueAutoDeclareStr = properties.get(RabbitMQConstants.QUEUE_AUTODECLARE);
-//            String exchangeAutoDeclareStr = properties.get(RabbitMQConstants.EXCHANGE_AUTODECLARE);
-//            boolean queueAutoDeclare = true;
-//            boolean exchangeAutoDeclare = true;
-//
-//            if (!StringUtils.isEmpty(queueAutoDeclareStr)) {
-//                queueAutoDeclare = Boolean.parseBoolean(queueAutoDeclareStr);
-//            }
-//
-//            if (!StringUtils.isEmpty(exchangeAutoDeclareStr)) {
-//                exchangeAutoDeclare = Boolean.parseBoolean(exchangeAutoDeclareStr);
-//            }
+            String queueAutoDeclareStr = epProperties.get(RabbitMQConstants.QUEUE_AUTODECLARE);
+            String exchangeAutoDeclareStr = epProperties.get(RabbitMQConstants.EXCHANGE_AUTODECLARE);
+            boolean queueAutoDeclare = true;
+            boolean exchangeAutoDeclare = true;
+
+            if (!StringUtils.isEmpty(queueAutoDeclareStr)) {
+                queueAutoDeclare = Boolean.parseBoolean(queueAutoDeclareStr);
+            }
+
+            if (!StringUtils.isEmpty(exchangeAutoDeclareStr)) {
+                exchangeAutoDeclare = Boolean.parseBoolean(exchangeAutoDeclareStr);
+            }
 
             message.setReplyTo(replyTo);
 
@@ -163,27 +160,20 @@ public class RabbitMQRPCMessageSender {
                 }
             }
 
-            Channel channel = dualChannel.getChannel();
-
             //Declaring the queue
-            //TODO : fix this with channel reuse logic
-            /*
             if (queueAutoDeclare && queueName != null && !queueName.equals("")) {
-                RabbitMQUtils.declareQueue(channel, queueName, properties);
+                //get channel with dualChannel.getChannel() since it will create a new channel if channel is closed
+                RabbitMQUtils.declareQueue(dualChannel, queueName, epProperties);
             }
 
             //Declaring the exchange
             if (exchangeAutoDeclare && exchangeName != null && !exchangeName.equals("")) {
-                RabbitMQUtils.declareExchange(channel, exchangeName, properties);
+                RabbitMQUtils.declareExchange(dualChannel, exchangeName, epProperties);
 
                 if (queueName != null && !"x-consistent-hash".equals(exchangeType)) {
                     // Create bind between the queue and exchange with the routeKey
                     try {
-                        if (!channel.isOpen()) {
-                            channel = connection.createChannel();
-                            log.debug("Channel is not open. Creating a new channel.");
-                        }
-                        channel.queueBind(queueName, exchangeName, routeKey);
+                        dualChannel.getChannel().queueBind(queueName, exchangeName, routeKey);
                     } catch (IOException e) {
                         handleException(
                                 "Error occurred while creating the bind between the queue: "
@@ -191,7 +181,8 @@ public class RabbitMQRPCMessageSender {
                     }
                 }
             }
-*/
+
+            //build basic properties from message
             AMQP.BasicProperties.Builder builder = buildBasicProperties(message);
 
             String deliveryModeString = epProperties
@@ -200,9 +191,11 @@ public class RabbitMQRPCMessageSender {
             if (deliveryModeString != null) {
                 deliveryMode = Integer.parseInt(deliveryModeString);
             }
+
+            //FIXME : override properties from message with ones from transport properties ??
+            //set builder properties from transport properties (overrides current properties)
             builder.deliveryMode(deliveryMode);
             builder.replyTo(replyTo);
-            builder.correlationId(message.getCorrelationId());
 
             basicProperties = builder.build();
             OMOutputFormat format = BaseUtils.getOMOutputFormat(msgContext);
@@ -243,29 +236,19 @@ public class RabbitMQRPCMessageSender {
                 }
             }
 
-            //if (connection != null) {
             try {
-//                    if ((channel == null) || !channel.isOpen()) {
-//                        channel = connection.createChannel();
-//                        log.debug("Channel is not open or unavailable. Creating a new channel.");
-//                    }
                 if (exchangeName != null && exchangeName != "") {
                     log.debug("Publishing message to exchange " + exchangeName + " with route key " + routeKey);
-                    channel.basicPublish(exchangeName, routeKey, basicProperties,
+                    dualChannel.getChannel().basicPublish(exchangeName, routeKey, basicProperties,
                             messageBody);
                 } else {
                     log.debug("Publishing message with route key " + routeKey);
-                    channel.basicPublish("", routeKey, basicProperties,
+                    dualChannel.getChannel().basicPublish("", routeKey, basicProperties,
                             messageBody);
                 }
             } catch (IOException e) {
                 handleException("Error while publishing the message", e);
             }
-            //}
-
-//            if (channel != null) {
-//                channel.close();
-//            }
         } else {
             handleException("Channel cannot be created");
         }
@@ -274,19 +257,23 @@ public class RabbitMQRPCMessageSender {
 
     private RabbitMQMessage processResponse(String correlationID) throws IOException {
 
-//        String queueAutoDeclareStr = eprProperties.get(RabbitMQConstants.QUEUE_AUTODECLARE);
-//        boolean queueAutoDeclare = true;
+        QueueingConsumer consumer = dualChannel.getConsumer();
+        QueueingConsumer.Delivery delivery = null;
+        RabbitMQMessage message = new RabbitMQMessage();
+        String replyToQueue = dualChannel.getReplyToQueue();
 
-//        if (!StringUtils.isEmpty(queueAutoDeclareStr)) {
-//            queueAutoDeclare = Boolean.parseBoolean(queueAutoDeclareStr);
-//        }
+        String queueAutoDeclareStr = epProperties.get(RabbitMQConstants.QUEUE_AUTODECLARE);
+        boolean queueAutoDeclare = true;
 
-       /*
-        if (queueAutoDeclare && !RabbitMQUtils.isQueueAvailable(connection, channel, replyTo)) {
+        if (!StringUtils.isEmpty(queueAutoDeclareStr)) {
+            queueAutoDeclare = Boolean.parseBoolean(queueAutoDeclareStr);
+        }
 
-            log.info("Reply-to queue : " + replyTo + " not available, hence creating a new one");
-            RabbitMQUtils.declareQueue(connection, channel, replyTo, eprProperties);
-        }*/
+        if (queueAutoDeclare && !RabbitMQUtils.isQueueAvailable(dualChannel.getChannel(), replyToQueue)) {
+
+            log.info("Reply-to queue : " + replyToQueue + " not available, hence creating a new one");
+            RabbitMQUtils.declareQueue(dualChannel, replyToQueue, epProperties);
+        }
 
         int timeout = RabbitMQConstants.DEFAULT_REPLY_TO_TIMEOUT;
         String timeoutStr = epProperties.get(RabbitMQConstants.REPLY_TO_TIMEOUT);
@@ -298,33 +285,14 @@ public class RabbitMQRPCMessageSender {
             }
         }
 
-        QueueingConsumer consumer = dualChannel.getConsumer();
-        QueueingConsumer.Delivery delivery = null;
-        RabbitMQMessage message = new RabbitMQMessage();
-        Channel channel = dualChannel.getChannel();
-        String replyToQueue = dualChannel.getReplyToQueue();
-
-        //boolean responseFound = false;
-
-
-//
-//        //start consuming without acknowledging
-//        String consumerTag = channel.basicConsume(replyTo, false, consumer);
-
         try {
-            //while (!responseFound) {
-            //FIXME : release the thread.. only the first message should match. if not its an error..
             log.debug("Waiting for delivery from reply to queue " + replyToQueue + " corr id : " + correlationID);
             delivery = consumer.nextDelivery(timeout);
             if (delivery != null) {
                 if (!StringUtils.isEmpty(delivery.getProperties().getCorrelationId())) {
                     if (delivery.getProperties().getCorrelationId().equals(correlationID)) {
-                        //responseFound = true;
                         log.debug("Found matching response with correlation ID : " + correlationID + ".");
-                        //acknowledge correct message
-                        //channel.basicAck(delivery.getEnvelope().getDeliveryTag(), false);
                     } else {
-                        //channel.basicNack(delivery.getEnvelope().getDeliveryTag(), false, true);
                         log.error("Response not queued in " + replyToQueue + " for correlation ID : " + correlationID);
                         return null;
                     }
@@ -332,20 +300,12 @@ public class RabbitMQRPCMessageSender {
             } else {
                 log.error("Response not queued in " + replyToQueue);
             }
-            // }
         } catch (ShutdownSignalException e) {
             log.error("Error receiving message from RabbitMQ broker " + e.getLocalizedMessage());
         } catch (InterruptedException e) {
             log.error("Error receiving message from RabbitMQ broker " + e.getLocalizedMessage());
         } catch (ConsumerCancelledException e) {
             log.error("Error receiving message from RabbitMQ broker" + e.getLocalizedMessage());
-        } finally {
-//            if (channel != null || channel.isOpen()) {
-//                //stop consuming
-//                channel.basicCancel(consumerTag); //TODO : stop consuming?
-//                channel.close();
-//            }
-
         }
 
         if (delivery != null) {

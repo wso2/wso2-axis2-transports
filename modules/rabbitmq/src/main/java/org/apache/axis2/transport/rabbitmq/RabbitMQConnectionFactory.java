@@ -330,6 +330,7 @@ public class RabbitMQConnectionFactory {
     }
 
     private void initConnectionPool() {
+        log.info("Initializeing channel pool of " + connectionPoolSize);
         dualChannelPool = new DualChannelPool(this, connectionPoolSize);//TODO : clear this at server shutdown
         rmqChannelPool = new RMQChannelPool(this, connectionPoolSize);
     }

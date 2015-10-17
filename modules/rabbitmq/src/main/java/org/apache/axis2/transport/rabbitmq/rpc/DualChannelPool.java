@@ -4,6 +4,7 @@ import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.QueueingConsumer;
 import org.apache.axis2.transport.rabbitmq.RabbitMQConnectionFactory;
+import org.apache.axis2.transport.rabbitmq.utils.AxisRabbitMQException;
 
 import java.io.IOException;
 import java.util.concurrent.BlockingDeque;
@@ -16,21 +17,18 @@ public class DualChannelPool {
     public DualChannelPool(RabbitMQConnectionFactory connectionFactory, int connectionPoolSize) {
 
         dualChannelPool = new LinkedBlockingDeque<>();
-        //TODO : connection recovery - verify
         try {
             Connection connection = connectionFactory.createConnection();
             for (int i = 0; i < connectionPoolSize; i++) {
                 Channel channel = connection.createChannel();
                 QueueingConsumer consumer = new QueueingConsumer(channel);
                 String replyQueueName = channel.queueDeclare().getQueue();
-                //channel.basicConsume(replyQueueName, false, consumer);
                 dualChannelPool.add(new DualChannel(connection, channel, consumer, replyQueueName));
             }
         } catch (IOException e) {
-            e.printStackTrace();
+            throw new AxisRabbitMQException("Error creating dual channel pool", e);
         }
     }
-
 
     public DualChannel take() throws InterruptedException {
         return dualChannelPool.take();
