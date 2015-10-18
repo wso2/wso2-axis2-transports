@@ -100,7 +100,9 @@ public class RabbitMQConnectionFactory {
         this.parameters = parameters;
         initConnectionFactory();
         initConnectionPool();
-        log.debug("RabbitMQ ConnectionFactory : " + name + " initialized");
+        if (log.isDebugEnabled()) {
+            log.debug("RabbitMQ ConnectionFactory : " + name + " initialized");
+        }
     }
 
     /**
@@ -330,8 +332,8 @@ public class RabbitMQConnectionFactory {
     }
 
     private void initConnectionPool() {
-        log.info("Initializeing channel pool of " + connectionPoolSize);
-        dualChannelPool = new DualChannelPool(this, connectionPoolSize);//TODO : clear this at server shutdown
+        log.info("Initializing channel pool of " + connectionPoolSize);
+        dualChannelPool = new DualChannelPool(this, connectionPoolSize);
         rmqChannelPool = new RMQChannelPool(this, connectionPoolSize);
     }
 

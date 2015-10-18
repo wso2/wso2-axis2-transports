@@ -303,7 +303,9 @@ public class ServiceTaskManager {
          * @throws IOException on error
          */
         private void initConsumer() throws IOException {
-            log.debug("Initializing consumer for service " + serviceName);
+            if (log.isDebugEnabled()) {
+                log.debug("Initializing consumer for service " + serviceName);
+            }
             connection = getConnection();
             rmqChannel = new RMQChannel(connection, connection.createChannel());
             queueName = rabbitMQProperties.get(RabbitMQConstants.QUEUE_NAME);
@@ -354,7 +356,9 @@ public class ServiceTaskManager {
                 //declaring exchange
                 RabbitMQUtils.declareExchange(rmqChannel, exchangeName, rabbitMQProperties);
                 rmqChannel.getChannel().queueBind(queueName, exchangeName, routeKey);
-                log.debug("Bind queue '" + queueName + "' to exchange '" + exchangeName + "' with route key '" + routeKey + "'");
+                if (log.isDebugEnabled()) {
+                    log.debug("Bind queue '" + queueName + "' to exchange '" + exchangeName + "' with route key '" + routeKey + "'");
+                }
             }
 
             queueingConsumer = new QueueingConsumer(rmqChannel.getChannel());
@@ -362,10 +366,14 @@ public class ServiceTaskManager {
             consumerTagString = rabbitMQProperties.get(RabbitMQConstants.CONSUMER_TAG);
             if (consumerTagString != null) {
                 rmqChannel.getChannel().basicConsume(queueName, autoAck, consumerTagString, queueingConsumer);
-                log.debug("Start consuming queue '" + queueName + "' with consumer tag '" + consumerTagString + "' for service " + serviceName);
+                if (log.isDebugEnabled()) {
+                    log.debug("Start consuming queue '" + queueName + "' with consumer tag '" + consumerTagString + "' for service " + serviceName);
+                }
             } else {
                 consumerTagString = rmqChannel.getChannel().basicConsume(queueName, autoAck, queueingConsumer);
-                log.debug("Start consuming queue '" + queueName + "' with consumer tag '" + consumerTagString + "' for service " + serviceName);
+                if (log.isDebugEnabled()) {
+                    log.debug("Start consuming queue '" + queueName + "' with consumer tag '" + consumerTagString + "' for service " + serviceName);
+                }
             }
         }
 
@@ -381,7 +389,9 @@ public class ServiceTaskManager {
             RabbitMQMessage message = new RabbitMQMessage();
             QueueingConsumer.Delivery delivery = null;
             try {
-                log.debug("Waiting for next delivery from queue for service " + serviceName);
+                if (log.isDebugEnabled()) {
+                    log.debug("Waiting for next delivery from queue for service " + serviceName);
+                }
                 delivery = consumer.nextDelivery();
             } catch (ShutdownSignalException e) {
                 return null;
@@ -416,7 +426,9 @@ public class ServiceTaskManager {
                     }
                 }
             } else {
-                log.debug("Queue delivery item is null for service " + serviceName);
+                if (log.isDebugEnabled()) {
+                    log.debug("Queue delivery item is null for service " + serviceName);
+                }
                 return null;
             }
             return message;

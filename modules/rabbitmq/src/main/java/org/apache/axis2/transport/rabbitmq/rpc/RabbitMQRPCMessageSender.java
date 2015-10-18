@@ -191,7 +191,7 @@ public class RabbitMQRPCMessageSender {
                 deliveryMode = Integer.parseInt(deliveryModeString);
             }
 
-            //FIXME : override properties from message with ones from transport properties ??
+            //TODO : override properties from message with ones from transport properties
             //set builder properties from transport properties (overrides current properties)
             builder.deliveryMode(deliveryMode);
             builder.replyTo(replyTo);
@@ -237,11 +237,15 @@ public class RabbitMQRPCMessageSender {
 
             try {
                 if (exchangeName != null && exchangeName != "") {
-                    log.debug("Publishing message to exchange " + exchangeName + " with route key " + routeKey);
+                    if (log.isDebugEnabled()) {
+                        log.debug("Publishing message to exchange " + exchangeName + " with route key " + routeKey);
+                    }
                     dualChannel.getChannel().basicPublish(exchangeName, routeKey, basicProperties,
                             messageBody);
                 } else {
-                    log.debug("Publishing message with route key " + routeKey);
+                    if (log.isDebugEnabled()) {
+                        log.debug("Publishing message with route key " + routeKey);
+                    }
                     dualChannel.getChannel().basicPublish("", routeKey, basicProperties,
                             messageBody);
                 }
@@ -269,7 +273,6 @@ public class RabbitMQRPCMessageSender {
         }
 
         if (queueAutoDeclare && !RabbitMQUtils.isQueueAvailable(dualChannel.getChannel(), replyToQueue)) {
-
             log.info("Reply-to queue : " + replyToQueue + " not available, hence creating a new one");
             RabbitMQUtils.declareQueue(dualChannel, replyToQueue, epProperties);
         }
@@ -285,12 +288,16 @@ public class RabbitMQRPCMessageSender {
         }
 
         try {
-            log.debug("Waiting for delivery from reply to queue " + replyToQueue + " corr id : " + correlationID);
+            if (log.isDebugEnabled()) {
+                log.debug("Waiting for delivery from reply to queue " + replyToQueue + " corr id : " + correlationID);
+            }
             delivery = consumer.nextDelivery(timeout);
             if (delivery != null) {
                 if (!StringUtils.isEmpty(delivery.getProperties().getCorrelationId())) {
                     if (delivery.getProperties().getCorrelationId().equals(correlationID)) {
-                        log.debug("Found matching response with correlation ID : " + correlationID + ".");
+                        if(log.isDebugEnabled()) {
+                            log.debug("Found matching response with correlation ID : " + correlationID + ".");
+                        }
                     } else {
                         log.error("Response not queued in " + replyToQueue + " for correlation ID : " + correlationID);
                         return null;

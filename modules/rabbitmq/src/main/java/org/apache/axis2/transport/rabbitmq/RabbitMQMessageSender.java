@@ -192,8 +192,8 @@ public class RabbitMQMessageSender {
             if (deliveryModeString != null) {
                 deliveryMode = Integer.parseInt(deliveryModeString);
             }
-
             builder.deliveryMode(deliveryMode);
+
             if (!StringUtils.isEmpty(replyTo)) {
                 builder.replyTo(replyTo);
             }
