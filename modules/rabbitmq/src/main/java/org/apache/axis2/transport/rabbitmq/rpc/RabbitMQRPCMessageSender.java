@@ -19,7 +19,6 @@
 package org.apache.axis2.transport.rabbitmq.rpc;
 
 import com.rabbitmq.client.AMQP;
-import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.ConsumerCancelledException;
 import com.rabbitmq.client.QueueingConsumer;
 import com.rabbitmq.client.ShutdownSignalException;

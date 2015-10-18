@@ -54,7 +54,6 @@ public class RabbitMQConnectionFactoryManager {
      */
     public RabbitMQConnectionFactory getConnectionFactory(Hashtable<String, String> props) {
         //add all properties to connection factory name in order to have a unique name
-        //FIXME : check the name
         String connectionFactoryName =
                 props.get(RabbitMQConstants.SERVER_HOST_NAME) + "_" +
                         props.get(RabbitMQConstants.SERVER_PORT) + "_" +
@@ -66,8 +65,8 @@ public class RabbitMQConnectionFactoryManager {
                         props.get(RabbitMQConstants.RETRY_INTERVAL) + "_" +
                         props.get(RabbitMQConstants.RETRY_COUNT) + "_" +
                         props.get(RabbitMQConstants.HEARTBEAT) + "_" +
-                        props.get(RabbitMQConstants.CONNECTION_TIMEOUT + "_" +
-                        props.get(RabbitMQConstants.CONNECTION_POOL_SIZE));
+                        props.get(RabbitMQConstants.CONNECTION_TIMEOUT) + "_" +
+                        props.get(RabbitMQConstants.CONNECTION_POOL_SIZE);
 
         RabbitMQConnectionFactory rabbitMQConnectionFactory = connectionFactories.get(connectionFactoryName);
 

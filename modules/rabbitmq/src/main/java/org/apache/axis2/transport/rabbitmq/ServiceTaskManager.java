@@ -305,7 +305,7 @@ public class ServiceTaskManager {
         private void initConsumer() throws IOException {
             log.debug("Initializing consumer for service " + serviceName);
             connection = getConnection();
-            RMQChannel rmqChannel = new RMQChannel(connection, connection.createChannel());
+            rmqChannel = new RMQChannel(connection, connection.createChannel());
             queueName = rabbitMQProperties.get(RabbitMQConstants.QUEUE_NAME);
             routeKey = rabbitMQProperties.get(RabbitMQConstants.QUEUE_ROUTING_KEY);
             exchangeName = rabbitMQProperties.get(RabbitMQConstants.EXCHANGE_NAME);

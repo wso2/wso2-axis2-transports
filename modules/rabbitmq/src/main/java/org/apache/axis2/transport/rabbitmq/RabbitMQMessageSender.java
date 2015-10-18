@@ -19,8 +19,6 @@
 package org.apache.axis2.transport.rabbitmq;
 
 import com.rabbitmq.client.AMQP;
-import com.rabbitmq.client.Channel;
-import com.rabbitmq.client.Connection;
 import org.apache.axiom.om.OMOutputFormat;
 import org.apache.axis2.AxisFault;
 import org.apache.axis2.context.MessageContext;
@@ -111,7 +109,7 @@ public class RabbitMQMessageSender {
                     .get(RabbitMQConstants.EXCHANGE_TYPE);
             String replyTo = properties.get(RabbitMQConstants.REPLY_TO_NAME);
             String correlationID = properties.get(RabbitMQConstants.CORRELATION_ID);
-            
+
             String queueAutoDeclareStr = properties.get(RabbitMQConstants.QUEUE_AUTODECLARE);
             String exchangeAutoDeclareStr = properties.get(RabbitMQConstants.EXCHANGE_AUTODECLARE);
             boolean queueAutoDeclare = true;
@@ -127,7 +125,7 @@ public class RabbitMQMessageSender {
 
             message.setReplyTo(replyTo);
 
-            if (StringUtils.isEmpty(correlationID)){
+            if (StringUtils.isEmpty(correlationID)) {
                 //if reply-to is enabled a correlationID must be available. If not specified, use messageID
                 correlationID = message.getMessageId();
             }
@@ -137,17 +135,31 @@ public class RabbitMQMessageSender {
             }
 
             if (queueName == null || queueName.equals("")) {
-                log.info("No queue name is specified");
+                log.debug("No queue name is specified");
             }
 
             if (routeKey == null && !"x-consistent-hash".equals(exchangeType)) {
                 if (queueName == null || queueName.equals("")) {
-                    log.info("Routing key is not specified");
+                    log.debug("Routing key is not specified");
                 } else {
-                    log.info(
+                    log.debug(
                             "Routing key is not specified. Using queue name as the routing key.");
                     routeKey = queueName;
                 }
+            }
+
+            //read publish properties corr id and route key from message context
+            Object prRouteKey = msgContext.getProperty(RabbitMQConstants.QUEUE_ROUTING_KEY);
+            Object prCorrId = msgContext.getProperty(RabbitMQConstants.CORRELATION_ID).toString();
+
+            if (prRouteKey != null) {
+                routeKey = prRouteKey.toString();
+                log.debug("Specifying routing key from axis2 properties");
+            }
+
+            if (prCorrId != null) {
+                message.setCorrelationId(prCorrId.toString());
+                log.debug("Specifying correlation id from axis2 properties");
             }
 
             //Declaring the queue
@@ -171,6 +183,7 @@ public class RabbitMQMessageSender {
                 }
             }
 
+
             AMQP.BasicProperties.Builder builder = buildBasicProperties(message);
 
             String deliveryModeString = properties
@@ -179,9 +192,11 @@ public class RabbitMQMessageSender {
             if (deliveryModeString != null) {
                 deliveryMode = Integer.parseInt(deliveryModeString);
             }
+
             builder.deliveryMode(deliveryMode);
-            builder.replyTo(replyTo);
-            builder.correlationId(message.getCorrelationId());
+            if (!StringUtils.isEmpty(replyTo)) {
+                builder.replyTo(replyTo);
+            }
 
             basicProperties = builder.build();
             OMOutputFormat format = BaseUtils.getOMOutputFormat(msgContext);
@@ -237,6 +252,7 @@ public class RabbitMQMessageSender {
             handleException("Channel cannot be created");
         }
     }
+
 
     /**
      * Build and populate the AMQP.BasicProperties using the RabbitMQMessage

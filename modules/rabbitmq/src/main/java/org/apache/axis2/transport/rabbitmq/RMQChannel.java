@@ -2,7 +2,6 @@ package org.apache.axis2.transport.rabbitmq;
 
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
-import com.rabbitmq.client.QueueingConsumer;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -15,13 +14,14 @@ public class RMQChannel {
     private Channel channel;
     private Connection connection;
 
-    public RMQChannel(Connection connection,Channel channel) {
+    public RMQChannel(Connection connection, Channel channel) {
         this.channel = channel;
         this.connection = connection;
     }
 
     /**
      * If channel is closed, recreate the channel and return availability
+     *
      * @return true if channel is open and false if channel is closed.
      */
     public boolean isOpen() {
@@ -38,6 +38,7 @@ public class RMQChannel {
 
     /**
      * If channel is closed, recreate the channel and return.
+     *
      * @return an open channel
      */
     public Channel getChannel() {

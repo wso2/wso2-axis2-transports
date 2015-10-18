@@ -100,7 +100,7 @@ public class RabbitMQConnectionFactory {
         this.parameters = parameters;
         initConnectionFactory();
         initConnectionPool();
-        log.info("RabbitMQ ConnectionFactory : " + name + " initialized");
+        log.debug("RabbitMQ ConnectionFactory : " + name + " initialized");
     }
 
     /**

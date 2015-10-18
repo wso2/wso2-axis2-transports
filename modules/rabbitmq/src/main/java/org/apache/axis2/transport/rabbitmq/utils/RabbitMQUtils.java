@@ -32,7 +32,6 @@ import org.apache.axis2.context.MessageContext;
 import org.apache.axis2.transport.TransportUtils;
 import org.apache.axis2.transport.rabbitmq.RMQChannel;
 import org.apache.axis2.transport.rabbitmq.RabbitMQMessage;
-import org.apache.axis2.transport.rabbitmq.rpc.DualChannel;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
