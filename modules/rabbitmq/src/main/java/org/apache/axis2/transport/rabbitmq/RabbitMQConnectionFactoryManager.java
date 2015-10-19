@@ -89,7 +89,9 @@ public class RabbitMQConnectionFactoryManager {
         }
 
         //initialize connection pools
-        rabbitMQConnectionFactory.initializeConnectionPool((props.get(RabbitMQConstants.REPLY_TO_NAME)!=null));
+        synchronized (rabbitMQConnectionFactory) {
+            rabbitMQConnectionFactory.initializeConnectionPool((props.get(RabbitMQConstants.REPLY_TO_NAME) != null));
+        }
 
         return rabbitMQConnectionFactory;
     }

@@ -330,9 +330,11 @@ public class RabbitMQConnectionFactory {
     }
 
     public void initializeConnectionPool(boolean isDual) {
-        if (isDual && (dualChannelPool == null)) {
-            log.info("Initializing dual channel pool of " + connectionPoolSize);
-            dualChannelPool = new DualChannelPool(this, connectionPoolSize);
+        if (isDual) {
+            if (dualChannelPool == null) {
+                log.info("Initializing dual channel pool of " + connectionPoolSize);
+                dualChannelPool = new DualChannelPool(this, connectionPoolSize);
+            }
         } else if (rmqChannelPool == null) {
             log.info("Initializing channel pool of " + connectionPoolSize);
             rmqChannelPool = new RMQChannelPool(this, connectionPoolSize);
