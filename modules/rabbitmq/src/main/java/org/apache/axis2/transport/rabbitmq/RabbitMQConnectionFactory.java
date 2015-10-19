@@ -85,7 +85,6 @@ public class RabbitMQConnectionFactory {
             parameters.put(p.getName(), (String) p.getValue());
         }
         initConnectionFactory();
-        initConnectionPool();
         log.info("RabbitMQ ConnectionFactory : " + name + " initialized");
     }
 
@@ -99,7 +98,6 @@ public class RabbitMQConnectionFactory {
         this.name = name;
         this.parameters = parameters;
         initConnectionFactory();
-        initConnectionPool();
         if (log.isDebugEnabled()) {
             log.debug("RabbitMQ ConnectionFactory : " + name + " initialized");
         }
@@ -331,10 +329,14 @@ public class RabbitMQConnectionFactory {
         connectionFactory.setTopologyRecoveryEnabled(false);
     }
 
-    private void initConnectionPool() {
-        log.info("Initializing channel pool of " + connectionPoolSize);
-        dualChannelPool = new DualChannelPool(this, connectionPoolSize);
-        rmqChannelPool = new RMQChannelPool(this, connectionPoolSize);
+    public void initializeConnectionPool(boolean isDual) {
+        if (isDual && (dualChannelPool == null)) {
+            log.info("Initializing dual channel pool of " + connectionPoolSize);
+            dualChannelPool = new DualChannelPool(this, connectionPoolSize);
+        } else if (rmqChannelPool == null) {
+            log.info("Initializing channel pool of " + connectionPoolSize);
+            rmqChannelPool = new RMQChannelPool(this, connectionPoolSize);
+        }
     }
 
     public DualChannel getRPCChannel() throws InterruptedException {
@@ -368,4 +370,5 @@ public class RabbitMQConnectionFactory {
     public void stop() {
         es.shutdown();
     }
+
 }
