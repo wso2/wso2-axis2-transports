@@ -30,6 +30,7 @@ import org.apache.axis2.builder.BuilderUtil;
 import org.apache.axis2.builder.SOAPBuilder;
 import org.apache.axis2.context.MessageContext;
 import org.apache.axis2.transport.TransportUtils;
+import org.apache.axis2.transport.rabbitmq.RMQChannel;
 import org.apache.axis2.transport.rabbitmq.RabbitMQMessage;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -138,8 +139,7 @@ public class RabbitMQUtils {
         return autoDelete != null && Boolean.parseBoolean(autoDelete);
     }
 
-    public static boolean isQueueAvailable(Connection connection, String queueName) throws IOException {
-        Channel channel = connection.createChannel();
+    public static boolean isQueueAvailable(Channel channel, String queueName) throws IOException {
         try {
             // check availability of the named queue
             // if an error is encountered, including if the queue does not exist and if the
@@ -151,42 +151,34 @@ public class RabbitMQUtils {
         }
     }
 
-    public static void declareQueue(Connection connection, String queueName, boolean isDurable,
+    public static void declareQueue(RMQChannel rmqChannel, String queueName, boolean isDurable,
                                     boolean isExclusive, boolean isAutoDelete) throws IOException {
 
-        boolean queueAvailable = isQueueAvailable(connection, queueName);
-        Channel channel = connection.createChannel();
+        boolean queueAvailable = isQueueAvailable(rmqChannel.getChannel(), queueName);
 
         if (!queueAvailable) {
             if (log.isDebugEnabled()) {
                 log.debug("Queue :" + queueName + " not found or already declared exclusive. Declaring the queue.");
             }
+
             // Declare the named queue if it does not exists.
-            if (!channel.isOpen()) {
-                channel = connection.createChannel();
-                log.debug("Channel is not open. Creating a new channel.");
-            }
             try {
-                channel.queueDeclare(queueName, isDurable, isExclusive, isAutoDelete, null);
+                rmqChannel.getChannel().queueDeclare(queueName, isDurable, isExclusive, isAutoDelete, null);
             } catch (IOException e) {
                 handleException("Error while creating queue: " + queueName, e);
             }
         }
     }
 
-    public static void declareQueue(Connection connection, String queueName,
+    public static void declareQueue(RMQChannel rmqChannel, String queueName,
                                     Hashtable<String, String> properties) throws IOException {
-        Boolean queueAvailable = isQueueAvailable(connection, queueName);
-        Channel channel = connection.createChannel();
+
+        Channel channel = rmqChannel.getChannel();
+        Boolean queueAvailable = isQueueAvailable(channel, queueName);
 
         if (!queueAvailable) {
-            // Declare the named queue if it does not exists.
-            if (!channel.isOpen()) {
-                channel = connection.createChannel();
-                log.debug("Channel is not open. Creating a new channel.");
-            }
             try {
-                channel.queueDeclare(queueName, isDurableQueue(properties),
+                rmqChannel.getChannel().queueDeclare(queueName, isDurableQueue(properties),
                         isExclusiveQueue(properties), isAutoDeleteQueue(properties), null);
 
             } catch (IOException e) {
@@ -195,10 +187,9 @@ public class RabbitMQUtils {
         }
     }
 
-
-    public static void declareExchange(Connection connection, String exchangeName, Hashtable<String, String> properties) throws IOException {
+    public static void declareExchange(RMQChannel rmqChannel, String exchangeName, Hashtable<String, String> properties) throws IOException {
         Boolean exchangeAvailable = false;
-        Channel channel = connection.createChannel();
+
         String exchangeType = properties
                 .get(RabbitMQConstants.EXCHANGE_TYPE);
         String durable = properties.get(RabbitMQConstants.EXCHANGE_DURABLE);
@@ -206,7 +197,7 @@ public class RabbitMQUtils {
             // check availability of the named exchange.
             // The server will raise an IOException
             // if the named exchange already exists.
-            channel.exchangeDeclarePassive(exchangeName);
+            rmqChannel.getChannel().exchangeDeclarePassive(exchangeName);
             exchangeAvailable = true;
         } catch (IOException e) {
             log.info("Exchange :" + exchangeName + " not found.Declaring exchange.");
@@ -214,33 +205,29 @@ public class RabbitMQUtils {
 
         if (!exchangeAvailable) {
             // Declare the named exchange if it does not exists.
-            if (!channel.isOpen()) {
-                channel = connection.createChannel();
-                log.debug("Channel is not open. Creating a new channel.");
-            }
             try {
                 if (exchangeType != null
                         && !exchangeType.equals("")) {
                     if (durable != null && !durable.equals("")) {
-                        channel.exchangeDeclare(exchangeName,
+                        rmqChannel.getChannel().exchangeDeclare(exchangeName,
                                 exchangeType,
                                 Boolean.parseBoolean(durable));
                     } else {
-                        channel.exchangeDeclare(exchangeName,
+                        rmqChannel.getChannel().exchangeDeclare(exchangeName,
                                 exchangeType, true);
                     }
                 } else {
-                    channel.exchangeDeclare(exchangeName, "direct", true);
+                    rmqChannel.getChannel().exchangeDeclare(exchangeName, "direct", true);
                 }
             } catch (IOException e) {
                 handleException("Error occurred while declaring exchange.", e);
             }
         }
-        channel.close();
     }
 
     public static void handleException(String message, Exception e) {
         log.error(message, e);
         throw new AxisRabbitMQException(message, e);
     }
+
 }

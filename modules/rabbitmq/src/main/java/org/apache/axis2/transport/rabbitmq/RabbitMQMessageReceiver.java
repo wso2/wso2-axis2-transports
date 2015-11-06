@@ -104,7 +104,6 @@ public class RabbitMQMessageReceiver {
         if (replyTo != null) {
             msgContext.setProperty(Constants.OUT_TRANSPORT_INFO,
                     new RabbitMQOutTransportInfo(rabbitMQConnectionFactory, replyTo, contentType));
-
         }
 
         RabbitMQUtils.setSOAPEnvelope(message, msgContext, contentType);

@@ -24,6 +24,8 @@ import org.apache.axiom.om.OMElement;
 import org.apache.axis2.AxisFault;
 import org.apache.axis2.description.Parameter;
 import org.apache.axis2.description.ParameterIncludeImpl;
+import org.apache.axis2.transport.rabbitmq.rpc.DualChannel;
+import org.apache.axis2.transport.rabbitmq.rpc.DualChannelPool;
 import org.apache.axis2.transport.rabbitmq.utils.AxisRabbitMQException;
 import org.apache.axis2.transport.rabbitmq.utils.RabbitMQConstants;
 import org.apache.axis2.transport.rabbitmq.utils.RabbitMQUtils;
@@ -53,17 +55,15 @@ public class RabbitMQConnectionFactory {
     private static final Log log = LogFactory.getLog(RabbitMQConnectionFactory.class);
 
     private ConnectionFactory connectionFactory = null;
+    private DualChannelPool dualChannelPool = null; //channel pool for request-response
+    private RMQChannelPool rmqChannelPool = null; //channel pool for out only publish
     private String name;
     private Hashtable<String, String> parameters = new Hashtable<String, String>();
     private ExecutorService es = Executors.newFixedThreadPool(RabbitMQConstants.DEFAULT_THREAD_COUNT);
-    private Connection connection = null;
     private int retryInterval = RabbitMQConstants.DEFAULT_RETRY_INTERVAL;
     private int retryCount = RabbitMQConstants.DEFAULT_RETRY_COUNT;
+    private int connectionPoolSize = RabbitMQConstants.DEFAULT_CONNECTION_POOL_SIZE;
 
-    public RabbitMQConnectionFactory(String name, ConnectionFactory connectionFactory) {
-        this.name = name;
-        this.connectionFactory = connectionFactory;
-    }
 
     /**
      * Digest a AMQP CF definition from an axis2.xml 'Parameter' and construct
@@ -98,7 +98,9 @@ public class RabbitMQConnectionFactory {
         this.name = name;
         this.parameters = parameters;
         initConnectionFactory();
-        log.info("RabbitMQ ConnectionFactory : " + name + " initialized");
+        if (log.isDebugEnabled()) {
+            log.debug("RabbitMQ ConnectionFactory : " + name + " initialized");
+        }
     }
 
     /**
@@ -131,19 +133,6 @@ public class RabbitMQConnectionFactory {
             if (connection == null) {
                 handleException("[" + name + "] Could not connect to RabbitMQ Broker. Error while creating connection", e);
             }
-        }
-        return connection;
-    }
-
-    /**
-     * Create a connection from pool
-     *
-     * @return a connection to the server
-     * @throws IOException
-     */
-    public Connection getConnectionPool() throws IOException {
-        if ((connection == null) || (!connection.isOpen())) {
-            connection = connectionFactory.newConnection(es);
         }
         return connection;
     }
@@ -212,6 +201,7 @@ public class RabbitMQConnectionFactory {
         String userName = parameters.get(RabbitMQConstants.SERVER_USER_NAME);
         String password = parameters.get(RabbitMQConstants.SERVER_PASSWORD);
         String virtualHost = parameters.get(RabbitMQConstants.SERVER_VIRTUAL_HOST);
+        String connectionPoolSizeS = parameters.get(RabbitMQConstants.CONNECTION_POOL_SIZE);
 
         if (!StringUtils.isEmpty(heartbeat)) {
             try {
@@ -226,6 +216,15 @@ public class RabbitMQConnectionFactory {
             try {
                 int connectionTimeoutValue = Integer.parseInt(connectionTimeout);
                 connectionFactory.setConnectionTimeout(connectionTimeoutValue);
+            } catch (NumberFormatException e) {
+                //proceeding with rabbitmq default value
+                log.warn("Number format error in reading connection timeout value. Proceeding with default");
+            }
+        }
+
+        if (!StringUtils.isEmpty(connectionPoolSizeS)) {
+            try {
+                connectionPoolSize = Integer.parseInt(connectionPoolSizeS);
             } catch (NumberFormatException e) {
                 //proceeding with rabbitmq default value
                 log.warn("Number format error in reading connection timeout value. Proceeding with default");
@@ -330,6 +329,34 @@ public class RabbitMQConnectionFactory {
         connectionFactory.setTopologyRecoveryEnabled(false);
     }
 
+    public void initializeConnectionPool(boolean isDual) {
+        if (isDual) {
+            if (dualChannelPool == null) {
+                log.info("Initializing dual channel pool of " + connectionPoolSize);
+                dualChannelPool = new DualChannelPool(this, connectionPoolSize);
+            }
+        } else if (rmqChannelPool == null) {
+            log.info("Initializing channel pool of " + connectionPoolSize);
+            rmqChannelPool = new RMQChannelPool(this, connectionPoolSize);
+        }
+    }
+
+    public DualChannel getRPCChannel() throws InterruptedException {
+        return dualChannelPool.take();
+    }
+
+    public void pushRPCChannel(DualChannel dualChannel) throws InterruptedException {
+        dualChannelPool.push(dualChannel);
+    }
+
+    public RMQChannel getRMQChannel() throws InterruptedException {
+        return rmqChannelPool.take();
+    }
+
+    public void pushRMQChannel(RMQChannel channel) throws InterruptedException {
+        rmqChannelPool.push(channel);
+    }
+
     public int getRetryInterval() {
         return retryInterval;
     }
@@ -345,4 +372,5 @@ public class RabbitMQConnectionFactory {
     public void stop() {
         es.shutdown();
     }
+
 }

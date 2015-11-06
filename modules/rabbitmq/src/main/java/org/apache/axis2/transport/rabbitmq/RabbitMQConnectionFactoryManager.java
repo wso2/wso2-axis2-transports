@@ -21,6 +21,7 @@ package org.apache.axis2.transport.rabbitmq;
 import org.apache.axis2.description.Parameter;
 import org.apache.axis2.description.ParameterInclude;
 import org.apache.axis2.transport.rabbitmq.utils.RabbitMQConstants;
+import org.apache.commons.lang.StringUtils;
 
 import java.util.HashMap;
 import java.util.Hashtable;
@@ -53,25 +54,43 @@ public class RabbitMQConnectionFactoryManager {
      * with the given properties exists
      */
     public RabbitMQConnectionFactory getConnectionFactory(Hashtable<String, String> props) {
-        //add all properties to connection factory name in order to have a unique name
-        String connectionFactoryName =
-                props.get(RabbitMQConstants.SERVER_HOST_NAME) + "_" +
-                        props.get(RabbitMQConstants.SERVER_PORT) + "_" +
-                        props.get(RabbitMQConstants.SERVER_USER_NAME) + "_" +
-                        props.get(RabbitMQConstants.SERVER_PASSWORD) + "_" +
-                        props.get(RabbitMQConstants.SSL_ENABLED) + "_" +
-                        props.get(RabbitMQConstants.SERVER_VIRTUAL_HOST) + "_" +
-                        props.get(RabbitMQConstants.SERVER_RETRY_INTERVAL) + "_" +
-                        props.get(RabbitMQConstants.RETRY_INTERVAL) + "_" +
-                        props.get(RabbitMQConstants.RETRY_COUNT) + "_" +
-                        props.get(RabbitMQConstants.HEARTBEAT) + "_" +
-                        props.get(RabbitMQConstants.CONNECTION_TIMEOUT);
 
+        String connectionFactoryName = props.get(RabbitMQConstants.RABBITMQ_CON_FAC);
+
+        if (StringUtils.isEmpty(connectionFactoryName)) {
+            //add all properties to connection factory name in order to have a unique name
+            connectionFactoryName =
+                    props.get(RabbitMQConstants.SERVER_HOST_NAME) + "_" +
+                            props.get(RabbitMQConstants.SERVER_PORT) + "_" +
+                            props.get(RabbitMQConstants.SERVER_USER_NAME) + "_" +
+                            props.get(RabbitMQConstants.SERVER_PASSWORD) + "_" +
+                            props.get(RabbitMQConstants.SSL_ENABLED) + "_" +
+                            props.get(RabbitMQConstants.SERVER_VIRTUAL_HOST) + "_" +
+                            props.get(RabbitMQConstants.SERVER_RETRY_INTERVAL) + "_" +
+                            props.get(RabbitMQConstants.RETRY_INTERVAL) + "_" +
+                            props.get(RabbitMQConstants.RETRY_COUNT) + "_" +
+                            props.get(RabbitMQConstants.HEARTBEAT) + "_" +
+                            props.get(RabbitMQConstants.CONNECTION_TIMEOUT) + "_" +
+                            props.get(RabbitMQConstants.CONNECTION_POOL_SIZE);
+        }
+
+        //create/get connection factory
         RabbitMQConnectionFactory rabbitMQConnectionFactory = connectionFactories.get(connectionFactoryName);
 
         if (rabbitMQConnectionFactory == null) {
-            rabbitMQConnectionFactory = new RabbitMQConnectionFactory(connectionFactoryName, props);
-            connectionFactories.put(rabbitMQConnectionFactory.getName(), rabbitMQConnectionFactory);
+            synchronized (connectionFactories) {
+                // ensure that connection factories are created only once in a concurrent environment
+                rabbitMQConnectionFactory = connectionFactories.get(connectionFactoryName);
+                if (rabbitMQConnectionFactory == null) {
+                    rabbitMQConnectionFactory = new RabbitMQConnectionFactory(connectionFactoryName, props);
+                    connectionFactories.put(rabbitMQConnectionFactory.getName(), rabbitMQConnectionFactory);
+                }
+            }
+        }
+
+        //initialize connection pools
+        synchronized (rabbitMQConnectionFactory) {
+            rabbitMQConnectionFactory.initializeConnectionPool((props.get(RabbitMQConstants.REPLY_TO_NAME) != null));
         }
 
         return rabbitMQConnectionFactory;
