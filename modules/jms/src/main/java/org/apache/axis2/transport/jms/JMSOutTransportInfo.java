@@ -69,6 +69,8 @@ public class JMSOutTransportInfo implements OutTransportInfo {
     /** the message property name that stores the cache level for the JMS endpoint */
     private int cacheLevel;
 
+    private String jmsSpecVersion;
+    
     /**
      * Creates an instance using the given JMS connection factory and destination
      *
@@ -107,6 +109,11 @@ public class JMSOutTransportInfo implements OutTransportInfo {
         replyDestinationName = properties.get(JMSConstants.PARAM_REPLY_DESTINATION);
         contentTypeProperty = properties.get(JMSConstants.CONTENT_TYPE_PROPERTY_PARAM);
         cacheLevel = getCacheLevel(properties.get(JMSConstants.PARAM_CACHE_LEVEL));
+
+        jmsSpecVersion =
+                         properties.get(JMSConstants.JMS_SPEC_VERSION) != null
+                                                                              ? properties.get(JMSConstants.JMS_SPEC_VERSION)
+                                                                              : "1.0.2b";
     }
 
     /**
@@ -390,7 +397,7 @@ public class JMSOutTransportInfo implements OutTransportInfo {
                 destination,
                 jmsConnectionFactory == null ?
                         this.cacheLevel : jmsConnectionFactory.getCacheLevel(),
-                "1.0.2b",
+                jmsSpecVersion,
                 destType == -1 ?
                         null : destType == JMSConstants.QUEUE ? Boolean.TRUE : Boolean.FALSE
         );

@@ -353,4 +353,6 @@ public class JMSConstants {
      */
     public static final String JMS_MESSAGE_DELAY = "JMS_MESSAGE_DELAY";
 
+    public static final String JMS_SPEC_VERSION = "transport.jms.JMSSpecVersion";
+
 }
