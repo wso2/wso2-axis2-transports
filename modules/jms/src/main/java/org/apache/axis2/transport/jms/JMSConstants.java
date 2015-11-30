@@ -347,4 +347,12 @@ public class JMSConstants {
     public static final String HYPHEN_REPLACEMENT_STR = "_DASHED_";
 
     public static final String DEFAULT_HYPHEN_SUPPORT = HYPHEN_MODE_NONE;
+
+    /**
+     * JMS 2.0 feature: Message delay for the given time interval
+     */
+    public static final String JMS_MESSAGE_DELAY = "JMS_MESSAGE_DELAY";
+
+    public static final String JMS_SPEC_VERSION = "transport.jms.JMSSpecVersion";
+
 }
