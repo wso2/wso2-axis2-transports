@@ -25,10 +25,8 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.eclipse.paho.client.mqttv3.MqttAsyncClient;
 import org.eclipse.paho.client.mqttv3.MqttClient;
-import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
 import org.eclipse.paho.client.mqttv3.MqttException;
 import org.eclipse.paho.client.mqttv3.persist.MqttDefaultFilePersistence;
-
 import java.util.Hashtable;
 
 public class MqttConnectionFactory {
@@ -74,14 +72,16 @@ public class MqttConnectionFactory {
     private MqttClient createMqttClient() {
         String uniqueClientId = parameters.get(MqttConstants.MQTT_CLIENT_ID);
         String sslEnable = parameters.get(MqttConstants.MQTT_SSL_ENABLE);
-        String qosValue=qosLevel;
-        if(qosValue== null){
-            qosValue=parameters.get(MqttConstants.MQTT_QOS);
+        String qosValue = qosLevel;
+        if (qosValue == null) {
+            qosValue = parameters.get(MqttConstants.MQTT_QOS);
         }
-        //This sample stores in a temporary directory... where messages temporarily
-        // stored until the message has been delivered to the server.
-        //..a real application ought to store them somewhere
-        // where they are not likely to get deleted or tampered with
+        /**
+         This sample stores in a temporary directory... where messages temporarily
+         stored until the message has been delivered to the server.
+         ..a real application ought to store them somewhere
+         where they are not likely to get deleted or tampered with
+         */
         String tmpDir = parameters.get(MqttConstants.MQTT_TEMP_STORE);
         MqttDefaultFilePersistence dataStore = null;
         if (qosValue != null) {
@@ -99,7 +99,7 @@ public class MqttConnectionFactory {
                     dataStore = null;
                 }
             }
-        }else{
+        } else {
             if (tmpDir != null) {
                 dataStore = new MqttDefaultFilePersistence(tmpDir);
             } else {
@@ -130,14 +130,18 @@ public class MqttConnectionFactory {
         String uniqueClientId = parameters.get(MqttConstants.MQTT_CLIENT_ID);
         String sslEnable = parameters.get(MqttConstants.MQTT_SSL_ENABLE);
         String mqttBlockingSenderEnable = parameters.get(MqttConstants.MQTT_BLOCKING_SENDER);
-        String qosValue=qosLevel;
-        if(qosValue== null){qosValue=parameters.get(MqttConstants.MQTT_QOS);}
+        String qosValue = qosLevel;
+        if (qosValue == null) {
+            qosValue = parameters.get(MqttConstants.MQTT_QOS);
+        }
 
 
-        //This sample stores in a temporary directory... where messages temporarily
-        // stored until the message has been delivered to the server.
-        //..a real application ought to store them somewhere
-        // where they are not likely to get deleted or tampered with
+        /**
+         This sample stores in a temporary directory... where messages temporarily
+         stored until the message has been delivered to the server.
+         ..a real application ought to store them somewhere
+         where they are not likely to get deleted or tampered with
+         */
         String tmpDir = parameters.get(MqttConstants.MQTT_TEMP_STORE);
         MqttDefaultFilePersistence dataStore = null;
         if (qosValue != null) {
@@ -153,7 +157,7 @@ public class MqttConnectionFactory {
             if (qos == 0) {
                 dataStore = null;
             }
-        }else{
+        } else {
             if (tmpDir != null) {
                 dataStore = new MqttDefaultFilePersistence(tmpDir);
             } else {
@@ -177,12 +181,15 @@ public class MqttConnectionFactory {
         }
         return mqttClient;
     }
+
     public String getTopic() {
         return parameters.get(MqttConstants.MQTT_TOPIC_NAME);
     }
+
     public String getContentType() {
         return parameters.get(MqttConstants.CONTENT_TYPE);
     }
+
     public void setQos(String qosLevel) {
         this.qosLevel = qosLevel;
     }
