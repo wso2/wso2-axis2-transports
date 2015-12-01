@@ -19,7 +19,14 @@ package org.apache.axis2.transport.mqtt;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.eclipse.paho.client.mqttv3.*;
+import org.eclipse.paho.client.mqttv3.MqttAsyncClient;
+import org.eclipse.paho.client.mqttv3.MqttCallback;
+import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
+import org.eclipse.paho.client.mqttv3.MqttException;
+import org.eclipse.paho.client.mqttv3.MqttMessage;
+import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken;
+import org.eclipse.paho.client.mqttv3.IMqttActionListener;
+import org.eclipse.paho.client.mqttv3.IMqttToken;
 
 import java.io.IOException;
 import java.sql.Timestamp;
@@ -132,8 +139,10 @@ public class MqttAsyncCallback implements MqttCallback {
      * @throws MqttException
      */
     public void subscribe(String topicName, int qos) throws Throwable {
-        // Use a state machine to decide which step to do next. State change occurs
-        // when a notification is received that an MQTT action has completed
+        /**
+         Use a state machine to decide which step to do next. State change occurs
+         when a notification is received that an MQTT action has completed
+         */
         while (state != FINISH) {
             switch (state) {
                 case BEGIN:
@@ -193,10 +202,13 @@ public class MqttAsyncCallback implements MqttCallback {
 
         public MqttConnector() {
         }
+
         public void doConnect() {
-            // Connect to the server
-            // Get a token and setup an asynchronous listener on the token which
-            // will be notified once the connect completes
+            /**
+             Connect to the server
+             Get a token and setup an asynchronous listener on the token which
+             will be notified once the connect completes
+             */
             log.info("Connecting to " + brokerUrl + " with client ID " + client.getClientId());
 
             IMqttActionListener conListener = new IMqttActionListener() {
@@ -205,12 +217,14 @@ public class MqttAsyncCallback implements MqttCallback {
                     state = CONNECTED;
                     carryOn();
                 }
+
                 public void onFailure(IMqttToken asyncActionToken, Throwable exception) {
                     ex = exception;
                     state = ERROR;
                     log.info("connect failed" + exception);
                     carryOn();
                 }
+
                 public void carryOn() {
                     synchronized (waiter) {
                         donext = true;
@@ -224,9 +238,11 @@ public class MqttAsyncCallback implements MqttCallback {
                 client.connect(conOpt, "Connect sample context", conListener);
 
             } catch (MqttException e) {
-                // If though it is a non-blocking connect an exception can be
-                // thrown if validation of parms fails or other checks such
-                // as already connected fail.
+                /**
+                 If though it is a non-blocking connect an exception can be
+                 thrown if validation of parms fails or other checks such
+                 as already connected fail.
+                 */
                 state = ERROR;
                 donext = true;
                 ex = e;
@@ -240,11 +256,12 @@ public class MqttAsyncCallback implements MqttCallback {
      */
     public class Publisher {
         public void doPublish(String topicName, MqttMessage message) {
-            // Send / publish a message to the server
-            // Get a token and setup an asynchronous listener on the token which
-            // will be notified once the message has been delivered
-            // MqttMessage message = new MqttMessage(payload);
-            //message.setQos(qos);
+            /**
+             Send / publish a message to the server
+             Get a token and setup an asynchronous listener on the token which
+             will be notified once the message has been delivered
+             */
+
             String time = new Timestamp(System.currentTimeMillis()).toString();
 
             // Setup a listener object to be notified when the publish completes.
@@ -254,12 +271,14 @@ public class MqttAsyncCallback implements MqttCallback {
                     state = PUBLISHED;
                     carryOn();
                 }
+
                 public void onFailure(IMqttToken asyncActionToken, Throwable exception) {
                     ex = exception;
                     state = ERROR;
                     log.info("Publish failed" + exception);
                     carryOn();
                 }
+
                 public void carryOn() {
                     synchronized (waiter) {
                         donext = true;
@@ -294,12 +313,14 @@ public class MqttAsyncCallback implements MqttCallback {
                     state = SUBSCRIBED;
                     carryOn();
                 }
+
                 public void onFailure(IMqttToken asyncActionToken, Throwable exception) {
                     ex = exception;
                     state = ERROR;
                     log.info("Subscribe failed" + exception);
                     carryOn();
                 }
+
                 public void carryOn() {
                     synchronized (waiter) {
                         donext = true;
@@ -331,12 +352,14 @@ public class MqttAsyncCallback implements MqttCallback {
                     state = DISCONNECTED;
                     carryOn();
                 }
+
                 public void onFailure(IMqttToken asyncActionToken, Throwable exception) {
                     ex = exception;
                     state = ERROR;
                     log.info("Disconnect failed" + exception);
                     carryOn();
                 }
+
                 public void carryOn() {
                     synchronized (waiter) {
                         donext = true;

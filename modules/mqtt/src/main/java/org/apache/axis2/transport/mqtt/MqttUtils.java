@@ -27,12 +27,12 @@ import org.apache.axis2.context.MessageContext;
 import org.apache.axis2.transport.TransportUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+
 import org.eclipse.paho.client.mqttv3.MqttException;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
+
 import org.apache.axis2.format.TextMessageBuilderAdapter;
 import org.apache.axis2.format.TextMessageBuilder;
-
-
 import javax.jms.TextMessage;
 import java.io.ByteArrayInputStream;
 
