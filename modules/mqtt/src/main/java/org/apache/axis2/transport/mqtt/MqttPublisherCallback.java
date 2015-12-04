@@ -19,7 +19,9 @@ package org.apache.axis2.transport.mqtt;/*
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.eclipse.paho.client.mqttv3.*;
+import org.eclipse.paho.client.mqttv3.MqttCallback;
+import org.eclipse.paho.client.mqttv3.MqttMessage;
+import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken;
 
 public class MqttPublisherCallback implements MqttCallback {
     private String token = null;

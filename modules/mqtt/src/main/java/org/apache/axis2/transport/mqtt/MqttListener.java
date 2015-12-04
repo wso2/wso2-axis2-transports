@@ -22,6 +22,9 @@ import org.apache.axis2.description.AxisService;
 import org.apache.axis2.description.Parameter;
 import org.apache.axis2.transport.base.AbstractTransportListenerEx;
 
+/**
+ * This class implement to Listen the topics
+ */
 public class MqttListener extends AbstractTransportListenerEx<MqttEndpoint> {
 
     public static final String TRANSPORT_NAME = "mqtt";
@@ -50,7 +53,9 @@ public class MqttListener extends AbstractTransportListenerEx<MqttEndpoint> {
 
     @Override
     protected void stopEndpoint(MqttEndpoint mqttEndpoint) {
-        mqttEndpoint.unsubscribeFromTopic();
+        /*
+        Override from AbstractTransportListener
+         */
     }
 
     public MqttConnectionFactory getConnectionFactory(AxisService service) {
@@ -58,13 +63,13 @@ public class MqttListener extends AbstractTransportListenerEx<MqttEndpoint> {
         Parameter topicName = service.getParameter(MqttConstants.MQTT_TOPIC_NAME);
         Parameter qosLevel = service.getParameter(MqttConstants.MQTT_QOS);
         Parameter contentTypeValue = service.getParameter(MqttConstants.CONTENT_TYPE);
-        if(topicName!=null){
+        if (topicName != null) {
             setTopic(((String) topicName.getValue()));
         }
-        if(qosLevel!=null){
+        if (qosLevel != null) {
             setQOS(((String) qosLevel.getValue()));
         }
-        if(contentTypeValue!=null){
+        if (contentTypeValue != null) {
             setContentType(((String) contentTypeValue.getValue()));
         }
         // validate connection factory name (specified or default)
@@ -99,5 +104,4 @@ public class MqttListener extends AbstractTransportListenerEx<MqttEndpoint> {
     public void setContentType(String contentType) {
         this.contentType = contentType;
     }
-
 }
