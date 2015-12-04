@@ -41,6 +41,9 @@ import java.io.StringWriter;
 import java.nio.charset.UnsupportedCharsetException;
 import java.util.Hashtable;
 
+/**
+ * This class implement for send message for bot Sync and Async
+ */
 public class MqttSender extends AbstractTransportSender {
 
     private MqttConnectionFactoryManager connectionFactoryManager;
@@ -107,6 +110,8 @@ public class MqttSender extends AbstractTransportSender {
                     }
                     mqttTopic.publish(mqttMessage);
                 }
+            } catch (NumberFormatException e) {
+                log.error("Error while passing qos value");
             } catch (MqttException e) {
                 throw new AxisFault("Exception occured at sending message");
             } finally {
@@ -134,6 +139,8 @@ public class MqttSender extends AbstractTransportSender {
                     }
                 }
                 mqttAsyncClientCallback.publish(topicName, mqttMessage);
+            } catch (NumberFormatException e) {
+                log.error("Error while passing qos value", e);
             } catch (MqttException me) {
                 log.error("Exception occured at sending message", me);
             } catch (Throwable th) {
@@ -159,9 +166,14 @@ public class MqttSender extends AbstractTransportSender {
         }
         try {
             messageFormatter.writeTo(messageContext, format, out, true);
-            out.close();
         } catch (IOException e) {
             throw new AxisMqttException("IO Error while creating BytesMessage", e);
+        } finally {
+            try {
+                out.close();
+            } catch (IOException e) {
+                log.error("Error while closing the stream", e);
+            }
         }
         MqttMessage mqttMessage = new MqttMessage();
         mqttMessage.setPayload(sw.toString().getBytes());

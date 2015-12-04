@@ -35,6 +35,7 @@ import org.apache.axis2.format.TextMessageBuilderAdapter;
 import org.apache.axis2.format.TextMessageBuilder;
 import javax.jms.TextMessage;
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 
 public class MqttUtils {
 
@@ -58,5 +59,10 @@ public class MqttUtils {
         ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(bytes);
         documentElement = builder.processDocument(byteArrayInputStream, contentType, msgContext);
         msgContext.setEnvelope(TransportUtils.createSOAPEnvelope(documentElement));
+        try {
+            byteArrayInputStream.close();
+        } catch (IOException e) {
+            log.error("Error while closing the InputStream",e);
+        }
     }
 }

@@ -17,6 +17,10 @@ package org.apache.axis2.transport.mqtt;/*
 * under the License.
 */
 
+/**
+ * This class implements for handle the MqttEndpoint and subscribe the topic
+ */
+
 import org.apache.axis2.AxisFault;
 import org.apache.axis2.addressing.EndpointReference;
 import org.apache.axis2.context.ConfigurationContext;
@@ -83,14 +87,18 @@ public class MqttEndpoint extends ProtocolEndpoint {
             mqttClient.connect();
             if (topic != null) {
                 mqttClient.subscribe(topic);
-                log.info("Connected to the remote server.");
+                if (log.isDebugEnabled()){
+                    log.debug("Connected to the remote server.");
+                }
             }
         } catch (MqttException e) {
             if (!mqttClient.isConnected()) {
                 int retryC = 0;
                 while ((retryC < retryCount)) {
                     retryC++;
-                    log.info("Attempting to reconnect" + " in " + retryInterval + " ms");
+                    if (log.isDebugEnabled()){
+                        log.debug("Attempting to reconnect" + " in " + retryInterval + " ms");
+                    }
                     try {
                         Thread.sleep(100);
                     } catch (InterruptedException ignore) {
@@ -103,7 +111,9 @@ public class MqttEndpoint extends ProtocolEndpoint {
                             }
                             break;
                         }
-                        log.info("Re-connected to the remote server.");
+                        if (log.isDebugEnabled()){
+                            log.debug("Re-connected to the remote server.");
+                        }
                     } catch (MqttException e1) {
                         log.error("Error while trying to retry", e1);
                     }

@@ -27,6 +27,7 @@ import org.eclipse.paho.client.mqttv3.MqttAsyncClient;
 import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.eclipse.paho.client.mqttv3.MqttException;
 import org.eclipse.paho.client.mqttv3.persist.MqttDefaultFilePersistence;
+
 import java.util.Hashtable;
 
 public class MqttConnectionFactory {
@@ -77,33 +78,31 @@ public class MqttConnectionFactory {
             qosValue = parameters.get(MqttConstants.MQTT_QOS);
         }
         /**
-         This sample stores in a temporary directory... where messages temporarily
+         This sample stores in a temporary directory, where messages temporarily
          stored until the message has been delivered to the server.
-         ..a real application ought to store them somewhere
+         A real application ought to store them somewhere
          where they are not likely to get deleted or tampered with
          */
         String tmpDir = parameters.get(MqttConstants.MQTT_TEMP_STORE);
         MqttDefaultFilePersistence dataStore = null;
         if (qosValue != null) {
             int qos = Integer.parseInt(qosValue);
-            {
-                if (qos == 2 || qos == 1) {
-                    if (tmpDir != null) {
-                        dataStore = new MqttDefaultFilePersistence(tmpDir);
-                    } else {
-                        tmpDir = System.getProperty("java.io.tmpdir");
-                        dataStore = new MqttDefaultFilePersistence(tmpDir);
-                    }
+            if (qos == 2 || qos == 1) {
+                if (tmpDir != null) {
+                    dataStore = new MqttDefaultFilePersistence(tmpDir);
+                } else {
+                    tmpDir = System.getProperty(MqttConstants.TEMP_DIR);
+                    dataStore = new MqttDefaultFilePersistence(tmpDir);
                 }
-                if (qos == 0) {
-                    dataStore = null;
-                }
+            }
+            if (qos == 0) {
+                dataStore = null;
             }
         } else {
             if (tmpDir != null) {
                 dataStore = new MqttDefaultFilePersistence(tmpDir);
             } else {
-                tmpDir = System.getProperty("java.io.tmpdir");
+                tmpDir = System.getProperty(MqttConstants.TEMP_DIR);
                 dataStore = new MqttDefaultFilePersistence(tmpDir);
             }
         }
@@ -135,11 +134,10 @@ public class MqttConnectionFactory {
             qosValue = parameters.get(MqttConstants.MQTT_QOS);
         }
 
-
         /**
-         This sample stores in a temporary directory... where messages temporarily
+         This sample stores in a temporary directory. where messages temporarily
          stored until the message has been delivered to the server.
-         ..a real application ought to store them somewhere
+         A real application ought to store them somewhere
          where they are not likely to get deleted or tampered with
          */
         String tmpDir = parameters.get(MqttConstants.MQTT_TEMP_STORE);
