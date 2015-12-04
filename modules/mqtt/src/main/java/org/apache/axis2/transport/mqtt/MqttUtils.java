@@ -27,14 +27,15 @@ import org.apache.axis2.context.MessageContext;
 import org.apache.axis2.transport.TransportUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+
 import org.eclipse.paho.client.mqttv3.MqttException;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
+
 import org.apache.axis2.format.TextMessageBuilderAdapter;
 import org.apache.axis2.format.TextMessageBuilder;
-
-
 import javax.jms.TextMessage;
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 
 public class MqttUtils {
 
@@ -58,5 +59,10 @@ public class MqttUtils {
         ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(bytes);
         documentElement = builder.processDocument(byteArrayInputStream, contentType, msgContext);
         msgContext.setEnvelope(TransportUtils.createSOAPEnvelope(documentElement));
+        try {
+            byteArrayInputStream.close();
+        } catch (IOException e) {
+            log.error("Error while closing the InputStream",e);
+        }
     }
 }

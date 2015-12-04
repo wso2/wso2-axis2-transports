@@ -17,6 +17,10 @@ package org.apache.axis2.transport.mqtt;/*
 * under the License.
 */
 
+/**
+ * This class implements for handle the MqttEndpoint and subscribe the topic
+ */
+
 import org.apache.axis2.AxisFault;
 import org.apache.axis2.addressing.EndpointReference;
 import org.apache.axis2.context.ConfigurationContext;
@@ -52,15 +56,12 @@ public class MqttEndpoint extends ProtocolEndpoint {
         if (!(parameterInclude instanceof AxisService)) {
             return false;
         }
-
         AxisService service = (AxisService) parameterInclude;
-
         mqttConnectionFactory = mqttListener.getConnectionFactory(service);
         if (mqttConnectionFactory == null) {
             return false;
         }
-        if (mqttListener.getQOS()!=null)
-        {
+        if (mqttListener.getQOS() != null) {
             mqttConnectionFactory.setQos(mqttListener.getQOS());
         }
         return true;
@@ -70,44 +71,49 @@ public class MqttEndpoint extends ProtocolEndpoint {
     public EndpointReference[] getEndpointReferences(AxisService axisService, String ip) throws AxisFault {
         return new EndpointReference[0];
     }
+
     public void subscribeToTopic() {
         MqttClient mqttClient = mqttConnectionFactory.getMqttClient();
         String contentType = mqttListener.getContentType();
-        if (contentType == null){
-            contentType=mqttConnectionFactory.getContentType();
+        if (contentType == null) {
+            contentType = mqttConnectionFactory.getContentType();
         }
-        String topic =mqttListener.getTopic();
-        if (topic == null){
+        String topic = mqttListener.getTopic();
+        if (topic == null) {
             topic = mqttConnectionFactory.getTopic();
         }
         mqttClient.setCallback(new MqttListenerCallback(this, contentType));
         try {
             mqttClient.connect();
-            if ( topic!= null) {
+            if (topic != null) {
                 mqttClient.subscribe(topic);
-                log.info("Connected to the remote server.");
+                if (log.isDebugEnabled()){
+                    log.debug("Connected to the remote server.");
+                }
             }
-
-        }catch (MqttException e){
-            if (!mqttClient.isConnected()){
+        } catch (MqttException e) {
+            if (!mqttClient.isConnected()) {
                 int retryC = 0;
                 while ((retryC < retryCount)) {
                     retryC++;
-                    log.info("Attempting to reconnect" + " in " + retryInterval + " ms");
+                    if (log.isDebugEnabled()){
+                        log.debug("Attempting to reconnect" + " in " + retryInterval + " ms");
+                    }
                     try {
                         Thread.sleep(100);
                     } catch (InterruptedException ignore) {
                     }
                     try {
                         mqttClient.connect();
-                        if(mqttClient.isConnected()==true)
-                        {
-                            if ( topic!= null) {
+                        if (mqttClient.isConnected() == true) {
+                            if (topic != null) {
                                 mqttClient.subscribe(topic);
                             }
                             break;
                         }
-                        log.info("Re-connected to the remote server.");
+                        if (log.isDebugEnabled()){
+                            log.debug("Re-connected to the remote server.");
+                        }
                     } catch (MqttException e1) {
                         log.error("Error while trying to retry", e1);
                     }
@@ -115,10 +121,4 @@ public class MqttEndpoint extends ProtocolEndpoint {
             }
         }
     }
-
-    public void unsubscribeFromTopic() {
-
-    }
-
-
 }
