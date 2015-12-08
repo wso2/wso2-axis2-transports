@@ -1,4 +1,3 @@
-package org.apache.axis2.transport.mqtt;/*
 /*
 *  Copyright (c) 2015, WSO2 Inc. (http://www.wso2.org) All Rights Reserved.
 *
@@ -16,12 +15,12 @@ package org.apache.axis2.transport.mqtt;/*
 * specific language governing permissions and limitations
 * under the License.
 */
+package org.apache.axis2.transport.mqtt;
 
 import org.apache.axis2.description.Parameter;
 import org.apache.axis2.description.ParameterInclude;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-
 import java.util.HashMap;
 import java.util.Map;
 

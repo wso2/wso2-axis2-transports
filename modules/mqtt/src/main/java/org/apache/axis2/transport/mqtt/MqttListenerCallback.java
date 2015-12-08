@@ -1,4 +1,3 @@
-package org.apache.axis2.transport.mqtt;/*
 /*
 *  Copyright (c) 2015, WSO2 Inc. (http://www.wso2.org) All Rights Reserved.
 *
@@ -16,13 +15,16 @@ package org.apache.axis2.transport.mqtt;/*
 * specific language governing permissions and limitations
 * under the License.
 */
+package org.apache.axis2.transport.mqtt;
 
 import org.apache.axis2.context.ConfigurationContext;
 import org.apache.axis2.context.MessageContext;
 import org.apache.axis2.engine.AxisEngine;
 import org.apache.commons.logging.LogFactory;
-import org.eclipse.paho.client.mqttv3.*;
 import org.apache.commons.logging.Log;
+import org.eclipse.paho.client.mqttv3.MqttCallback;
+import org.eclipse.paho.client.mqttv3.MqttMessage;
+import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken;
 
 
 public class MqttListenerCallback implements MqttCallback {
@@ -58,5 +60,4 @@ public class MqttListenerCallback implements MqttCallback {
          * implements from MqttCallback
          */
     }
-
 }
