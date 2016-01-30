@@ -198,7 +198,7 @@ public class MqttAsyncCallback implements MqttCallback {
     }
 
     public void deliveryComplete(IMqttDeliveryToken iMqttDeliveryToken) {
-        
+
         log.info("message delivered .. : " + iMqttDeliveryToken.toString());
     }
 
@@ -319,7 +319,7 @@ public class MqttAsyncCallback implements MqttCallback {
      * notified that the action has completed.
      */
     public class Subscriber {
-        public void doSubscribe(String topicName, int qos) {
+        public void doSubscribe(final String topicName, int qos) {
             /*
             Make a subscription.
             Get a token and setup an asynchronous listener on the token which
@@ -331,7 +331,7 @@ public class MqttAsyncCallback implements MqttCallback {
             IMqttActionListener subListener = new IMqttActionListener() {
                 public void onSuccess(IMqttToken asyncActionToken) {
                     if (log.isDebugEnabled()){
-                        log.debug("Subscribe Completed");
+                        log.debug("Subscribe Completed with the topic"+topicName);
                     }
                     state = SUBSCRIBED;
                     carryOn();
