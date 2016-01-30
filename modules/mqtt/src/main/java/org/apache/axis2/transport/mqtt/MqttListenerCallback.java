@@ -48,8 +48,11 @@ public class MqttListenerCallback implements MqttCallback {
          */
     }
 
+    /**
+     * builds the message and hand it over to axisEngine
+     *
+     */
     public void messageArrived(String s, MqttMessage mqttMessage) throws Exception {
-        //build the message and hand it over to axisEngine
         MessageContext messageContext = mqttEndpoint.createMessageContext();
         MqttUtils.invoke(mqttMessage, messageContext, contentType);
         AxisEngine.receive(messageContext);

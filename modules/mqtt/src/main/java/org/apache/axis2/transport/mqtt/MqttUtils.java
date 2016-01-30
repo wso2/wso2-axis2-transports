@@ -42,6 +42,10 @@ public class MqttUtils {
 
     private static Log log = LogFactory.getLog(MqttUtils.class);
 
+    /**
+     * Builds the message according to the content type
+     * @throws MqttException
+     */
     public static void invoke(MqttMessage mqttMessage, MessageContext msgContext, String contentType)
             throws AxisFault, AxisMqttException {
         if (StringUtils.isEmpty(contentType)) {

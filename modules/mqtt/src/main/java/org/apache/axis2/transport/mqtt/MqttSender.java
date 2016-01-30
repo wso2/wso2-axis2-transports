@@ -61,6 +61,10 @@ public class MqttSender extends AbstractTransportSender {
         log.info("Mqtt transport sender initialized....");
     }
 
+    /**
+     * sends the message
+     * @throws MqttException
+     */
     @Override
     public void sendMessage(MessageContext messageContext, String targetEPR, OutTransportInfo outTransportInfo) throws AxisFault {
         properties = BaseUtils.getEPRProperties(targetEPR);
@@ -150,6 +154,10 @@ public class MqttSender extends AbstractTransportSender {
         }
     }
 
+    /**
+     * creates and formattes the message
+     * @throws MqttException
+     */
     private MqttMessage createMqttMessage(MessageContext messageContext) {
         OMOutputFormat format = BaseUtils.getOMOutputFormat(messageContext);
         MessageFormatter messageFormatter;

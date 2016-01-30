@@ -58,6 +58,10 @@ public class MqttListener extends AbstractTransportListenerEx<MqttEndpoint> {
          */
     }
 
+    /**
+     * Handles the connection parameters
+     * @throws MqttException
+     */
     public MqttConnectionFactory getConnectionFactory(AxisService service) {
         Parameter conFacParam = service.getParameter(MqttConstants.PARAM_MQTT_CONFAC);
         Parameter topicName = service.getParameter(MqttConstants.MQTT_TOPIC_NAME);

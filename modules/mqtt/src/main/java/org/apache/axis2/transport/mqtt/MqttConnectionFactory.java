@@ -71,6 +71,10 @@ public class MqttConnectionFactory {
         return createMqttAsyncClient();
     }
 
+    /**
+     * creates the Sync Mqtt client
+     * @throws MqttException
+     */
     private MqttClient createMqttClient() {
         String uniqueClientId = parameters.get(MqttConstants.MQTT_CLIENT_ID);
         String sslEnable = parameters.get(MqttConstants.MQTT_SSL_ENABLE);
@@ -124,7 +128,10 @@ public class MqttConnectionFactory {
         return mqttClient;
     }
 
-
+    /**
+     * creates the Async Mqtt client
+     * @throws MqttException
+     */
     private MqttAsyncClient createMqttAsyncClient() {
 
         String uniqueClientId = parameters.get(MqttConstants.MQTT_CLIENT_ID);

@@ -72,7 +72,10 @@ public class MqttEndpoint extends ProtocolEndpoint {
     public EndpointReference[] getEndpointReferences(AxisService axisService, String ip) throws AxisFault {
         return new EndpointReference[0];
     }
-
+    /**
+     * subscribes the topic
+     * @throws MqttException
+     */
     public void subscribeToTopic() {
         MqttClient mqttClient = mqttConnectionFactory.getMqttClient();
         String contentType = mqttListener.getContentType();
