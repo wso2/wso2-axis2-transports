@@ -41,6 +41,8 @@ import java.io.OutputStream;
 import java.io.StringWriter;
 import java.nio.charset.UnsupportedCharsetException;
 import java.util.Hashtable;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 
 /**
  * This class implement for send message for bot Sync and Async
@@ -51,6 +53,7 @@ public class MqttSender extends AbstractTransportSender {
     private Hashtable<String, String> properties = new Hashtable<String, String>();
     private MqttConnectOptions mqttConnectOptions;
     private String mqttBlockingSenderEnable;
+    private Log log = LogFactory.getLog(MqttListener.MqttSender);
 
     MqttConnectionFactory mqttConnectionFactory;
 
@@ -58,7 +61,9 @@ public class MqttSender extends AbstractTransportSender {
     public void init(ConfigurationContext cfgCtx, TransportOutDescription transportOutDescription) throws AxisFault {
         super.init(cfgCtx, transportOutDescription);
         connectionFactoryManager = new MqttConnectionFactoryManager(transportOutDescription);
-        log.info("Mqtt transport sender initialized....");
+        if (log.isDebugEnabled()) {
+            log.info("Mqtt transport sender initialized....");
+        }
     }
 
     /**
@@ -138,7 +143,9 @@ public class MqttSender extends AbstractTransportSender {
                 if (StringUtils.isNotEmpty(qos)) {
                     int qosValue = Integer.parseInt(qos);
                     if (qosValue < 0 || qosValue > 2) {
-                        log.info("Invalid value for qos. It should be an integer between 0 and 2");
+                        if (log.isDebugEnabled()) {
+                            log.info("Invalid value for qos. It should be an integer between 0 and 2");
+                        }
                     } else {
                         mqttMessage.setQos(qosValue);
                     }

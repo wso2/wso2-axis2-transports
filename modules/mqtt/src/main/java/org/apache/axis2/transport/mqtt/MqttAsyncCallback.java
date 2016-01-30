@@ -198,6 +198,7 @@ public class MqttAsyncCallback implements MqttCallback {
     }
 
     public void deliveryComplete(IMqttDeliveryToken iMqttDeliveryToken) {
+        
         log.info("message delivered .. : " + iMqttDeliveryToken.toString());
     }
 

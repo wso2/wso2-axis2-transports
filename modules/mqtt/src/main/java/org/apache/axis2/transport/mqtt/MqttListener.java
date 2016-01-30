@@ -21,6 +21,8 @@ import org.apache.axis2.AxisFault;
 import org.apache.axis2.description.AxisService;
 import org.apache.axis2.description.Parameter;
 import org.apache.axis2.transport.base.AbstractTransportListenerEx;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 
 /**
  * This class implement to Listen the topics
@@ -29,6 +31,8 @@ public class MqttListener extends AbstractTransportListenerEx<MqttEndpoint> {
 
     public static final String TRANSPORT_NAME = "mqtt";
     private MqttConnectionFactoryManager connectionFactoryManager;
+    private Log log = LogFactory.getLog(MqttListener.class);
+
     private String topic;
     private String qos;
     private String contentType;
@@ -37,7 +41,9 @@ public class MqttListener extends AbstractTransportListenerEx<MqttEndpoint> {
     @Override
     protected void doInit() throws AxisFault {
         connectionFactoryManager = new MqttConnectionFactoryManager(getTransportInDescription());
-        log.info("MQTT Transport Receiver/Listener initialized...");
+        if (log.isDebugEnabled()) {
+            log.info("MQTT Transport Receiver/Listener initialized...");
+        }
     }
 
     @Override
