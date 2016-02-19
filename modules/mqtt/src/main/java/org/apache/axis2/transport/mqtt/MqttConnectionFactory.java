@@ -74,9 +74,9 @@ public class MqttConnectionFactory {
     private MqttClient createMqttClient() {
         String uniqueClientId = parameters.get(MqttConstants.MQTT_CLIENT_ID);
         String sslEnable = parameters.get(MqttConstants.MQTT_SSL_ENABLE);
-        String qosValue=qosLevel;
-        if(qosValue== null){
-            qosValue=parameters.get(MqttConstants.MQTT_QOS);
+        String qosValue = qosLevel;
+        if (qosValue == null) {
+            qosValue = parameters.get(MqttConstants.MQTT_QOS);
         }
         //This sample stores in a temporary directory... where messages temporarily
         // stored until the message has been delivered to the server.
@@ -99,7 +99,7 @@ public class MqttConnectionFactory {
                     dataStore = null;
                 }
             }
-        }else{
+        } else {
             if (tmpDir != null) {
                 dataStore = new MqttDefaultFilePersistence(tmpDir);
             } else {
@@ -130,8 +130,10 @@ public class MqttConnectionFactory {
         String uniqueClientId = parameters.get(MqttConstants.MQTT_CLIENT_ID);
         String sslEnable = parameters.get(MqttConstants.MQTT_SSL_ENABLE);
         String mqttBlockingSenderEnable = parameters.get(MqttConstants.MQTT_BLOCKING_SENDER);
-        String qosValue=qosLevel;
-        if(qosValue== null){qosValue=parameters.get(MqttConstants.MQTT_QOS);}
+        String qosValue = qosLevel;
+        if (qosValue == null) {
+            qosValue = parameters.get(MqttConstants.MQTT_QOS);
+        }
 
 
         //This sample stores in a temporary directory... where messages temporarily
@@ -153,7 +155,7 @@ public class MqttConnectionFactory {
             if (qos == 0) {
                 dataStore = null;
             }
-        }else{
+        } else {
             if (tmpDir != null) {
                 dataStore = new MqttDefaultFilePersistence(tmpDir);
             } else {
@@ -177,12 +179,15 @@ public class MqttConnectionFactory {
         }
         return mqttClient;
     }
+
     public String getTopic() {
         return parameters.get(MqttConstants.MQTT_TOPIC_NAME);
     }
+
     public String getContentType() {
         return parameters.get(MqttConstants.CONTENT_TYPE);
     }
+
     public void setQos(String qosLevel) {
         this.qosLevel = qosLevel;
     }
