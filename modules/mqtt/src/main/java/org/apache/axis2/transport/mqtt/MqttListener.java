@@ -22,6 +22,9 @@ import org.apache.axis2.description.AxisService;
 import org.apache.axis2.description.Parameter;
 import org.apache.axis2.transport.base.AbstractTransportListenerEx;
 
+/**
+ * Class Listens the Mqtt message
+ */
 public class MqttListener extends AbstractTransportListenerEx<MqttEndpoint> {
 
     public static final String TRANSPORT_NAME = "mqtt";

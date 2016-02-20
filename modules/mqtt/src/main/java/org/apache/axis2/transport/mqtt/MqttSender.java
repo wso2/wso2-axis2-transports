@@ -36,6 +36,9 @@ import java.io.StringWriter;
 import java.nio.charset.UnsupportedCharsetException;
 import java.util.Hashtable;
 
+/**
+ * Class handles the sender part of Mqtt
+ */
 public class MqttSender extends AbstractTransportSender {
 
     private MqttConnectionFactoryManager connectionFactoryManager;

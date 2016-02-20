@@ -31,6 +31,9 @@ import org.eclipse.paho.client.mqttv3.persist.MqttDefaultFilePersistence;
 
 import java.util.Hashtable;
 
+/**
+ * Class handles the Synchronous Mqtt call
+ */
 public class MqttConnectionFactory {
 
     private static final Log log = LogFactory.getLog(MqttConnectionFactory.class);

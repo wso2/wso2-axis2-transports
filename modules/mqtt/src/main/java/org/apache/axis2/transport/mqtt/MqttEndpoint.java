@@ -32,6 +32,9 @@ import org.eclipse.paho.client.mqttv3.MqttTopic;
 import java.util.HashSet;
 import java.util.Set;
 
+/**
+ * Class handles the Topics and the Endpoint
+ */
 public class MqttEndpoint extends ProtocolEndpoint {
 
     private Log log = LogFactory.getLog(MqttEndpoint.class);

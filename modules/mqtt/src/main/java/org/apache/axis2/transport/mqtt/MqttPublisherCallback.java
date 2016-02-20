@@ -21,6 +21,9 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.eclipse.paho.client.mqttv3.*;
 
+/**
+ * Class Ensure the delivery and publishing
+ */
 public class MqttPublisherCallback implements MqttCallback {
     private String token = null;
 

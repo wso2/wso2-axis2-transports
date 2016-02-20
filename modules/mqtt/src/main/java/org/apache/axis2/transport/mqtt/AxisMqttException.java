@@ -17,6 +17,9 @@ package org.apache.axis2.transport.mqtt;/*
 * under the License.
 */
 
+/**
+ * Class handles the Mqtt Exception
+ */
 public class AxisMqttException extends RuntimeException {
     public AxisMqttException() {
         super();

@@ -32,10 +32,12 @@ import org.eclipse.paho.client.mqttv3.MqttMessage;
 import org.apache.axis2.format.TextMessageBuilderAdapter;
 import org.apache.axis2.format.TextMessageBuilder;
 
-
 import javax.jms.TextMessage;
 import java.io.ByteArrayInputStream;
 
+/**
+ * Class handles the message building according to their content type
+ */
 public class MqttUtils {
 
     private static Log log = LogFactory.getLog(MqttUtils.class);

@@ -24,6 +24,9 @@ import org.eclipse.paho.client.mqttv3.*;
 import java.io.IOException;
 import java.sql.Timestamp;
 
+/**
+ * Class handles asynchronous Mqtt call
+ */
 public class MqttAsyncCallback implements MqttCallback {
 
     int state = BEGIN;
