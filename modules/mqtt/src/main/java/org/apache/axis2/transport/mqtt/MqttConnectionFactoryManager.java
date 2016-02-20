@@ -25,6 +25,9 @@ import org.apache.commons.logging.LogFactory;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Class handles the Mqtt parameters from Axis2
+ */
 public class MqttConnectionFactoryManager {
 
     private Log log = LogFactory.getLog(MqttConnectionFactoryManager.class);

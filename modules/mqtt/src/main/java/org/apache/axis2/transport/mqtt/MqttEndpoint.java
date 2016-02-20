@@ -32,6 +32,9 @@ import org.eclipse.paho.client.mqttv3.MqttTopic;
 import java.util.HashSet;
 import java.util.Set;
 
+/**
+ * Class handles the Topics and the Endpoint
+ */
 public class MqttEndpoint extends ProtocolEndpoint {
 
     private Log log = LogFactory.getLog(MqttEndpoint.class);
@@ -59,8 +62,7 @@ public class MqttEndpoint extends ProtocolEndpoint {
         if (mqttConnectionFactory == null) {
             return false;
         }
-        if (mqttListener.getQOS()!=null)
-        {
+        if (mqttListener.getQOS() != null) {
             mqttConnectionFactory.setQos(mqttListener.getQOS());
         }
         return true;
@@ -70,26 +72,27 @@ public class MqttEndpoint extends ProtocolEndpoint {
     public EndpointReference[] getEndpointReferences(AxisService axisService, String ip) throws AxisFault {
         return new EndpointReference[0];
     }
+
     public void subscribeToTopic() {
         MqttClient mqttClient = mqttConnectionFactory.getMqttClient();
         String contentType = mqttListener.getContentType();
-        if (contentType == null){
-            contentType=mqttConnectionFactory.getContentType();
+        if (contentType == null) {
+            contentType = mqttConnectionFactory.getContentType();
         }
-        String topic =mqttListener.getTopic();
-        if (topic == null){
+        String topic = mqttListener.getTopic();
+        if (topic == null) {
             topic = mqttConnectionFactory.getTopic();
         }
         mqttClient.setCallback(new MqttListenerCallback(this, contentType));
         try {
             mqttClient.connect();
-            if ( topic!= null) {
+            if (topic != null) {
                 mqttClient.subscribe(topic);
                 log.info("Connected to the remote server.");
             }
 
-        }catch (MqttException e){
-            if (!mqttClient.isConnected()){
+        } catch (MqttException e) {
+            if (!mqttClient.isConnected()) {
                 int retryC = 0;
                 while ((retryC < retryCount)) {
                     retryC++;
@@ -100,9 +103,8 @@ public class MqttEndpoint extends ProtocolEndpoint {
                     }
                     try {
                         mqttClient.connect();
-                        if(mqttClient.isConnected()==true)
-                        {
-                            if ( topic!= null) {
+                        if (mqttClient.isConnected() == true) {
+                            if (topic != null) {
                                 mqttClient.subscribe(topic);
                             }
                             break;

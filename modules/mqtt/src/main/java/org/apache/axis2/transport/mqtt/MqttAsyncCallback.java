@@ -24,6 +24,9 @@ import org.eclipse.paho.client.mqttv3.*;
 import java.io.IOException;
 import java.sql.Timestamp;
 
+/**
+ * Class handles asynchronous Mqtt call
+ */
 public class MqttAsyncCallback implements MqttCallback {
 
     int state = BEGIN;
@@ -193,6 +196,7 @@ public class MqttAsyncCallback implements MqttCallback {
 
         public MqttConnector() {
         }
+
         public void doConnect() {
             // Connect to the server
             // Get a token and setup an asynchronous listener on the token which
@@ -205,12 +209,14 @@ public class MqttAsyncCallback implements MqttCallback {
                     state = CONNECTED;
                     carryOn();
                 }
+
                 public void onFailure(IMqttToken asyncActionToken, Throwable exception) {
                     ex = exception;
                     state = ERROR;
                     log.info("connect failed" + exception);
                     carryOn();
                 }
+
                 public void carryOn() {
                     synchronized (waiter) {
                         donext = true;
@@ -254,12 +260,14 @@ public class MqttAsyncCallback implements MqttCallback {
                     state = PUBLISHED;
                     carryOn();
                 }
+
                 public void onFailure(IMqttToken asyncActionToken, Throwable exception) {
                     ex = exception;
                     state = ERROR;
                     log.info("Publish failed" + exception);
                     carryOn();
                 }
+
                 public void carryOn() {
                     synchronized (waiter) {
                         donext = true;
@@ -294,12 +302,14 @@ public class MqttAsyncCallback implements MqttCallback {
                     state = SUBSCRIBED;
                     carryOn();
                 }
+
                 public void onFailure(IMqttToken asyncActionToken, Throwable exception) {
                     ex = exception;
                     state = ERROR;
                     log.info("Subscribe failed" + exception);
                     carryOn();
                 }
+
                 public void carryOn() {
                     synchronized (waiter) {
                         donext = true;
@@ -331,12 +341,14 @@ public class MqttAsyncCallback implements MqttCallback {
                     state = DISCONNECTED;
                     carryOn();
                 }
+
                 public void onFailure(IMqttToken asyncActionToken, Throwable exception) {
                     ex = exception;
                     state = ERROR;
                     log.info("Disconnect failed" + exception);
                     carryOn();
                 }
+
                 public void carryOn() {
                     synchronized (waiter) {
                         donext = true;

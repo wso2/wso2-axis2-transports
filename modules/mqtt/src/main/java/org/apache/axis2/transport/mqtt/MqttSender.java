@@ -36,6 +36,9 @@ import java.io.StringWriter;
 import java.nio.charset.UnsupportedCharsetException;
 import java.util.Hashtable;
 
+/**
+ * Class handles the sender part of Mqtt
+ */
 public class MqttSender extends AbstractTransportSender {
 
     private MqttConnectionFactoryManager connectionFactoryManager;
@@ -53,7 +56,7 @@ public class MqttSender extends AbstractTransportSender {
     }
 
     @Override
-    public void sendMessage(MessageContext messageContext, String targetEPR, OutTransportInfo outTransportInfo) throws AxisFault{
+    public void sendMessage(MessageContext messageContext, String targetEPR, OutTransportInfo outTransportInfo) throws AxisFault {
         properties = BaseUtils.getEPRProperties(targetEPR);
         String username = properties.get(MqttConstants.MQTT_USERNAME);
         String password = properties.get(MqttConstants.MQTT_PASSWORD);
@@ -92,19 +95,21 @@ public class MqttSender extends AbstractTransportSender {
                     if (qos != null) {
                         int qosValue = Integer.parseInt(qos);
                         try {
-                            if (qosValue >=0 && qosValue <=2) {
+                            if (qosValue >= 0 && qosValue <= 2) {
                                 mqttMessage.setQos(qosValue);
                             } else {
                                 throw new AxisFault("Invalid value for qos");
                             }
-                        } catch (AxisMqttException e){handleException("Invalid value for qos: ", e);}
+                        } catch (AxisMqttException e) {
+                            handleException("Invalid value for qos: ", e);
+                        }
                     }
                     mqttTopic.publish(mqttMessage);
                 }
             } catch (MqttException e) {
                 throw new AxisFault("Exception occured at sending message");
-            }finally {
-                if (mqttClient!=null) {
+            } finally {
+                if (mqttClient != null) {
                     try {
                         mqttClient.disconnect();
                     } catch (MqttException e) {
@@ -132,7 +137,7 @@ public class MqttSender extends AbstractTransportSender {
             } catch (MqttException me) {
                 log.error("Exception occured at sending message", me);
             } catch (Throwable th) {
-                log.error("Exception occured while sending message",th);
+                log.error("Exception occured while sending message", th);
             }
         }
     }

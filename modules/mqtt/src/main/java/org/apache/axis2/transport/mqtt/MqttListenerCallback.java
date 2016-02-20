@@ -24,7 +24,9 @@ import org.apache.commons.logging.LogFactory;
 import org.eclipse.paho.client.mqttv3.*;
 import org.apache.commons.logging.Log;
 
-
+/**
+ * Class handles the Synchronous Delivery of Mqtt Message
+ */
 public class MqttListenerCallback implements MqttCallback {
 
     private ConfigurationContext configurationContext;
