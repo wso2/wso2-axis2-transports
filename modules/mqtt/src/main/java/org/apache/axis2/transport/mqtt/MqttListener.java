@@ -37,7 +37,6 @@ public class MqttListener extends AbstractTransportListenerEx<MqttEndpoint> {
     private String qos;
     private String contentType;
 
-
     @Override
     protected void doInit() throws AxisFault {
         connectionFactoryManager = new MqttConnectionFactoryManager(getTransportInDescription());

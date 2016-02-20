@@ -274,9 +274,7 @@ public class MqttAsyncCallback implements MqttCallback {
              Get a token and setup an asynchronous listener on the token which
              will be notified once the message has been delivered.
              */
-
             String time = new Timestamp(System.currentTimeMillis()).toString();
-
             // Setup a listener object to be notified when the publish completes.
             IMqttActionListener pubListener = new IMqttActionListener() {
                 public void onSuccess(IMqttToken asyncActionToken) {

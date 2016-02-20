@@ -133,7 +133,6 @@ public class MqttConnectionFactory {
      * @throws MqttException
      */
     private MqttAsyncClient createMqttAsyncClient() {
-
         String uniqueClientId = parameters.get(MqttConstants.MQTT_CLIENT_ID);
         String sslEnable = parameters.get(MqttConstants.MQTT_SSL_ENABLE);
         String mqttBlockingSenderEnable = parameters.get(MqttConstants.MQTT_BLOCKING_SENDER);
@@ -141,7 +140,6 @@ public class MqttConnectionFactory {
         if (StringUtils.isEmpty(qosValue)) {
             qosValue = parameters.get(MqttConstants.MQTT_QOS);
         }
-
         /**
          This sample stores in a temporary directory. where messages temporarily
          stored until the message has been delivered to the server.
@@ -178,7 +176,6 @@ public class MqttConnectionFactory {
             mqttEndpointURL = "ssl://" + parameters.get(MqttConstants.MQTT_SERVER_HOST_NAME) + ":" +
                     parameters.get(MqttConstants.MQTT_SERVER_PORT);
         }
-
         MqttAsyncClient mqttClient = null;
         try {
             mqttClient = new MqttAsyncClient(mqttEndpointURL, uniqueClientId, dataStore);
