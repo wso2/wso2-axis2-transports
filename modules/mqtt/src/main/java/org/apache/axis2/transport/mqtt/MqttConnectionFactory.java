@@ -39,6 +39,8 @@ public class MqttConnectionFactory {
 
     private Hashtable<String, String> parameters = new Hashtable<String, String>();
     private String qosLevel;
+    private String uniqueClientId = parameters.get(MqttConstants.MQTT_CLIENT_ID);
+
 
     public MqttConnectionFactory(Parameter passedInParameter) {
         this.name = passedInParameter.getName();
@@ -76,7 +78,6 @@ public class MqttConnectionFactory {
      * @throws MqttException
      */
     private MqttClient createMqttClient() {
-        String uniqueClientId = parameters.get(MqttConstants.MQTT_CLIENT_ID);
         String sslEnable = parameters.get(MqttConstants.MQTT_SSL_ENABLE);
         String qosValue = qosLevel;
         if (StringUtils.isEmpty(qosValue)) {
@@ -92,7 +93,7 @@ public class MqttConnectionFactory {
         MqttDefaultFilePersistence dataStore = null;
         if (StringUtils.isNotEmpty(qosValue)) {
             int qos = Integer.parseInt(qosValue);
-            if (qos == 2 || qos == 1) {
+            if (qos == MqttConstants.QOS_VALUE_ONE || qos == MqttConstants.QOS_VALUE_TWO) {
                 if (tmpDir != null) {
                     dataStore = new MqttDefaultFilePersistence(tmpDir);
                 } else {
@@ -100,7 +101,7 @@ public class MqttConnectionFactory {
                     dataStore = new MqttDefaultFilePersistence(tmpDir);
                 }
             }
-            if (qos == 0) {
+            if (qos == MqttConstants.QOS_VALUE_ZERO) {
                 dataStore = null;
             }
         } else {
@@ -133,6 +134,7 @@ public class MqttConnectionFactory {
      * @throws MqttException
      */
     private MqttAsyncClient createMqttAsyncClient() {
+
         String uniqueClientId = parameters.get(MqttConstants.MQTT_CLIENT_ID);
         String sslEnable = parameters.get(MqttConstants.MQTT_SSL_ENABLE);
         String mqttBlockingSenderEnable = parameters.get(MqttConstants.MQTT_BLOCKING_SENDER);
@@ -150,7 +152,7 @@ public class MqttConnectionFactory {
         MqttDefaultFilePersistence dataStore = null;
         if (StringUtils.isNotEmpty(qosValue)) {
             int qos = Integer.parseInt(parameters.get(MqttConstants.MQTT_QOS));
-            if (qos == 2 || qos == 1) {
+            if (qos == MqttConstants.QOS_VALUE_TWO || qos == MqttConstants.QOS_VALUE_ONE) {
                 if (tmpDir != null) {
                     dataStore = new MqttDefaultFilePersistence(tmpDir);
                 } else {
@@ -158,7 +160,7 @@ public class MqttConnectionFactory {
                     dataStore = new MqttDefaultFilePersistence(tmpDir);
                 }
             }
-            if (qos == 0) {
+            if (qos == MqttConstants.QOS_VALUE_ZERO) {
                 dataStore = null;
             }
         } else {
@@ -176,6 +178,7 @@ public class MqttConnectionFactory {
             mqttEndpointURL = "ssl://" + parameters.get(MqttConstants.MQTT_SERVER_HOST_NAME) + ":" +
                     parameters.get(MqttConstants.MQTT_SERVER_PORT);
         }
+
         MqttAsyncClient mqttClient = null;
         try {
             mqttClient = new MqttAsyncClient(mqttEndpointURL, uniqueClientId, dataStore);

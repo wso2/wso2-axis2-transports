@@ -34,4 +34,8 @@ public class MqttConstants {
     public static final String CONTENT_TYPE = "mqtt.content.type";
     public static final String TEMP_DIR = "java.io.tmpdir";
     public static final int WAIT_TIME = 10000;
+    public static final int QOS_VALUE_ONE = 1;
+    public static final int QOS_VALUE_TWO = 2;
+    public static final int QOS_VALUE_ZERO = 0;
+
 }

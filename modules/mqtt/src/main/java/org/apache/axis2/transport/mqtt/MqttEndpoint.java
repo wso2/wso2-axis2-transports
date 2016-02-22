@@ -47,7 +47,6 @@ public class MqttEndpoint extends ProtocolEndpoint {
     private int retryCount = 1000;
     private int retryInterval = 50;
 
-
     public MqttEndpoint(MqttListener mqttListener) {
         this.mqttListener = mqttListener;
     }

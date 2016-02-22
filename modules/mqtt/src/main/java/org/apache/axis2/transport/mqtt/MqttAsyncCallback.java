@@ -249,7 +249,6 @@ public class MqttAsyncCallback implements MqttCallback {
             try {
                 // Connect using a non-blocking connect
                 client.connect(conOpt, "Connect sample context", conListener);
-
             } catch (MqttException e) {
                 /**
                  If though it is a non-blocking connect an exception can be
@@ -268,6 +267,7 @@ public class MqttAsyncCallback implements MqttCallback {
      * notified that the action has completed.
      */
     public class Publisher {
+
         public void doPublish(String topicName, MqttMessage message) {
             /**
              Send / publish a message to the server.
