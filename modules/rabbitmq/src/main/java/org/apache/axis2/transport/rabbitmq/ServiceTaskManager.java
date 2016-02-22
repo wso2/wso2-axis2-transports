@@ -58,6 +58,8 @@ public class ServiceTaskManager {
     private static final int STATE_FAILURE = 4;
     private static final int STATE_FAULTY = 5;
     private volatile int activeTaskCount = 0;
+    
+    private int concurrentConsumers = 0 ;
 
     private WorkerPool workerPool = null;
     private String serviceName;
@@ -77,7 +79,9 @@ public class ServiceTaskManager {
      * Start  the Task Manager by adding a new MessageListenerTask to the worker pool.
      */
     public synchronized void start() {
-        workerPool.execute(new MessageListenerTask());
+    	for (int i = 0; i < concurrentConsumers; i++) {
+    		workerPool.execute(new MessageListenerTask());
+		}
         serviceTaskManagerState = STATE_STARTED;
     }
 
@@ -147,10 +151,33 @@ public class ServiceTaskManager {
          * As soon as we send a new polling task, add it to the STM for control later
          */
         MessageListenerTask() {
+            try {
+				initConsumer();
+				initQoS();
+	            //unable to connect to the queue
+	            if (queueingConsumer == null) {
+	                throw new IOException("Unable to connect to Queue");
+	            }
+			} catch (IOException e) {
+				workerState = STATE_STOPPED;
+				log.error("Error while initializing RabbitMQ Message Listener Task.");
+				return;
+			}
+            
+            
             synchronized (pollingTasks) {
                 pollingTasks.add(this);
             }
         }
+
+		private void initQoS() throws IOException {
+			Channel channel = rmqChannel.getChannel();
+			//set the qos value for the consumer
+			String qos = rabbitMQProperties.get(RabbitMQConstants.CONSUMER_QOS);
+			if (qos != null && !"".equals(qos)) {
+			    channel.basicQos(Integer.parseInt(qos));
+			}
+		}
 
         public void pause() {
             //TODO implement me
@@ -169,10 +196,54 @@ public class ServiceTaskManager {
             workerState = STATE_STARTED;
             activeTaskCount++;
             try {
-                initConsumer();
                 while (workerState == STATE_STARTED) {
                     try {
-                        startConsumer();
+                    	Channel channel = rmqChannel.getChannel();
+                        try {
+                            if (!channel.isOpen()) {
+                                channel = queueingConsumer.getChannel();
+                            }
+                            channel.txSelect();
+                        } catch (IOException e) {
+                            log.error("Error while starting transaction", e);
+                            continue;
+                        }
+
+                        boolean successful = false;
+
+                        RabbitMQMessage message = null;
+                        try {
+                            message = getConsumerDelivery(queueingConsumer);
+                        } catch (InterruptedException e) {
+                            log.error("Error while consuming message", e);
+                            continue;
+                        }
+
+                        if (message != null) {
+                            idle = false;
+                            try {
+                                successful = handleMessage(message);
+                            } finally {
+                                if (successful) {
+                                    try {
+                                        if (!autoAck) {
+                                            channel.basicAck(message.getDeliveryTag(), false);
+                                        }
+                                        channel.txCommit();
+                                    } catch (IOException e) {
+                                        log.error("Error while committing transaction", e);
+                                    }
+                                } else {
+                                    try {
+                                        channel.txRollback();
+                                    } catch (IOException e) {
+                                        log.error("Error while trying to roll back transaction", e);
+                                    }
+                                }
+                            }
+                        } else {
+                            idle = true;
+                        }
                     } catch (ShutdownSignalException sse) {
                         if (!sse.isInitiatedByApplication()) {
                             log.error("RabbitMQ Listener of the service " + serviceName +
@@ -181,11 +252,7 @@ public class ServiceTaskManager {
                         }
                     } catch (OMException e) {
                         log.error("Invalid Message Format while Consuming the message", e);
-                    } catch (IOException e) {
-                        log.error("RabbitMQ Listener of the service " + serviceName +
-                                " was disconnected", e);
-                        waitForConnection();
-                    }
+                    } 
                 }
             } catch (IOException e) {
                 handleException("Error initializing consumer for service " + serviceName, e);
@@ -223,78 +290,6 @@ public class ServiceTaskManager {
                         ". Connection is closed.");
                 workerState = STATE_FAULTY;
             }
-        }
-
-        /**
-         * Used to start message consuming messages. This method is called in startup and when
-         * connection is re-connected. This method will request for the connection and create
-         * channel, queues, exchanges and bind queues to exchanges before consuming messages
-         *
-         * @throws ShutdownSignalException
-         * @throws IOException
-         */
-        private void startConsumer() throws ShutdownSignalException, IOException {
-            Channel channel = rmqChannel.getChannel();
-            //set the qos value for the consumer
-            String qos = rabbitMQProperties.get(RabbitMQConstants.CONSUMER_QOS);
-            if (qos != null && !"".equals(qos)) {
-                channel.basicQos(Integer.parseInt(qos));
-            }
-
-            //unable to connect to the queue
-            if (queueingConsumer == null) {
-                workerState = STATE_STOPPED;
-                return;
-            }
-
-            while (isActive()) {
-                try {
-                    if (!channel.isOpen()) {
-                        channel = queueingConsumer.getChannel();
-                    }
-                    channel.txSelect();
-                } catch (IOException e) {
-                    log.error("Error while starting transaction", e);
-                    continue;
-                }
-
-                boolean successful = false;
-
-                RabbitMQMessage message = null;
-                try {
-                    message = getConsumerDelivery(queueingConsumer);
-                } catch (InterruptedException e) {
-                    log.error("Error while consuming message", e);
-                    continue;
-                }
-
-                if (message != null) {
-                    idle = false;
-                    try {
-                        successful = handleMessage(message);
-                    } finally {
-                        if (successful) {
-                            try {
-                                if (!autoAck) {
-                                    channel.basicAck(message.getDeliveryTag(), false);
-                                }
-                                channel.txCommit();
-                            } catch (IOException e) {
-                                log.error("Error while committing transaction", e);
-                            }
-                        } else {
-                            try {
-                                channel.txRollback();
-                            } catch (IOException e) {
-                                log.error("Error while trying to roll back transaction", e);
-                            }
-                        }
-                    }
-                } else {
-                    idle = true;
-                }
-            }
-
         }
 
         /**
@@ -511,5 +506,9 @@ public class ServiceTaskManager {
         log.error(msg, e);
         throw new AxisRabbitMQException(msg, e);
     }
+    
+    public void setConcurrentConsumers(int concurrentConsumers) {
+		this.concurrentConsumers = concurrentConsumers;
+	}
 
 }
