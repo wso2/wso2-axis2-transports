@@ -1,4 +1,3 @@
-package org.apache.axis2.transport.mqtt;/*
 /*
 *  Copyright (c) 2015, WSO2 Inc. (http://www.wso2.org) All Rights Reserved.
 *
@@ -16,6 +15,7 @@ package org.apache.axis2.transport.mqtt;/*
 * specific language governing permissions and limitations
 * under the License.
 */
+package org.apache.axis2.transport.mqtt;
 
 public class AxisMqttException extends RuntimeException {
     public AxisMqttException() {
