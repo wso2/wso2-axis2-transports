@@ -141,7 +141,14 @@ public class MailTransportSender extends AbstractTransportSender
 
         if (targetAddress != null) {
             if (targetAddress.startsWith(MailConstants.TRANSPORT_NAME)) {
-                targetAddress = targetAddress.substring(MailConstants.TRANSPORT_NAME.length()+1);
+                int startIndex = targetAddress.indexOf(MailConstants.TRANSPORT_SPLITTER);
+                if (startIndex > 0) {
+                    /*
+                     Support any suffix added until MailConstants.TRANSPORT_SPLITTER (eg: mailtoWSO2)
+                     This will support using multiple inbox with mailto transport
+                      */
+                    targetAddress = targetAddress.substring(startIndex + 1);
+                }
             }
 
             if (msgCtx.getReplyTo() != null &&
