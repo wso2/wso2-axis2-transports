@@ -25,6 +25,7 @@ public class MailConstants {
 
     public static final String TRANSPORT_NAME = "mailto";
     public static final String TRANSPORT_PREFIX = "mailto:";
+    public static final String TRANSPORT_SPLITTER = ":";
     
     public static final String TEXT_PLAIN = "text/plain";
     public static final String APPLICATION_BINARY = "application/binary";
