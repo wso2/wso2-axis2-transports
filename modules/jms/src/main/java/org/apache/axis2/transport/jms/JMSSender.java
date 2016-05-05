@@ -37,10 +37,17 @@ import org.apache.commons.io.output.WriterOutputStream;
 
 import javax.activation.DataHandler;
 import javax.jms.*;
+import javax.transaction.SystemException;
+import javax.transaction.Transaction;
+import javax.transaction.TransactionManager;
+import javax.transaction.xa.XAException;
+import javax.transaction.xa.XAResource;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.StringWriter;
 import java.nio.charset.UnsupportedCharsetException;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -50,6 +57,7 @@ public class JMSSender extends AbstractTransportSender implements ManagementSupp
 
     public static final String TRANSPORT_NAME = Constants.TRANSPORT_JMS;
 
+    private static Map<Transaction, ArrayList<JMSMessageSender>> JMSMessageSenderMap = new HashMap<>();
     /** The JMS connection factory manager to be used when sending messages out */
     private JMSConnectionFactoryManager connFacManager;
 
@@ -124,8 +132,27 @@ public class JMSSender extends AbstractTransportSender implements ManagementSupp
 
             } else {
                 try {
-                    messageSender = jmsOut.createJMSSender();
+                    messageSender = jmsOut.createJMSSender(msgCtx);
+                    Transaction transaction = (Transaction) msgCtx.getProperty("distributedTx");
+
+                    if (JMSMessageSenderMap.get(transaction) == null) {
+                        ArrayList list = new ArrayList();
+                        list.add(messageSender);
+                        JMSMessageSenderMap.put(transaction, list);
+                    } else {
+                        ArrayList list = JMSMessageSenderMap.get(transaction);
+                        list.add(messageSender);
+                        JMSMessageSenderMap.put(transaction, list);
+                    }
+
                 } catch (JMSException e) {
+                    Transaction transaction = null;
+                    try {
+                        transaction = ((TransactionManager) msgCtx.getProperty("distributedTxMgr")).getTransaction();
+                        rollbackXATransaction(transaction);
+                    } catch (SystemException e1) {
+                        handleException("Error occurred during obtaining  transaction", e1);
+                    }
                     handleException("Unable to create a JMSMessageSender for : " + outTransportInfo, e);
                 }
             }
@@ -134,7 +161,7 @@ public class JMSSender extends AbstractTransportSender implements ManagementSupp
 
             jmsOut = (JMSOutTransportInfo) outTransportInfo;
             try {
-                messageSender = jmsOut.createJMSSender();
+                messageSender = jmsOut.createJMSSender(msgCtx);
             } catch (JMSException e) {
                 handleException("Unable to create a JMSMessageSender for : " + outTransportInfo, e);
             }
@@ -168,7 +195,9 @@ public class JMSSender extends AbstractTransportSender implements ManagementSupp
             try {
                 sendOverJMS(msgCtx, messageSender, contentTypeProperty, jmsConnectionFactory, jmsOut);
             } finally {
-                messageSender.close();
+                if (msgCtx.getProperty(JMSConstants.JMS_XA_TRANSACTION_MANAGER) == null) {
+                    messageSender.close();
+                }
             }
         }
     }
@@ -186,6 +215,13 @@ public class JMSSender extends AbstractTransportSender implements ManagementSupp
         try {
             message = createJMSMessage(msgCtx, messageSender.getSession(), contentTypeProperty);
         } catch (JMSException e) {
+            Transaction transaction = null;
+            try {
+                transaction = ((TransactionManager) msgCtx.getProperty("distributedTxMgr")).getTransaction();
+                rollbackXATransaction(transaction);
+            } catch (SystemException e1) {
+                handleException("Error occurred during obtaining  transaction", e1);
+            }
             handleException("Error creating a JMS message from the message context", e);
         }
 
@@ -239,16 +275,36 @@ public class JMSSender extends AbstractTransportSender implements ManagementSupp
                 message.setJMSReplyTo(tempDestination);
 
             } catch (JMSException e) {
+                Transaction transaction = null;
+                try {
+                    transaction = ((TransactionManager) msgCtx.getProperty("distributedTxMgr")).getTransaction();
+                    rollbackXATransaction(transaction);
+                } catch (SystemException e1) {
+                    handleException("Error occurred during obtaining  transaction", e1);
+                }
                 handleException("Error setting the JMSReplyTo Header", e);
             }
         }
 
         try {
             messageSender.send(message, msgCtx);
+            Transaction transaction = (Transaction) msgCtx.getProperty("distributedTx");
+            if (msgCtx.getTo().toString().contains("transport.jms.TransactionCommand=end")) {
+                commitXATransaction(transaction);
+            } else if (msgCtx.getTo().toString().contains("transport.jms.TransactionCommand=rollback")) {
+                rollbackXATransaction(transaction);
+            }
             metrics.incrementMessagesSent(msgCtx);
 
         } catch (AxisJMSException e) {
             metrics.incrementFaultsSending();
+            Transaction transaction = null;
+            try {
+                transaction = ((TransactionManager) msgCtx.getProperty("distributedTxMgr")).getTransaction();
+                rollbackXATransaction(transaction);
+            } catch (SystemException e1) {
+                handleException("Error occurred during obtaining  transaction", e1);
+            }
             handleException("Error sending JMS message", e);
         }
 
@@ -417,6 +473,13 @@ public class JMSSender extends AbstractTransportSender implements ManagementSupp
                 messageFormatter.writeTo(msgContext, format, out, true);
                 out.close();
             } catch (IOException e) {
+                Transaction transaction = null;
+                try {
+                    transaction = ((TransactionManager) msgContext.getProperty("distributedTxMgr")).getTransaction();
+                    rollbackXATransaction(transaction);
+                } catch (SystemException e1) {
+                    handleException("Error occurred during obtaining  transaction", e1);
+                }
                 handleException("IO Error while creating BytesMessage", e);
             }
 
@@ -442,6 +505,13 @@ public class JMSSender extends AbstractTransportSender implements ManagementSupp
                     try {
                         ((DataHandler) dh).writeTo(new BytesMessageOutputStream(bytesMsg));
                     } catch (IOException e) {
+                        Transaction transaction = null;
+                        try {
+                            transaction = ((TransactionManager) msgContext.getProperty("distributedTxMgr")).getTransaction();
+                            rollbackXATransaction(transaction);
+                        } catch (SystemException e1) {
+                            handleException("Error occurred during obtaining  transaction", e1);
+                        }
                         handleException("Error serializing binary content of element : " +
                             BaseConstants.DEFAULT_BINARY_WRAPPER, e);
                     }
@@ -555,5 +625,40 @@ public class JMSSender extends AbstractTransportSender implements ManagementSupp
     
     public void clearActiveConnections(){
     	log.error("Not Implemented.");
-    }    
+    }
+
+    private void commitXATransaction(Transaction transaction) throws AxisFault {
+        ArrayList<JMSMessageSender> msgSenderList = (ArrayList) JMSMessageSenderMap.get(transaction);
+        if (msgSenderList.size() > 0) {
+            for (JMSMessageSender msgSender : msgSenderList) {
+                try {
+                    msgSender.getJmsXaResource().end(msgSender.getJmsXAXid(), XAResource.TMSUCCESS);
+                    msgSender.getJmsXaResource().prepare(msgSender.getJmsXAXid());
+                    msgSender.getJmsXaResource().commit(msgSender.getJmsXAXid(), false);
+                    msgSender.close();
+                } catch (XAException e) {
+                    handleException("Error occurred during rolling back transaction", e);
+                }
+
+            }
+            JMSMessageSenderMap.remove(transaction);
+        }
+    }
+
+    private void rollbackXATransaction(Transaction transaction) throws AxisFault {
+        ArrayList<JMSMessageSender> msgSenderList = (ArrayList) JMSMessageSenderMap.get(transaction);
+        if (msgSenderList.size() > 0) {
+            for (JMSMessageSender msgSender : msgSenderList) {
+                try {
+                    msgSender.getJmsXaResource().end(msgSender.getJmsXAXid(), XAResource.TMSUCCESS);
+                    msgSender.getJmsXaResource().prepare(msgSender.getJmsXAXid());
+                    msgSender.getJmsXaResource().commit(msgSender.getJmsXAXid(), false);
+                    msgSender.close();
+                } catch (XAException e) {
+                    handleException("Error occurred during rolling back transaction", e);
+                }
+            }
+            JMSMessageSenderMap.remove(transaction);
+        }
+    }
 }

@@ -15,6 +15,7 @@
 */
 package org.apache.axis2.transport.jms;
 
+import org.apache.axis2.context.MessageContext;
 import org.apache.axis2.transport.OutTransportInfo;
 import org.apache.axis2.transport.base.BaseUtils;
 import org.apache.commons.logging.Log;
@@ -24,7 +25,17 @@ import javax.jms.*;
 import javax.naming.Context;
 import javax.naming.InitialContext;
 import javax.naming.NamingException;
+import javax.transaction.SystemException;
+import javax.transaction.Transaction;
+import javax.transaction.TransactionManager;
+import javax.transaction.xa.XAException;
+import javax.transaction.xa.XAResource;
+import javax.transaction.xa.Xid;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Hashtable;
+import java.util.Map;
 
 /**
  * The JMS OutTransportInfo is a holder of information to send an outgoing message
@@ -68,7 +79,6 @@ public class JMSOutTransportInfo implements OutTransportInfo {
     private String contentTypeProperty;
     /** the message property name that stores the cache level for the JMS endpoint */
     private int cacheLevel;
-
     private String jmsSpecVersion;
     
     /**
@@ -329,7 +339,7 @@ public class JMSOutTransportInfo implements OutTransportInfo {
      * @return a JMSSender based on one-time use resources
      * @throws JMSException on errors, to be handled and logged by the caller 
      */
-    public JMSMessageSender createJMSSender() throws JMSException {
+    public JMSMessageSender createJMSSender(MessageContext msgCtx) throws JMSException {
 
         // digest the targetAddress and locate CF from the EPR
         loadConnectionFactoryFromProperties();
@@ -354,53 +364,120 @@ public class JMSOutTransportInfo implements OutTransportInfo {
         	//treat jmsdestination type=queue(default is queue)
         	 destType = JMSConstants.QUEUE;
              qConFac = (QueueConnectionFactory) connectionFactory;
-        }        
-        
-        Connection connection = null;
-        if (user != null && pass != null) {
-            if (qConFac != null) {
-                connection = qConFac.createQueueConnection(user, pass);
-            } else if (tConFac != null) {
-                connection = tConFac.createTopicConnection(user, pass);
-            }
-        } else {
-           if (qConFac != null) {
-                connection = qConFac.createQueueConnection();
-            } else if (tConFac != null)  {
-                connection = tConFac.createTopicConnection();
-            }
         }
 
-        if (connection == null) {
-            connection = jmsConnectionFactory != null ? jmsConnectionFactory.getConnection() : null;
-        }
-
-        Session session = null;
-        MessageProducer producer = null;
-
-        if (connection != null) {
-            if (destType == JMSConstants.QUEUE) {
-                session = ((QueueConnection) connection).
-                        createQueueSession(false, Session.AUTO_ACKNOWLEDGE);
-                producer = ((QueueSession) session).createSender((Queue) destination);
+        if(msgCtx.getProperty(JMSConstants.JMS_XA_TRANSACTION_MANAGER) != null) {
+            XAConnection connection = null;
+            if (user != null && pass != null) {
+                if (qConFac != null) {
+                    connection = ((XAConnectionFactory) qConFac).createXAConnection(user, pass);
+                } else if (tConFac != null) {
+                    connection = ((XAConnectionFactory) tConFac).createXAConnection(user, pass);
+                }
             } else {
-                session = ((TopicConnection) connection).
-                        createTopicSession(false, Session.AUTO_ACKNOWLEDGE);
-                producer = ((TopicSession) session).createPublisher((Topic) destination);
+                if (qConFac != null) {
+                    connection = ((XAConnectionFactory) qConFac).createXAConnection();
+                } else if (tConFac != null)  {
+                    connection = ((XAConnectionFactory) tConFac).createXAConnection();
+                }
             }
-        }
 
-        return new JMSMessageSender(
-                connection,
-                session,
-                producer,
-                destination,
-                jmsConnectionFactory == null ?
-                        this.cacheLevel : jmsConnectionFactory.getCacheLevel(),
-                jmsSpecVersion,
-                destType == -1 ?
-                        null : destType == JMSConstants.QUEUE ? Boolean.TRUE : Boolean.FALSE
-        );
+            if (connection == null) {
+                connection = ((XAConnectionFactory) qConFac).createXAConnection();
+            }
+
+            XASession session = null;
+            MessageProducer producer = null;
+
+            if (connection != null) {
+                if (destType == JMSConstants.QUEUE) {
+                    session = connection.createXASession();
+                    producer = session.createProducer(destination);
+                } else {
+                    session = connection.createXASession();
+                    producer = session.createProducer(destination);
+                }
+            }
+
+            XAResource xaResource = session.getXAResource();
+            TransactionManager tx = null;
+            Xid xid1 = null;
+            Transaction transaction = null;
+
+            try {
+                tx = (TransactionManager) msgCtx.getProperty(JMSConstants.JMS_XA_TRANSACTION_MANAGER);
+                transaction = tx.getTransaction();
+                msgCtx.setProperty(JMSConstants.JMS_XA_TRANSACTION_MANAGER, tx);
+                msgCtx.setProperty(JMSConstants.JMS_XA_TRANSACTION, transaction);
+                xid1 = new JMSXid(JMSConstants.JMS_XA_TRANSACTION_PREFIX.getBytes(StandardCharsets.UTF_8), 1,
+                        UUIDGenerator.getInstance().generateStringUUID().getBytes());
+                msgCtx.setProperty("XID", xid1);
+                xaResource.start(xid1, XAResource.TMNOFLAGS);
+            } catch (SystemException e) {
+                e.printStackTrace();
+            } catch (XAException e) {
+                e.printStackTrace();
+            }
+            return new JMSMessageSender(
+                    connection,
+                    session,
+                    producer,
+                    destination,
+                    jmsConnectionFactory == null ?
+                            this.cacheLevel : jmsConnectionFactory.getCacheLevel(),
+                    jmsSpecVersion,
+                    destType == -1 ?
+                            null : destType == JMSConstants.QUEUE ? Boolean.TRUE : Boolean.FALSE,
+                    transaction,
+                    xid1,
+                    xaResource
+            );
+        } else {
+            Connection connection = null;
+            if (user != null && pass != null) {
+                if (qConFac != null) {
+                    connection = qConFac.createQueueConnection(user, pass);
+                } else if (tConFac != null) {
+                    connection = tConFac.createTopicConnection(user, pass);
+                }
+            } else {
+                if (qConFac != null) {
+                    connection = qConFac.createQueueConnection();
+                } else if (tConFac != null)  {
+                    connection = tConFac.createTopicConnection();
+                }
+            }
+
+            if (connection == null) {
+                connection = jmsConnectionFactory != null ? jmsConnectionFactory.getConnection() : null;
+            }
+
+            Session session = null;
+            MessageProducer producer = null;
+
+            if (connection != null) {
+                if (destType == JMSConstants.QUEUE) {
+                    session = ((QueueConnection) connection).
+                            createQueueSession(false, Session.AUTO_ACKNOWLEDGE);
+                    producer = ((QueueSession) session).createSender((Queue) destination);
+                } else {
+                    session = ((TopicConnection) connection).
+                            createTopicSession(false, Session.AUTO_ACKNOWLEDGE);
+                    producer = ((TopicSession) session).createPublisher((Topic) destination);
+                }
+            }
+            return new JMSMessageSender(
+                    connection,
+                    session,
+                    producer,
+                    destination,
+                    jmsConnectionFactory == null ?
+                            this.cacheLevel : jmsConnectionFactory.getCacheLevel(),
+                    jmsSpecVersion,
+                    destType == -1 ?
+                            null : destType == JMSConstants.QUEUE ? Boolean.TRUE : Boolean.FALSE
+            );
+        }
 
     }
 

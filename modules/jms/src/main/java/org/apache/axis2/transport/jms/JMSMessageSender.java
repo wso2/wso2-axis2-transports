@@ -25,7 +25,9 @@ import org.apache.axis2.context.MessageContext;
 import org.apache.axis2.transport.base.BaseConstants;
 
 import javax.jms.*;
-import javax.transaction.*;
+import javax.transaction.Transaction;
+import javax.transaction.xa.XAResource;
+import javax.transaction.xa.Xid;
 
 /**
  * Performs the actual sending of a JMS message, and the subsequent committing of a JTA transaction
@@ -51,6 +53,10 @@ public class JMSMessageSender {
     /** Are we sending to a Queue ? */
     private Boolean isQueue = null;
 
+    private Xid jmsXAXid;
+    private XAResource jmsXaResource;
+    private Transaction jmsTransaction;
+
     /**
      * This is a low-end method to support the one-time sends using JMS 1.0.2b
      * @param connection the JMS Connection
@@ -71,6 +77,32 @@ public class JMSMessageSender {
         this.cacheLevel = cacheLevel;
         this.jmsSpecVersion = jmsSpecVersion;
         this.isQueue = isQueue;
+    }
+
+    /**
+     * This is a low-end method to support the one-time sends using JMS 1.0.2b
+     *
+     * @param connection     the JMS Connection
+     * @param session        JMS Session
+     * @param producer       the MessageProducer
+     * @param destination    the JMS Destination
+     * @param cacheLevel     cacheLevel - None | Connection | Session | Producer
+     * @param jmsSpecVersion JMS spec version set to (1.0.2b)
+     * @param isQueue        posting to a Queue?
+     */
+    public JMSMessageSender(Connection connection, Session session, MessageProducer producer,
+                            Destination destination, int cacheLevel, String jmsSpecVersion, Boolean isQueue, Transaction tx, Xid xid, XAResource xaResource) {
+
+        this.connection = connection;
+        this.session = session;
+        this.producer = producer;
+        this.destination = destination;
+        this.cacheLevel = cacheLevel;
+        this.jmsSpecVersion = jmsSpecVersion;
+        this.isQueue = isQueue;
+        this.jmsTransaction = tx;
+        this.jmsXAXid = xid;
+        this.jmsXaResource = xaResource;
     }
 
     /**
@@ -155,12 +187,11 @@ public class JMSMessageSender {
             } else {
                 if (isQueue) {
                     try {
-                        ((QueueSender) producer).send(message);
+                        (producer).send(message);
                     } catch (JMSException e) {
                         createTempQueueConsumer();
-                        ((QueueSender) producer).send(message);
+                        (producer).send(message);
                     }
-
                 } else {
                     try {
                         ((TopicPublisher) producer).publish(message);
@@ -192,54 +223,6 @@ public class JMSMessageSender {
             handleException("Error sending message with MessageContext ID : " +
                     msgCtx.getMessageID() + " to destination : " + destination, e);
 
-        } finally {
-
-            if (jtaCommit != null) {
-
-                UserTransaction ut = (UserTransaction) msgCtx.getProperty(BaseConstants.USER_TRANSACTION);
-                if (ut != null) {
-
-                    try {
-                        if (sendingSuccessful && jtaCommit) {
-                            ut.commit();
-                        } else {
-                            ut.rollback();
-                        }
-                        msgCtx.removeProperty(BaseConstants.USER_TRANSACTION);
-
-                        if (log.isDebugEnabled()) {
-                            log.debug((sendingSuccessful ? "Committed" : "Rolled back") +
-                                " JTA Transaction");
-                        }
-
-                    } catch (Exception e) {
-                        handleException("Error committing/rolling back JTA transaction after " +
-                            "sending of message with MessageContext ID : " + msgCtx.getMessageID() +
-                            " to destination : " + destination, e);
-                    }
-                }
-
-            } else {
-                try {
-                    if (session.getTransacted()) {
-                        if (sendingSuccessful && (rollbackOnly == null || !rollbackOnly)) {
-                            session.commit();
-                        } else {
-                            session.rollback();
-                        }
-                    }
-
-                    if (log.isDebugEnabled()) {
-                        log.debug((sendingSuccessful ? "Committed" : "Rolled back") +
-                            " local (JMS Session) Transaction");
-                    }
-
-                } catch (JMSException e) {
-                    handleException("Error committing/rolling back local (i.e. session) " +
-                        "transaction after sending of message with MessageContext ID : " +
-                        msgCtx.getMessageID() + " to destination : " + destination, e);
-                }
-            }
         }
     }
     /**
@@ -251,7 +234,7 @@ public class JMSMessageSender {
      *
      * */
     public void createTempQueueConsumer() throws JMSException {
-        MessageConsumer consumer = ((QueueSession) session).createConsumer((Destination) destination);
+        MessageConsumer consumer = session.createConsumer(destination);
         consumer.close();
     }
 
@@ -353,5 +336,29 @@ public class JMSMessageSender {
 
     public Session getSession() {
         return session;
+    }
+
+    public Xid getJmsXAXid() {
+        return jmsXAXid;
+    }
+
+    public void setJmsXAXid(Xid jmsXAXid) {
+        this.jmsXAXid = jmsXAXid;
+    }
+
+    public XAResource getJmsXaResource() {
+        return jmsXaResource;
+    }
+
+    public void setJmsXaResource(XAResource jmsXaResource) {
+        this.jmsXaResource = jmsXaResource;
+    }
+
+    public Transaction getJmsTransaction() {
+        return jmsTransaction;
+    }
+
+    public void setJmsTransaction(Transaction jmsTransaction) {
+        this.jmsTransaction = jmsTransaction;
     }
 }
