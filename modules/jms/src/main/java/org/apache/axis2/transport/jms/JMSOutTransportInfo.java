@@ -414,9 +414,9 @@ public class JMSOutTransportInfo implements OutTransportInfo {
                 msgCtx.setProperty("XID", xid1);
                 xaResource.start(xid1, XAResource.TMNOFLAGS);
             } catch (SystemException e) {
-                e.printStackTrace();
+                handleException("Error Occurred during starting getting Transaction.", e);
             } catch (XAException e) {
-                e.printStackTrace();
+                handleException("Error Occurred during starting XA resource.", e);
             }
             return new JMSMessageSender(
                     connection,
