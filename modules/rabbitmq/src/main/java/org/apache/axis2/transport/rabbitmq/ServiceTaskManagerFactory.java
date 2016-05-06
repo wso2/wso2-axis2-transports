@@ -18,55 +18,88 @@
 
 package org.apache.axis2.transport.rabbitmq;
 
-import org.apache.axis2.description.AxisService;
-import org.apache.axis2.description.Parameter;
-import org.apache.axis2.transport.base.threads.WorkerPool;
-
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.axis2.description.AxisService;
+import org.apache.axis2.description.Parameter;
+import org.apache.axis2.transport.base.threads.WorkerPool;
+
 /**
- * Class that manages the creation of ServiceTaskManager for a AxisService and ConnectionFactory
+ * Class that manages the creation of ServiceTaskManager for a AxisService and
+ * ConnectionFactory
  */
 public class ServiceTaskManagerFactory {
 
-    /**
-     * Create a ServiceTaskManager for the service passed in and its corresponding ConnectionFactory
-     *
-     * @param rabbitMQConnectionFactory the ConnectionFactory instance to used with ServiceTaskManager
-     * @param service                   the AxisService instance to send the ServiceTaskManager
-     * @param workerPool                to be used with ServiceTaskManager
-     * @return ServiceTaskManager
-     */
-    public static ServiceTaskManager createTaskManagerForService(
-            RabbitMQConnectionFactory rabbitMQConnectionFactory,
-            AxisService service, WorkerPool workerPool) {
+	/**
+	 * The number of concurrent consumers to be created to poll for messages for
+	 * this service For Topics, this should be ONE, to prevent receipt of
+	 * multiple copies of the same message
+	 */
+	public static final String PARAM_CONCURRENT_CONSUMERS = "rabbitmq.server.ConcurrentConsumers";
 
-        String serviceName = service.getName();
-        Map<String, String> serviceParameters = getServiceStringParameters(service.getParameters());
-        Map<String, String> cfParameters = rabbitMQConnectionFactory.getParameters();
+	/**
+	 * Create a ServiceTaskManager for the service passed in and its
+	 * corresponding ConnectionFactory
+	 *
+	 * @param rabbitMQConnectionFactory
+	 *            the ConnectionFactory instance to used with ServiceTaskManager
+	 * @param service
+	 *            the AxisService instance to send the ServiceTaskManager
+	 * @param workerPool
+	 *            to be used with ServiceTaskManager
+	 * @return ServiceTaskManager
+	 */
+	public static ServiceTaskManager createTaskManagerForService(RabbitMQConnectionFactory rabbitMQConnectionFactory,
+			AxisService service, WorkerPool workerPool) {
 
-        ServiceTaskManager taskManager = new ServiceTaskManager(rabbitMQConnectionFactory);
+		String serviceName = service.getName();
+		Map<String, String> serviceParameters = getServiceStringParameters(service.getParameters());
+		Map<String, String> cfParameters = rabbitMQConnectionFactory.getParameters();
 
-        taskManager.setServiceName(serviceName);
-        taskManager.addRabbitMQProperties(cfParameters);
-        taskManager.addRabbitMQProperties(serviceParameters);
+		ServiceTaskManager taskManager = new ServiceTaskManager(rabbitMQConnectionFactory);
 
-        taskManager.setWorkerPool(workerPool);
+		taskManager.setServiceName(serviceName);
+		taskManager.addRabbitMQProperties(cfParameters);
+		taskManager.addRabbitMQProperties(serviceParameters);
 
-        return taskManager;
-    }
+		taskManager.setWorkerPool(workerPool);
 
-    private static Map<String, String> getServiceStringParameters(List<Parameter> list) {
+		Integer value = getOptionalIntProperty(PARAM_CONCURRENT_CONSUMERS, serviceParameters, cfParameters);
+		if (value != null) {
+			taskManager.setConcurrentConsumers(value);
+		}
 
-        Map<String, String> map = new HashMap<String, String>();
-        for (Parameter p : list) {
-            if (p.getValue() instanceof String) {
-                map.put(p.getName(), (String) p.getValue());
-            }
-        }
-        return map;
-    }
+		return taskManager;
+	}
+
+	private static Map<String, String> getServiceStringParameters(List<Parameter> list) {
+
+		Map<String, String> map = new HashMap<String, String>();
+		for (Parameter p : list) {
+			if (p.getValue() instanceof String) {
+				map.put(p.getName(), (String) p.getValue());
+			}
+		}
+		return map;
+	}
+
+	private static Integer getOptionalIntProperty(String key, Map<String, String> svcMap, Map<String, String> cfMap) {
+
+		String value = svcMap.get(key);
+		if (value == null) {
+			value = cfMap.get(key);
+		}
+		if (value == null) {
+			return null;
+		} else {
+			try {
+				return Integer.parseInt(value);
+			} catch (NumberFormatException e) {
+				throw new RuntimeException("Invalid value : " + value + " for " + key);
+			}
+		}
+	}
 
 }
