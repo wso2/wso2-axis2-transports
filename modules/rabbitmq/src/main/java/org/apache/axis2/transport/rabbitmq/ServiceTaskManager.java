@@ -235,11 +235,6 @@ public class ServiceTaskManager {
          */
         private void startConsumer() throws ShutdownSignalException, IOException {
             Channel channel = rmqChannel.getChannel();
-            //set the qos value for the consumer
-            String qos = rabbitMQProperties.get(RabbitMQConstants.CONSUMER_QOS);
-            if (qos != null && !"".equals(qos)) {
-                channel.basicQos(Integer.parseInt(qos));
-            }
 
             //unable to connect to the queue
             if (queueingConsumer == null) {
@@ -359,6 +354,12 @@ public class ServiceTaskManager {
                 if (log.isDebugEnabled()) {
                     log.debug("Bind queue '" + queueName + "' to exchange '" + exchangeName + "' with route key '" + routeKey + "'");
                 }
+            }
+
+            //set the qos value for the consumer
+            String qos = rabbitMQProperties.get(RabbitMQConstants.CONSUMER_QOS);
+            if (qos != null && !"".equals(qos)) {
+                rmqChannel.getChannel().basicQos(Integer.parseInt(qos));
             }
 
             queueingConsumer = new QueueingConsumer(rmqChannel.getChannel());
