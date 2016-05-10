@@ -60,6 +60,12 @@ public class MqttSender extends AbstractTransportSender {
         String password = properties.get(MqttConstants.MQTT_PASSWORD);
         String cleanSession = properties.get(MqttConstants.MQTT_SESSION_CLEAN);
         String topicName = properties.get(MqttConstants.MQTT_TOPIC_NAME);
+        String clientId = properties.get(MqttConstants.MQTT_CLIENT_ID);
+        String qosValue = properties.get(MqttConstants.MQTT_QOS);
+        String retainedMessage = properties.get(MqttConstants.MQTT_MESSAGE_RETAINED);
+        mqttBlockingSenderEnable = properties.get(MqttConstants.MQTT_BLOCKING_SENDER);
+        int qos;
+        boolean isMessageRetained;
 
         mqttConnectOptions = new MqttConnectOptions();
         if (cleanSession != null) {
@@ -73,17 +79,34 @@ public class MqttSender extends AbstractTransportSender {
         }
 
         mqttConnectionFactory = new MqttConnectionFactory(properties);
-        mqttBlockingSenderEnable = properties.get(MqttConstants.MQTT_BLOCKING_SENDER);
-        properties = BaseUtils.getEPRProperties(targetEPR);
-        String qos = properties.get(MqttConstants.MQTT_QOS);
+
+        if (qosValue != null && !qosValue.isEmpty()) {
+            qos =  Integer.parseInt(qosValue);
+        } else {
+            qos = mqttConnectionFactory.getQOS();
+        }
+        if (retainedMessage != null && !retainedMessage.isEmpty()) {
+            isMessageRetained =  Boolean.parseBoolean(retainedMessage);
+        } else {
+            //setting default value
+            isMessageRetained = true;
+        }
         MqttClient mqttClient;
         MqttAsyncClient mqttAsyncClient;
         if (mqttBlockingSenderEnable != null && mqttBlockingSenderEnable.equalsIgnoreCase("true")) {
             //removing the urnid:urnid:
             String clientIdPostFix = messageContext.getMessageID().substring(9);
+            String uniqueClientId;
+            //appending the clientIdPostFix to create unique client id
+            if(clientId == null) {
+                uniqueClientId = clientIdPostFix;
+            } else {
+                uniqueClientId = clientId + "-" + clientIdPostFix;
+            }
+
             //sending the message id to make client id unique. Otherwise accessing same store with multiple
             //thread make errors
-            mqttClient = mqttConnectionFactory.getMqttClient(clientIdPostFix);
+            mqttClient = mqttConnectionFactory.getMqttClient(uniqueClientId, qos);
             try {
                 mqttClient.setCallback(new MqttPublisherCallback());
                 mqttClient.connect(mqttConnectOptions);
@@ -94,18 +117,12 @@ public class MqttSender extends AbstractTransportSender {
                     }
                     MqttTopic mqttTopic = mqttClient.getTopic(topicName);
                     MqttMessage mqttMessage = createMqttMessage(messageContext);
-                    mqttMessage.setRetained(true);
-                    if (qos != null) {
-                        int qosValue = Integer.parseInt(qos);
-                        try {
-                            if (qosValue >=0 && qosValue <=2) {
-                                mqttMessage.setQos(qosValue);
-                            } else {
-                                throw new AxisFault("Invalid value for qos");
-                            }
-                        } catch (AxisMqttException e) {
-                            handleException("Invalid value for qos: ", e);
-                        }
+                    mqttMessage.setRetained(isMessageRetained);
+
+                    if (qos >= 0 && qos <= 2) {
+                        mqttMessage.setQos(qos);
+                    } else {
+                        throw new AxisFault("Invalid value for qos " + qos);
                     }
                     mqttTopic.publish(mqttMessage);
                 }
@@ -125,20 +142,21 @@ public class MqttSender extends AbstractTransportSender {
             String clientIdPostFix = messageContext.getMessageID().substring(9);
             //sending the message id to make client id unique. Otherwise accessing same store with multiple
             //thread make errors
-            mqttAsyncClient = mqttConnectionFactory.getMqttAsyncClient(clientIdPostFix);
+            //appending the clientIdPostFix to create unique client id
+            String uniqueClientId = clientId + "-" + clientIdPostFix;
+            mqttAsyncClient = mqttConnectionFactory.getMqttAsyncClient(uniqueClientId, qos);
             try {
                 MqttAsyncCallback mqttAsyncClientCallback = new MqttAsyncCallback(mqttAsyncClient);
                 mqttAsyncClientCallback.setConOpt(mqttConnectOptions);
                 MqttMessage mqttMessage = createMqttMessage(messageContext);
-                mqttMessage.setRetained(true);
-                if (qos != null) {
-                    int qosValue = Integer.parseInt(qos);
-                    if (qosValue < 0 || qosValue > 2) {
-                        log.info("Invalid value for qos. It should be an integer between 0 and 2");
-                    } else {
-                        mqttMessage.setQos(qosValue);
-                    }
+                mqttMessage.setRetained(isMessageRetained);
+
+                if ((qos >= 0 && qos <= 2)) {
+                    throw new AxisFault("Invalid value for qos " + qos);
+                } else {
+                    mqttMessage.setQos(qos);
                 }
+
                 mqttAsyncClientCallback.publish(topicName, mqttMessage);
             } catch (MqttException me) {
                 log.error("Exception occurred at sending message", me);

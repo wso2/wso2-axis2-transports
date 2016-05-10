@@ -21,6 +21,7 @@ import org.apache.axis2.AxisFault;
 import org.apache.axis2.addressing.EndpointReference;
 import org.apache.axis2.context.ConfigurationContext;
 import org.apache.axis2.description.AxisService;
+import org.apache.axis2.description.Parameter;
 import org.apache.axis2.description.ParameterInclude;
 import org.apache.axis2.transport.base.ProtocolEndpoint;
 import org.apache.commons.logging.Log;
@@ -43,6 +44,11 @@ public class MqttEndpoint extends ProtocolEndpoint {
     private int retryCount = 1000;
     private int retryInterval = 50;
     private MqttClient mqttClient;
+    private String topic;
+    private int qos;
+    private String contentType;
+    private boolean cleanSession;
+    private String clientId;
 
 
     public MqttEndpoint(MqttListener mqttListener) {
@@ -56,14 +62,42 @@ public class MqttEndpoint extends ProtocolEndpoint {
         }
 
         AxisService service = (AxisService) parameterInclude;
-
         mqttConnectionFactory = mqttListener.getConnectionFactory(service);
+
+        Parameter topicName = service.getParameter(MqttConstants.MQTT_TOPIC_NAME);
+        Parameter qosLevel = service.getParameter(MqttConstants.MQTT_QOS);
+        Parameter contentTypeValue = service.getParameter(MqttConstants.CONTENT_TYPE);
+        Parameter cleanSession = service.getParameter(MqttConstants.MQTT_SESSION_CLEAN);
+        Parameter clientId = service.getParameter(MqttConstants.MQTT_CLIENT_ID);
+
+        if (topicName != null) {
+            setTopic(((String) topicName.getValue()));
+        } else {
+            setTopic(mqttConnectionFactory.getTopic());
+        }
+        if (qosLevel != null) {
+            setQOS(Integer.parseInt((String) qosLevel.getValue()));
+        } else {
+            setQOS(mqttConnectionFactory.getQOS());
+        }
+        if (contentTypeValue != null) {
+            setContentType(((String) contentTypeValue.getValue()));
+        } else {
+            setContentType(mqttConnectionFactory.getContentType());
+        }
+        if (cleanSession != null) {
+            setCleanSession(Boolean.parseBoolean((String) cleanSession.getValue()));
+        } else {
+            setCleanSession(mqttConnectionFactory.getCleanSession());
+        }
+        if (clientId != null) {
+            setClientId((String) clientId.getValue());
+        } else {
+            setClientId(mqttConnectionFactory.getClientId());
+        }
+
         if (mqttConnectionFactory == null) {
             return false;
-        }
-        if (mqttListener.getQOS()!=null)
-        {
-            mqttConnectionFactory.setQos(mqttListener.getQOS());
         }
         return true;
     }
@@ -73,34 +107,8 @@ public class MqttEndpoint extends ProtocolEndpoint {
         return new EndpointReference[0];
     }
     public void subscribeToTopic() {
-        String clientId = mqttListener.getClientId();
-        if(clientId == null) {
-            clientId =  mqttConnectionFactory.getClientId();
-        }
-        mqttClient = mqttConnectionFactory.getMqttClient();
+        mqttClient = mqttConnectionFactory.getMqttClient(clientId, qos);
 
-        String contentType = mqttListener.getContentType();
-        if (contentType == null){
-            contentType=mqttConnectionFactory.getContentType();
-        }
-        String topic =mqttListener.getTopic();
-        if (topic == null){
-            topic = mqttConnectionFactory.getTopic();
-        }
-
-        int qos;
-        if(mqttListener.getQOS() != null) {
-            qos = Integer.parseInt(mqttListener.getQOS());
-        } else {
-            qos = mqttConnectionFactory.getQOS();
-        }
-
-        boolean cleanSession ;
-        if(mqttListener.getCleanSession() == null) {
-            cleanSession = mqttConnectionFactory.getCleanSession();
-        } else {
-            cleanSession = Boolean.parseBoolean(mqttListener.getCleanSession());
-        }
         mqttClient.setCallback(new MqttListenerCallback(this, contentType));
         MqttConnectOptions options = new MqttConnectOptions();
         options.setCleanSession(cleanSession);
@@ -150,8 +158,28 @@ public class MqttEndpoint extends ProtocolEndpoint {
         }
     }
 
-    protected MqttListener getMqttListener(){
-        return mqttListener;
+    public void setTopic(String topic) {
+        this.topic = topic;
+    }
+
+    public void setQOS(int qos) {
+        this.qos = qos;
+    }
+
+    public void setContentType(String contentType) {
+        this.contentType = contentType;
+    }
+
+    public void setCleanSession(boolean cleanSession) {
+        this.cleanSession = cleanSession;
+    }
+
+    public void setClientId(String clientId) {
+        this.clientId = clientId;
+    }
+
+    public String getTopic() {
+        return this.topic;
     }
 
 }

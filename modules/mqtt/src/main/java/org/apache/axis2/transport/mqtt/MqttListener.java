@@ -26,11 +26,6 @@ public class MqttListener extends AbstractTransportListenerEx<MqttEndpoint> {
 
     public static final String TRANSPORT_NAME = "mqtt";
     private MqttConnectionFactoryManager connectionFactoryManager;
-    private String topic;
-    private String qos;
-    private String contentType;
-    private String cleanSession;
-    private String clientId;
 
 
     @Override
@@ -56,29 +51,6 @@ public class MqttListener extends AbstractTransportListenerEx<MqttEndpoint> {
 
     public MqttConnectionFactory getConnectionFactory(AxisService service) {
         Parameter conFacParam = service.getParameter(MqttConstants.PARAM_MQTT_CONFAC);
-        Parameter topicName = service.getParameter(MqttConstants.MQTT_TOPIC_NAME);
-        Parameter qosLevel = service.getParameter(MqttConstants.MQTT_QOS);
-        Parameter contentTypeValue = service.getParameter(MqttConstants.CONTENT_TYPE);
-        Parameter cleanSession = service.getParameter(MqttConstants.MQTT_SESSION_CLEAN);
-        Parameter clientId = service.getParameter(MqttConstants.MQTT_CLIENT_ID);
-
-        if (topicName != null) {
-            setTopic(((String) topicName.getValue()));
-        }
-        if (qosLevel != null) {
-            setQOS(((String) qosLevel.getValue()));
-        }
-        if (contentTypeValue != null) {
-            setContentType(((String) contentTypeValue.getValue()));
-        }
-
-        if (cleanSession != null) {
-            setCleanSession((String) cleanSession.getValue());
-        }
-
-        if (clientId != null) {
-            setClientId((String) clientId.getValue());
-        }
         // validate connection factory name (specified or default)
         if (conFacParam != null) {
             return connectionFactoryManager.getMqttConnectionFactory((String) conFacParam.getValue());
@@ -87,45 +59,4 @@ public class MqttListener extends AbstractTransportListenerEx<MqttEndpoint> {
         }
 
     }
-
-    public String getTopic() {
-        return topic;
-    }
-
-    public void setTopic(String topic) {
-        this.topic = topic;
-    }
-
-    public String getQOS() {
-        return qos;
-    }
-
-    public void setQOS(String qos) {
-        this.qos = qos;
-    }
-
-    public String getContentType() {
-        return contentType;
-    }
-
-    public void setContentType(String contentType) {
-        this.contentType = contentType;
-    }
-
-    public void setCleanSession(String cleanSession) {
-        this.cleanSession = cleanSession;
-    }
-
-    public String getCleanSession() {
-        return this.cleanSession;
-    }
-
-    public void setClientId(String clientId) {
-        this.clientId = clientId;
-    }
-
-    public String getClientId() {
-        return this.clientId;
-    }
-
 }

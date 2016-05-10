@@ -39,7 +39,6 @@ public class MqttConnectionFactory {
     private String name;
 
     private Hashtable<String, String> parameters = new Hashtable<String, String>();
-    private String qosLevel;
 
     public MqttConnectionFactory(Parameter passedInParameter) {
         this.name = passedInParameter.getName();
@@ -67,31 +66,29 @@ public class MqttConnectionFactory {
     public MqttClient getMqttClient() {
         return createMqttClient();
     }
-    public MqttClient getMqttClient(String clientIdPostFix) {
-        //appending the clientIdPostFix to create unique client id
-        String uniqueClientId = parameters.get(MqttConstants.MQTT_CLIENT_ID) + "-" + clientIdPostFix;
-        return createMqttClient(uniqueClientId);
+    public MqttClient getMqttClient(String uniqueClientId, int qos) {
+        return createMqttClient(uniqueClientId, qos);
     }
 
     public MqttAsyncClient getMqttAsyncClient() {
-        String uniqueClientId = parameters.get(MqttConstants.MQTT_CLIENT_ID);
-        return createMqttAsyncClient(uniqueClientId);
+        String uniqueClientId = getClientId();
+        int qos = getQOS();
+        return createMqttAsyncClient(uniqueClientId, qos);
     }
 
-    public MqttAsyncClient getMqttAsyncClient(String clientIdPostFix) {
-        //appending the clientIdPostFix to create unique client id
-        String uniqueClientId = parameters.get(MqttConstants.MQTT_CLIENT_ID) + "-" + clientIdPostFix;
-        return createMqttAsyncClient(uniqueClientId);
+    public MqttAsyncClient getMqttAsyncClient(String uniqueClientId, int qos) {
+        return createMqttAsyncClient(uniqueClientId, qos);
     }
 
     private MqttClient createMqttClient() {
-        String uniqueClientId = parameters.get(MqttConstants.MQTT_CLIENT_ID);
-        return createMqttClient(uniqueClientId);
+        String uniqueClientId = getClientId();
+        int qos = getQOS();
+        return createMqttClient(uniqueClientId, qos);
     }
 
-    private MqttClient createMqttClient(String uniqueClientId) {
+    private MqttClient createMqttClient(String uniqueClientId, int qos) {
         String sslEnable = parameters.get(MqttConstants.MQTT_SSL_ENABLE);
-        MqttDefaultFilePersistence dataStore = getDataStore(uniqueClientId);
+        MqttDefaultFilePersistence dataStore = getDataStore(uniqueClientId, qos);
 
         String mqttEndpointURL = "tcp://" + parameters.get(MqttConstants.MQTT_SERVER_HOST_NAME) + ":" +
                                  parameters.get(MqttConstants.MQTT_SERVER_PORT);
@@ -114,11 +111,9 @@ public class MqttConnectionFactory {
         return mqttClient;
     }
 
-
-
-    private MqttAsyncClient createMqttAsyncClient(String uniqueClientId) {
+    private MqttAsyncClient createMqttAsyncClient(String uniqueClientId, int qos) {
         String sslEnable = parameters.get(MqttConstants.MQTT_SSL_ENABLE);
-        MqttDefaultFilePersistence dataStore = getDataStore(uniqueClientId);
+        MqttDefaultFilePersistence dataStore = getDataStore(uniqueClientId, qos);
 
         String mqttEndpointURL = "tcp://" + parameters.get(MqttConstants.MQTT_SERVER_HOST_NAME) + ":" +
                 parameters.get(MqttConstants.MQTT_SERVER_PORT);
@@ -142,9 +137,6 @@ public class MqttConnectionFactory {
     public String getContentType() {
         return parameters.get(MqttConstants.CONTENT_TYPE);
     }
-    public void setQos(String qosLevel) {
-        this.qosLevel = qosLevel;
-    }
 
     /**
      * This sample stores in a temporary directory... where messages temporarily
@@ -154,42 +146,28 @@ public class MqttConnectionFactory {
      *
      * @return the MqttDefaultFilePersistence
      */
-    private MqttDefaultFilePersistence getDataStore(String uniqueClientId) {
+    private MqttDefaultFilePersistence getDataStore(String uniqueClientId, int qos) {
         MqttDefaultFilePersistence dataStore = null;
         String tmpDir = parameters.get(MqttConstants.MQTT_TEMP_STORE);
-        String qosValue = qosLevel;
-        if (qosValue == null) {
-            qosValue = parameters.get(MqttConstants.MQTT_QOS);
-        }
+
         if(uniqueClientId != null && !uniqueClientId.isEmpty()){
             uniqueClientId = File.separator + uniqueClientId;
         } else {
             uniqueClientId = "";
         }
-        if (qosValue != null) {
-            int qos = Integer.parseInt(qosValue);
-            {
-                if (qos == 2 || qos == 1) {
-                    if (tmpDir != null) {
-                        dataStore = new MqttDefaultFilePersistence(tmpDir + uniqueClientId);
-                    } else {
-                        tmpDir = System.getProperty(JAVA_IO_TMP_DIR_PROPERTY);
-                        dataStore = new MqttDefaultFilePersistence(tmpDir + uniqueClientId);
-                    }
-                }
-                if (qos == 0) {
-                    dataStore = null;
+        {
+            if (qos == 2 || qos == 1) {
+                if (tmpDir != null) {
+                    dataStore = new MqttDefaultFilePersistence(tmpDir + uniqueClientId);
+                } else {
+                    tmpDir = System.getProperty(JAVA_IO_TMP_DIR_PROPERTY);
+                    dataStore = new MqttDefaultFilePersistence(tmpDir + uniqueClientId);
                 }
             }
-        } else {
-            if (tmpDir != null) {
-                dataStore = new MqttDefaultFilePersistence(tmpDir + uniqueClientId);
-            } else {
-                tmpDir = System.getProperty(JAVA_IO_TMP_DIR_PROPERTY);
-                dataStore = new MqttDefaultFilePersistence(tmpDir + uniqueClientId);
+            if (qos == 0) {
+                dataStore = null;
             }
         }
-
         return dataStore;
     }
 
@@ -205,10 +183,7 @@ public class MqttConnectionFactory {
     }
 
     public int getQOS() {
-        String qos = qosLevel;
-        if (qos == null) {
-            qos = parameters.get(MqttConstants.MQTT_QOS);
-        }
+        String qos = parameters.get(MqttConstants.MQTT_QOS);
         if (qos != null && !qos.isEmpty()) {
             return Integer.parseInt(qos);
         } else {
