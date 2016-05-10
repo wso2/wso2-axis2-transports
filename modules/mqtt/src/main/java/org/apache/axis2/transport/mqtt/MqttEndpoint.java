@@ -26,6 +26,7 @@ import org.apache.axis2.transport.base.ProtocolEndpoint;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.eclipse.paho.client.mqttv3.MqttClient;
+import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
 import org.eclipse.paho.client.mqttv3.MqttException;
 import org.eclipse.paho.client.mqttv3.MqttTopic;
 
@@ -37,10 +38,11 @@ public class MqttEndpoint extends ProtocolEndpoint {
     private Log log = LogFactory.getLog(MqttEndpoint.class);
 
     private Set<EndpointReference> endpointReferences = new HashSet<EndpointReference>();
-    protected MqttListener mqttListener;
+    private MqttListener mqttListener;
     private MqttConnectionFactory mqttConnectionFactory;
     private int retryCount = 1000;
     private int retryInterval = 50;
+    private MqttClient mqttClient;
 
 
     public MqttEndpoint(MqttListener mqttListener) {
@@ -71,7 +73,12 @@ public class MqttEndpoint extends ProtocolEndpoint {
         return new EndpointReference[0];
     }
     public void subscribeToTopic() {
-        MqttClient mqttClient = mqttConnectionFactory.getMqttClient();
+        String clientId = mqttListener.getClientId();
+        if(clientId == null) {
+            clientId =  mqttConnectionFactory.getClientId();
+        }
+        mqttClient = mqttConnectionFactory.getMqttClient();
+
         String contentType = mqttListener.getContentType();
         if (contentType == null){
             contentType=mqttConnectionFactory.getContentType();
@@ -80,11 +87,27 @@ public class MqttEndpoint extends ProtocolEndpoint {
         if (topic == null){
             topic = mqttConnectionFactory.getTopic();
         }
+
+        int qos;
+        if(mqttListener.getQOS() != null) {
+            qos = Integer.parseInt(mqttListener.getQOS());
+        } else {
+            qos = mqttConnectionFactory.getQOS();
+        }
+
+        boolean cleanSession ;
+        if(mqttListener.getCleanSession() == null) {
+            cleanSession = mqttConnectionFactory.getCleanSession();
+        } else {
+            cleanSession = Boolean.parseBoolean(mqttListener.getCleanSession());
+        }
         mqttClient.setCallback(new MqttListenerCallback(this, contentType));
+        MqttConnectOptions options = new MqttConnectOptions();
+        options.setCleanSession(cleanSession);
         try {
-            mqttClient.connect();
+            mqttClient.connect(options);
             if ( topic!= null) {
-                mqttClient.subscribe(topic);
+                mqttClient.subscribe(topic, qos);
                 log.info("Connected to the remote server.");
             }
 
@@ -93,17 +116,17 @@ public class MqttEndpoint extends ProtocolEndpoint {
                 int retryC = 0;
                 while ((retryC < retryCount)) {
                     retryC++;
-                    log.info("Attempting to reconnect" + " in " + retryInterval + " ms");
+                    log.info("Attempting to reconnect" + " in " + retryInterval * (retryC + 1) + " ms");
                     try {
-                        Thread.sleep(100);
+                        Thread.sleep(retryInterval * (retryC + 1));
                     } catch (InterruptedException ignore) {
                     }
                     try {
-                        mqttClient.connect();
-                        if(mqttClient.isConnected()==true)
+                        mqttClient.connect(options);
+                        if(mqttClient.isConnected())
                         {
                             if ( topic!= null) {
-                                mqttClient.subscribe(topic);
+                                mqttClient.subscribe(topic, qos);
                             }
                             break;
                         }
@@ -117,8 +140,18 @@ public class MqttEndpoint extends ProtocolEndpoint {
     }
 
     public void unsubscribeFromTopic() {
+        if(mqttClient != null) {
+            try {
+                mqttClient.disconnect();
+            } catch (MqttException e) {
+                log.error("Error while closing the MQTTClient connection", e);
+            }
 
+        }
     }
 
+    protected MqttListener getMqttListener(){
+        return mqttListener;
+    }
 
 }

@@ -29,6 +29,8 @@ public class MqttListener extends AbstractTransportListenerEx<MqttEndpoint> {
     private String topic;
     private String qos;
     private String contentType;
+    private String cleanSession;
+    private String clientId;
 
 
     @Override
@@ -44,7 +46,6 @@ public class MqttListener extends AbstractTransportListenerEx<MqttEndpoint> {
 
     @Override
     protected void startEndpoint(MqttEndpoint mqttEndpoint) throws AxisFault {
-
         mqttEndpoint.subscribeToTopic();
     }
 
@@ -58,14 +59,25 @@ public class MqttListener extends AbstractTransportListenerEx<MqttEndpoint> {
         Parameter topicName = service.getParameter(MqttConstants.MQTT_TOPIC_NAME);
         Parameter qosLevel = service.getParameter(MqttConstants.MQTT_QOS);
         Parameter contentTypeValue = service.getParameter(MqttConstants.CONTENT_TYPE);
-        if(topicName!=null){
+        Parameter cleanSession = service.getParameter(MqttConstants.MQTT_SESSION_CLEAN);
+        Parameter clientId = service.getParameter(MqttConstants.MQTT_CLIENT_ID);
+
+        if (topicName != null) {
             setTopic(((String) topicName.getValue()));
         }
-        if(qosLevel!=null){
+        if (qosLevel != null) {
             setQOS(((String) qosLevel.getValue()));
         }
-        if(contentTypeValue!=null){
+        if (contentTypeValue != null) {
             setContentType(((String) contentTypeValue.getValue()));
+        }
+
+        if (cleanSession != null) {
+            setCleanSession((String) cleanSession.getValue());
+        }
+
+        if (clientId != null) {
+            setClientId((String) clientId.getValue());
         }
         // validate connection factory name (specified or default)
         if (conFacParam != null) {
@@ -98,6 +110,22 @@ public class MqttListener extends AbstractTransportListenerEx<MqttEndpoint> {
 
     public void setContentType(String contentType) {
         this.contentType = contentType;
+    }
+
+    public void setCleanSession(String cleanSession) {
+        this.cleanSession = cleanSession;
+    }
+
+    public String getCleanSession() {
+        return this.cleanSession;
+    }
+
+    public void setClientId(String clientId) {
+        this.clientId = clientId;
+    }
+
+    public String getClientId() {
+        return this.clientId;
     }
 
 }

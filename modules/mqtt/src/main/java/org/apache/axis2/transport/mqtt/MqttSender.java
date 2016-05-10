@@ -35,15 +35,12 @@ import java.io.OutputStream;
 import java.io.StringWriter;
 import java.nio.charset.UnsupportedCharsetException;
 import java.util.Hashtable;
+import java.util.Random;
 
 public class MqttSender extends AbstractTransportSender {
 
     private MqttConnectionFactoryManager connectionFactoryManager;
-    private Hashtable<String, String> properties = new Hashtable<String, String>();
-    private MqttConnectOptions mqttConnectOptions;
-    private String mqttBlockingSenderEnable;
 
-    MqttConnectionFactory mqttConnectionFactory;
 
     @Override
     public void init(ConfigurationContext cfgCtx, TransportOutDescription transportOutDescription) throws AxisFault {
@@ -54,7 +51,11 @@ public class MqttSender extends AbstractTransportSender {
 
     @Override
     public void sendMessage(MessageContext messageContext, String targetEPR, OutTransportInfo outTransportInfo) throws AxisFault{
+        Hashtable<String, String> properties;
         properties = BaseUtils.getEPRProperties(targetEPR);
+        MqttConnectOptions mqttConnectOptions;
+        String mqttBlockingSenderEnable;
+        MqttConnectionFactory mqttConnectionFactory;
         String username = properties.get(MqttConstants.MQTT_USERNAME);
         String password = properties.get(MqttConstants.MQTT_PASSWORD);
         String cleanSession = properties.get(MqttConstants.MQTT_SESSION_CLEAN);
@@ -70,6 +71,7 @@ public class MqttSender extends AbstractTransportSender {
         if (username != null) {
             mqttConnectOptions.setUserName(username);
         }
+
         mqttConnectionFactory = new MqttConnectionFactory(properties);
         mqttBlockingSenderEnable = properties.get(MqttConstants.MQTT_BLOCKING_SENDER);
         properties = BaseUtils.getEPRProperties(targetEPR);
@@ -77,14 +79,18 @@ public class MqttSender extends AbstractTransportSender {
         MqttClient mqttClient;
         MqttAsyncClient mqttAsyncClient;
         if (mqttBlockingSenderEnable != null && mqttBlockingSenderEnable.equalsIgnoreCase("true")) {
-            mqttClient = mqttConnectionFactory.getMqttClient();
+            //removing the urnid:urnid:
+            String clientIdPostFix = messageContext.getMessageID().substring(9);
+            //sending the message id to make client id unique. Otherwise accessing same store with multiple
+            //thread make errors
+            mqttClient = mqttConnectionFactory.getMqttClient(clientIdPostFix);
             try {
                 mqttClient.setCallback(new MqttPublisherCallback());
                 mqttClient.connect(mqttConnectOptions);
 
                 if (mqttClient.isConnected()) {
                     if (topicName == null) {
-                        log.error("The request doesn't contain the required topic fields");
+                        handleException("The request doesn't contain the required topic fields");
                     }
                     MqttTopic mqttTopic = mqttClient.getTopic(topicName);
                     MqttMessage mqttMessage = createMqttMessage(messageContext);
@@ -97,24 +103,29 @@ public class MqttSender extends AbstractTransportSender {
                             } else {
                                 throw new AxisFault("Invalid value for qos");
                             }
-                        } catch (AxisMqttException e){handleException("Invalid value for qos: ", e);}
+                        } catch (AxisMqttException e) {
+                            handleException("Invalid value for qos: ", e);
+                        }
                     }
                     mqttTopic.publish(mqttMessage);
                 }
             } catch (MqttException e) {
-                throw new AxisFault("Exception occured at sending message");
+                handleException("Exception occurred at sending message", e);
             }finally {
                 if (mqttClient!=null) {
                     try {
                         mqttClient.disconnect();
                     } catch (MqttException e) {
-                        log.error("Error while disconnecting the mqtt client");
+                        log.error("Error while disconnecting the mqtt client", e);
                     }
                 }
             }
         } else {
-
-            mqttAsyncClient = mqttConnectionFactory.getMqttAsyncClient();
+            //removing the urnid:urnid:
+            String clientIdPostFix = messageContext.getMessageID().substring(9);
+            //sending the message id to make client id unique. Otherwise accessing same store with multiple
+            //thread make errors
+            mqttAsyncClient = mqttConnectionFactory.getMqttAsyncClient(clientIdPostFix);
             try {
                 MqttAsyncCallback mqttAsyncClientCallback = new MqttAsyncCallback(mqttAsyncClient);
                 mqttAsyncClientCallback.setConOpt(mqttConnectOptions);
@@ -130,9 +141,9 @@ public class MqttSender extends AbstractTransportSender {
                 }
                 mqttAsyncClientCallback.publish(topicName, mqttMessage);
             } catch (MqttException me) {
-                log.error("Exception occured at sending message", me);
+                log.error("Exception occurred at sending message", me);
             } catch (Throwable th) {
-                log.error("Exception occured while sending message",th);
+                log.error("Exception occurred while sending message",th);
             }
         }
     }

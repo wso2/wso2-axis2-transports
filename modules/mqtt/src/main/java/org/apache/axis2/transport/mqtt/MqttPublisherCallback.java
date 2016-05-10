@@ -27,7 +27,7 @@ public class MqttPublisherCallback implements MqttCallback {
     private Log log = LogFactory.getLog(MqttPublisherCallback.class);
 
     public void connectionLost(Throwable throwable) {
-        log.error("Connection Lost");
+        log.error("Connection Lost", throwable);
     }
 
     public void messageArrived(String s, MqttMessage mqttMessage) throws Exception {

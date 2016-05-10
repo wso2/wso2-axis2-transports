@@ -197,7 +197,7 @@ public class MqttAsyncCallback implements MqttCallback {
             // Connect to the server
             // Get a token and setup an asynchronous listener on the token which
             // will be notified once the connect completes
-            log.info("Connecting to " + brokerUrl + " with client ID " + client.getClientId());
+            log.info("Connecting  with client ID " + client.getClientId());
 
             IMqttActionListener conListener = new IMqttActionListener() {
                 public void onSuccess(IMqttToken asyncActionToken) {
