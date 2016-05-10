@@ -29,7 +29,7 @@ public class RMQChannel {
             try {
                 channel = connection.createChannel();
             } catch (IOException e) {
-                log.error("Error creating channel for channel", e);
+                log.error("Error creating channel for RMQ channel", e);
                 return false;
             }
         }
@@ -49,7 +49,7 @@ public class RMQChannel {
                 }
                 channel = connection.createChannel();
             } catch (IOException e) {
-                log.error("Error creating channel for channel", e);
+                log.error("Error creating channel for RMQ channel", e);
                 return null;
             }
         }
@@ -70,7 +70,7 @@ public class RMQChannel {
                 channel = connection.createChannel();
                 channel.basicQos(qos);
             } catch (IOException e) {
-                log.error("Error creating channel for channel", e);
+                log.error("Error creating channel for RMQ channel", e);
                 return null;
             }
         }
