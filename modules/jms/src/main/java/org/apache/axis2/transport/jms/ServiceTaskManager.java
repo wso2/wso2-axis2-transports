@@ -26,13 +26,13 @@ import org.apache.commons.logging.LogFactory;
 
 import javax.jms.*;
 import javax.jms.IllegalStateException;
-import javax.naming.InitialContext;
 import javax.naming.Context;
+import javax.naming.InitialContext;
 import javax.naming.NamingException;
-import javax.transaction.UserTransaction;
 import javax.transaction.NotSupportedException;
-import javax.transaction.SystemException;
 import javax.transaction.Status;
+import javax.transaction.SystemException;
+import javax.transaction.UserTransaction;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -855,7 +855,7 @@ public class ServiceTaskManager {
         private Connection createConnection() {
             try {
                 conFactory = JMSUtils.lookup(
-                    getInitialContext(), ConnectionFactory.class, getConnFactoryJNDIName());
+                        getInitialContext(jmsProperties), ConnectionFactory.class, getConnFactoryJNDIName());
                 log.debug("Connected to the JMS connection factory : " + getConnFactoryJNDIName());
             } catch (NamingException e) {
                 handleException("Error looking up connection factory : " + getConnFactoryJNDIName() +
@@ -944,7 +944,6 @@ public class ServiceTaskManager {
         }
     }
 
-    // -------------- mundane private methods ----------------
     /**
      * Get the InitialContext for lookup using the JNDI parameters applicable to the service
      * @return the InitialContext to be used
@@ -952,9 +951,24 @@ public class ServiceTaskManager {
      */
     private Context getInitialContext() throws NamingException {
         if (context == null) {
-            context = new InitialContext(jmsProperties);
+            context = new InitialContext();
         }
         return context;
+    }
+
+    // -------------- mundane private methods ----------------
+
+    /**
+     * Get the InitialContext for lookup using the JNDI parameters applicable to the service
+     *
+     * @return the InitialContext to be used
+     * @throws NamingException
+     */
+    private Context getInitialContext(Hashtable jmsProperties) throws NamingException {
+        if (context == null) {
+            context = new InitialContext(jmsProperties);
+        }
+        return new InitialContext(jmsProperties);
     }
 
     /**
@@ -998,6 +1012,7 @@ public class ServiceTaskManager {
         }
         return destination;
     }
+
 
     /**
      * The UserTransaction to be used, looked up from the JNDI

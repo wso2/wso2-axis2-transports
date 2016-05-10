@@ -355,4 +355,10 @@ public class JMSConstants {
 
     public static final String JMS_SPEC_VERSION = "transport.jms.JMSSpecVersion";
 
+    public static final String JMS_XA_TRANSACTION_PREFIX = "wso2-jms-xa-transaction";
+
+    public static final String JMS_XA_TRANSACTION = "distributedTx";
+
+    public static final String JMS_XA_TRANSACTION_MANAGER = "distributedTxMgr";
+
 }
