@@ -22,6 +22,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import javax.jms.*;
+import javax.jms.Queue;
 import javax.naming.Context;
 import javax.naming.InitialContext;
 import javax.naming.NamingException;
@@ -32,10 +33,7 @@ import javax.transaction.xa.XAException;
 import javax.transaction.xa.XAResource;
 import javax.transaction.xa.Xid;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Hashtable;
-import java.util.Map;
+import java.util.*;
 
 /**
  * The JMS OutTransportInfo is a holder of information to send an outgoing message
@@ -403,6 +401,7 @@ public class JMSOutTransportInfo implements OutTransportInfo {
             TransactionManager tx = null;
             Xid xid1 = null;
             Transaction transaction = null;
+            java.util.UUID uuid = java.util.UUID.randomUUID();
 
             try {
                 tx = (TransactionManager) msgCtx.getProperty(JMSConstants.JMS_XA_TRANSACTION_MANAGER);
@@ -410,7 +409,7 @@ public class JMSOutTransportInfo implements OutTransportInfo {
                 msgCtx.setProperty(JMSConstants.JMS_XA_TRANSACTION_MANAGER, tx);
                 msgCtx.setProperty(JMSConstants.JMS_XA_TRANSACTION, transaction);
                 xid1 = new JMSXid(JMSConstants.JMS_XA_TRANSACTION_PREFIX.getBytes(StandardCharsets.UTF_8), 1,
-                        UUIDGenerator.getInstance().generateStringUUID().getBytes());
+                        uuid.toString().getBytes());
                 msgCtx.setProperty("XID", xid1);
                 xaResource.start(xid1, XAResource.TMNOFLAGS);
             } catch (SystemException e) {
