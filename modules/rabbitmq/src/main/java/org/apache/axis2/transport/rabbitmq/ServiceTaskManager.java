@@ -234,7 +234,21 @@ public class ServiceTaskManager {
          * @throws IOException
          */
         private void startConsumer() throws ShutdownSignalException, IOException {
-            Channel channel = rmqChannel.getChannel();
+            Channel channel;
+            //set the qos value for the consumer
+            String qos = rabbitMQProperties.get(RabbitMQConstants.CONSUMER_QOS);
+            if (qos != null && !"".equals(qos)) {
+                try {
+                    int qosValue = Integer.parseInt(qos);
+                    channel = rmqChannel.getChannelWithQOS(qosValue);
+                } catch (NumberFormatException e) {
+                    channel = rmqChannel.getChannel();
+                    log.warn("Can't parse given RabbitMQ qos value as a integer, hence using " +
+                             "channel without qos, provided qos value - " + qos);
+                }
+            } else {
+                channel = rmqChannel.getChannel();
+            }
 
             //unable to connect to the queue
             if (queueingConsumer == null) {
@@ -359,7 +373,13 @@ public class ServiceTaskManager {
             //set the qos value for the consumer
             String qos = rabbitMQProperties.get(RabbitMQConstants.CONSUMER_QOS);
             if (qos != null && !"".equals(qos)) {
-                rmqChannel.getChannel().basicQos(Integer.parseInt(qos));
+                try {
+                    int qosValue = Integer.parseInt(qos);
+                    rmqChannel.getChannel().basicQos(qosValue);
+                } catch (NumberFormatException e) {
+                    log.warn("Can't parse given RabbitMQ qos value as a integer, hence using " +
+                             "channel without qos, provided qos value - " + qos);
+                }
             }
 
             queueingConsumer = new QueueingConsumer(rmqChannel.getChannel());
