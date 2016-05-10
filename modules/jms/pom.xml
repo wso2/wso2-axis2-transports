@@ -154,11 +154,6 @@
             <artifactId>junit</artifactId>
             <scope>test</scope>
         </dependency>
-        <dependency>
-            <groupId>org.atomikos.wso2</groupId>
-            <artifactId>atomikos</artifactId>
-            <version>3.8.0.wso2v1</version>
-        </dependency>
     </dependencies>
 
     <repositories>

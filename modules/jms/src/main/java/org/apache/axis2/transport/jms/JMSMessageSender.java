@@ -187,10 +187,10 @@ public class JMSMessageSender {
             } else {
                 if (isQueue) {
                     try {
-                        (producer).send(message);
+                        producer.send(message);
                     } catch (JMSException e) {
                         createTempQueueConsumer();
-                        (producer).send(message);
+                        producer.send(message);
                     }
                 } else {
                     try {

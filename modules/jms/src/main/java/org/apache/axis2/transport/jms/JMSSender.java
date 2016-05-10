@@ -133,7 +133,7 @@ public class JMSSender extends AbstractTransportSender implements ManagementSupp
             } else {
                 try {
                     messageSender = jmsOut.createJMSSender(msgCtx);
-                    Transaction transaction = (Transaction) msgCtx.getProperty("distributedTx");
+                    Transaction transaction = (Transaction) msgCtx.getProperty(JMSConstants.JMS_XA_TRANSACTION);
 
                     if (JMSMessageSenderMap.get(transaction) == null) {
                         ArrayList list = new ArrayList();
@@ -148,7 +148,7 @@ public class JMSSender extends AbstractTransportSender implements ManagementSupp
                 } catch (JMSException e) {
                     Transaction transaction = null;
                     try {
-                        transaction = ((TransactionManager) msgCtx.getProperty("distributedTxMgr")).getTransaction();
+                        transaction = ((TransactionManager) msgCtx.getProperty(JMSConstants.JMS_XA_TRANSACTION_MANAGER)).getTransaction();
                         rollbackXATransaction(transaction);
                     } catch (SystemException e1) {
                         handleException("Error occurred during obtaining  transaction", e1);
@@ -217,7 +217,7 @@ public class JMSSender extends AbstractTransportSender implements ManagementSupp
         } catch (JMSException e) {
             Transaction transaction = null;
             try {
-                transaction = ((TransactionManager) msgCtx.getProperty("distributedTxMgr")).getTransaction();
+                transaction = ((TransactionManager) msgCtx.getProperty(JMSConstants.JMS_XA_TRANSACTION_MANAGER)).getTransaction();
                 rollbackXATransaction(transaction);
             } catch (SystemException e1) {
                 handleException("Error occurred during obtaining  transaction", e1);
@@ -277,7 +277,7 @@ public class JMSSender extends AbstractTransportSender implements ManagementSupp
             } catch (JMSException e) {
                 Transaction transaction = null;
                 try {
-                    transaction = ((TransactionManager) msgCtx.getProperty("distributedTxMgr")).getTransaction();
+                    transaction = ((TransactionManager) msgCtx.getProperty(JMSConstants.JMS_XA_TRANSACTION_MANAGER)).getTransaction();
                     rollbackXATransaction(transaction);
                 } catch (SystemException e1) {
                     handleException("Error occurred during obtaining  transaction", e1);
@@ -288,7 +288,7 @@ public class JMSSender extends AbstractTransportSender implements ManagementSupp
 
         try {
             messageSender.send(message, msgCtx);
-            Transaction transaction = (Transaction) msgCtx.getProperty("distributedTx");
+            Transaction transaction = (Transaction) msgCtx.getProperty(JMSConstants.JMS_XA_TRANSACTION);
             if (msgCtx.getTo().toString().contains("transport.jms.TransactionCommand=end")) {
                 commitXATransaction(transaction);
             } else if (msgCtx.getTo().toString().contains("transport.jms.TransactionCommand=rollback")) {
@@ -300,7 +300,7 @@ public class JMSSender extends AbstractTransportSender implements ManagementSupp
             metrics.incrementFaultsSending();
             Transaction transaction = null;
             try {
-                transaction = ((TransactionManager) msgCtx.getProperty("distributedTxMgr")).getTransaction();
+                transaction = ((TransactionManager) msgCtx.getProperty(JMSConstants.JMS_XA_TRANSACTION_MANAGER)).getTransaction();
                 rollbackXATransaction(transaction);
             } catch (SystemException e1) {
                 handleException("Error occurred during obtaining  transaction", e1);
@@ -475,7 +475,7 @@ public class JMSSender extends AbstractTransportSender implements ManagementSupp
             } catch (IOException e) {
                 Transaction transaction = null;
                 try {
-                    transaction = ((TransactionManager) msgContext.getProperty("distributedTxMgr")).getTransaction();
+                    transaction = ((TransactionManager) msgContext.getProperty(JMSConstants.JMS_XA_TRANSACTION_MANAGER)).getTransaction();
                     rollbackXATransaction(transaction);
                 } catch (SystemException e1) {
                     handleException("Error occurred during obtaining  transaction", e1);
@@ -507,7 +507,7 @@ public class JMSSender extends AbstractTransportSender implements ManagementSupp
                     } catch (IOException e) {
                         Transaction transaction = null;
                         try {
-                            transaction = ((TransactionManager) msgContext.getProperty("distributedTxMgr")).getTransaction();
+                            transaction = ((TransactionManager) msgContext.getProperty(JMSConstants.JMS_XA_TRANSACTION_MANAGER)).getTransaction();
                             rollbackXATransaction(transaction);
                         } catch (SystemException e1) {
                             handleException("Error occurred during obtaining  transaction", e1);
