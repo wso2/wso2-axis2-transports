@@ -29,7 +29,7 @@ public class RMQChannel {
             try {
                 channel = connection.createChannel();
             } catch (IOException e) {
-                log.error("Error creating channel for dual channel", e);
+                log.error("Error creating channel for channel", e);
                 return false;
             }
         }
@@ -44,10 +44,12 @@ public class RMQChannel {
     public Channel getChannel() {
         if (!channel.isOpen()) {
             try {
-                log.debug("Channel is closed. Creating a new channel");
+                if (log.isDebugEnabled()) {
+                    log.debug("Channel is closed. Creating a new channel");
+                }
                 channel = connection.createChannel();
             } catch (IOException e) {
-                log.error("Error creating channel for dual channel", e);
+                log.error("Error creating channel for channel", e);
                 return null;
             }
         }
@@ -62,11 +64,13 @@ public class RMQChannel {
     public Channel getChannelWithQOS(int qos) {
         if (!channel.isOpen()) {
             try {
-                log.debug("Channel is closed. Creating a new channel");
+                if (log.isDebugEnabled()) {
+                    log.debug("Channel is closed. Creating a new channel and applying qos");
+                }
                 channel = connection.createChannel();
                 channel.basicQos(qos);
             } catch (IOException e) {
-                log.error("Error creating channel for dual channel", e);
+                log.error("Error creating channel for channel", e);
                 return null;
             }
         }
