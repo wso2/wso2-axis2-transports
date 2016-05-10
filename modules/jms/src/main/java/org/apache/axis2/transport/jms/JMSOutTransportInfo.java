@@ -364,7 +364,7 @@ public class JMSOutTransportInfo implements OutTransportInfo {
              qConFac = (QueueConnectionFactory) connectionFactory;
         }
 
-        if(msgCtx.getProperty(JMSConstants.JMS_XA_TRANSACTION_MANAGER) != null) {
+        if (msgCtx.getProperty(JMSConstants.JMS_XA_TRANSACTION_MANAGER) != null) {
             XAConnection connection = null;
             if (user != null && pass != null) {
                 if (qConFac != null) {
