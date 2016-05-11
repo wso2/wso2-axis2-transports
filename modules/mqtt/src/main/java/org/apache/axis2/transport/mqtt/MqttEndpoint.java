@@ -64,6 +64,10 @@ public class MqttEndpoint extends ProtocolEndpoint {
         AxisService service = (AxisService) parameterInclude;
         mqttConnectionFactory = mqttListener.getConnectionFactory(service);
 
+        if (mqttConnectionFactory == null) {
+            return false;
+        }
+
         Parameter topicName = service.getParameter(MqttConstants.MQTT_TOPIC_NAME);
         Parameter qosLevel = service.getParameter(MqttConstants.MQTT_QOS);
         Parameter contentTypeValue = service.getParameter(MqttConstants.CONTENT_TYPE);
@@ -96,9 +100,6 @@ public class MqttEndpoint extends ProtocolEndpoint {
             setClientId(mqttConnectionFactory.getClientId());
         }
 
-        if (mqttConnectionFactory == null) {
-            return false;
-        }
         return true;
     }
 
