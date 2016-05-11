@@ -19,7 +19,6 @@ package org.apache.axis2.transport.mqtt;/*
 
 import org.apache.axis2.AxisFault;
 import org.apache.axis2.addressing.EndpointReference;
-import org.apache.axis2.context.ConfigurationContext;
 import org.apache.axis2.description.AxisService;
 import org.apache.axis2.description.Parameter;
 import org.apache.axis2.description.ParameterInclude;
@@ -29,7 +28,6 @@ import org.apache.commons.logging.LogFactory;
 import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
 import org.eclipse.paho.client.mqttv3.MqttException;
-import org.eclipse.paho.client.mqttv3.MqttTopic;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -49,6 +47,10 @@ public class MqttEndpoint extends ProtocolEndpoint {
     private String contentType;
     private boolean cleanSession;
     private String clientId;
+    private String hostName;
+    private String port;
+    private String tempStore;
+    private String sslEnabled;
 
 
     public MqttEndpoint(MqttListener mqttListener) {
@@ -73,6 +75,10 @@ public class MqttEndpoint extends ProtocolEndpoint {
         Parameter contentTypeValue = service.getParameter(MqttConstants.CONTENT_TYPE);
         Parameter cleanSession = service.getParameter(MqttConstants.MQTT_SESSION_CLEAN);
         Parameter clientId = service.getParameter(MqttConstants.MQTT_CLIENT_ID);
+        Parameter hostName = service.getParameter(MqttConstants.MQTT_SERVER_HOST_NAME);
+        Parameter port = service.getParameter(MqttConstants.MQTT_SERVER_PORT);
+        Parameter sslEnable = service.getParameter(MqttConstants.MQTT_SSL_ENABLE);
+        Parameter tempStore = service.getParameter(MqttConstants.MQTT_TEMP_STORE);
 
         if (topicName != null) {
             setTopic(((String) topicName.getValue()));
@@ -100,6 +106,30 @@ public class MqttEndpoint extends ProtocolEndpoint {
             setClientId(mqttConnectionFactory.getClientId());
         }
 
+        if (hostName != null) {
+            setHostName((String) hostName.getValue());
+        } else {
+            setHostName(mqttConnectionFactory.getHostName());
+        }
+
+        if (port != null) {
+            setPort((String) port.getValue());
+        } else {
+            setPort(mqttConnectionFactory.getPort());
+        }
+
+        if (sslEnable != null) {
+            setSslEnabled((String) sslEnable.getValue());
+        } else {
+            setSslEnabled(mqttConnectionFactory.getSSLEnable());
+        }
+
+        if (tempStore != null) {
+            setTempStore((String) tempStore.getValue());
+        } else {
+            setTempStore(mqttConnectionFactory.getTempStore());
+        }
+
         return true;
     }
 
@@ -108,7 +138,8 @@ public class MqttEndpoint extends ProtocolEndpoint {
         return new EndpointReference[0];
     }
     public void subscribeToTopic() {
-        mqttClient = mqttConnectionFactory.getMqttClient(clientId, qos);
+        mqttClient = mqttConnectionFactory.getMqttClient(hostName, port, sslEnabled, clientId, qos
+                , tempStore);
 
         mqttClient.setCallback(new MqttListenerCallback(this, contentType));
         MqttConnectOptions options = new MqttConnectOptions();
@@ -177,6 +208,22 @@ public class MqttEndpoint extends ProtocolEndpoint {
 
     public void setClientId(String clientId) {
         this.clientId = clientId;
+    }
+
+    public void setHostName(String hostName) {
+        this.hostName = hostName;
+    }
+
+    public void setPort(String port) {
+        this.port = port;
+    }
+
+    public void setSslEnabled(String sslEnabled) {
+        this.sslEnabled = sslEnabled;
+    }
+
+    public void setTempStore(String tempStore) {
+        this.tempStore = tempStore;
     }
 
     public String getTopic() {

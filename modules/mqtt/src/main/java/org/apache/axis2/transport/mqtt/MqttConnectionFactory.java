@@ -59,45 +59,39 @@ public class MqttConnectionFactory {
         this.parameters = parameters;
     }
 
-    public String getName() {
-        return name;
-    }
-
-    public MqttClient getMqttClient() {
-        return createMqttClient();
-    }
     public MqttClient getMqttClient(String uniqueClientId, int qos) {
         return createMqttClient(uniqueClientId, qos);
     }
 
-    public MqttAsyncClient getMqttAsyncClient() {
-        String uniqueClientId = getClientId();
-        int qos = getQOS();
-        return createMqttAsyncClient(uniqueClientId, qos);
+    public MqttClient getMqttClient(String hostName, String port, String sslEnable
+            , String uniqueClientId, int qos, String tempStore) {
+        return createMqttClient(hostName, port, sslEnable, uniqueClientId, qos, tempStore);
     }
 
     public MqttAsyncClient getMqttAsyncClient(String uniqueClientId, int qos) {
         return createMqttAsyncClient(uniqueClientId, qos);
     }
 
-    private MqttClient createMqttClient() {
-        String uniqueClientId = getClientId();
-        int qos = getQOS();
-        return createMqttClient(uniqueClientId, qos);
-    }
-
     private MqttClient createMqttClient(String uniqueClientId, int qos) {
         String sslEnable = parameters.get(MqttConstants.MQTT_SSL_ENABLE);
-        MqttDefaultFilePersistence dataStore = getDataStore(uniqueClientId, qos);
+        String tempStore = parameters.get(MqttConstants.MQTT_TEMP_STORE);
+        String hostName = parameters.get(MqttConstants.MQTT_SERVER_HOST_NAME);
+        String port = parameters.get(MqttConstants.MQTT_SERVER_PORT);
+        return createMqttClient(hostName, port, sslEnable, uniqueClientId, qos, tempStore);
+    }
 
-        String mqttEndpointURL = "tcp://" + parameters.get(MqttConstants.MQTT_SERVER_HOST_NAME) + ":" +
-                                 parameters.get(MqttConstants.MQTT_SERVER_PORT);
+    private MqttClient createMqttClient(String hostName, String port, String sslEnable
+            , String uniqueClientId, int qos, String tempStore) {
+        MqttDefaultFilePersistence dataStore = getDataStore(uniqueClientId, qos, tempStore);
+
+        String mqttEndpointURL = hostName + ":" + port;
         // If SSL is enabled in the config, Use SSL tranport
         if (sslEnable != null && sslEnable.equalsIgnoreCase("true")) {
-            mqttEndpointURL = "ssl://" + parameters.get(MqttConstants.MQTT_SERVER_HOST_NAME) + ":" +
-                              parameters.get(MqttConstants.MQTT_SERVER_PORT);
+            mqttEndpointURL = "ssl://" + mqttEndpointURL;
+        } else {
+            mqttEndpointURL = "tcp://" + mqttEndpointURL;
         }
-        MqttClient mqttClient = null;
+        MqttClient mqttClient;
         if(log.isDebugEnabled()){
             log.debug("ClientId " + uniqueClientId);
         }
@@ -113,7 +107,8 @@ public class MqttConnectionFactory {
 
     private MqttAsyncClient createMqttAsyncClient(String uniqueClientId, int qos) {
         String sslEnable = parameters.get(MqttConstants.MQTT_SSL_ENABLE);
-        MqttDefaultFilePersistence dataStore = getDataStore(uniqueClientId, qos);
+        String tempStore = parameters.get(MqttConstants.MQTT_TEMP_STORE);
+        MqttDefaultFilePersistence dataStore = getDataStore(uniqueClientId, qos, tempStore);
 
         String mqttEndpointURL = "tcp://" + parameters.get(MqttConstants.MQTT_SERVER_HOST_NAME) + ":" +
                 parameters.get(MqttConstants.MQTT_SERVER_PORT);
@@ -131,12 +126,6 @@ public class MqttConnectionFactory {
         }
         return mqttClient;
     }
-    public String getTopic() {
-        return parameters.get(MqttConstants.MQTT_TOPIC_NAME);
-    }
-    public String getContentType() {
-        return parameters.get(MqttConstants.CONTENT_TYPE);
-    }
 
     /**
      * This sample stores in a temporary directory... where messages temporarily
@@ -146,9 +135,14 @@ public class MqttConnectionFactory {
      *
      * @return the MqttDefaultFilePersistence
      */
-    private MqttDefaultFilePersistence getDataStore(String uniqueClientId, int qos) {
+    private MqttDefaultFilePersistence getDataStore(String uniqueClientId, int qos, String tmpStore) {
         MqttDefaultFilePersistence dataStore = null;
-        String tmpDir = parameters.get(MqttConstants.MQTT_TEMP_STORE);
+        String tmpDir;
+        if (tmpStore == null || tmpStore.isEmpty()) {
+            tmpDir = parameters.get(MqttConstants.MQTT_TEMP_STORE);
+        } else {
+            tmpDir = tmpStore;
+        }
 
         if(uniqueClientId != null && !uniqueClientId.isEmpty()){
             uniqueClientId = File.separator + uniqueClientId;
@@ -194,5 +188,32 @@ public class MqttConnectionFactory {
 
     public String getClientId() {
         return parameters.get(MqttConstants.MQTT_CLIENT_ID);
+    }
+
+    public String getHostName() {
+        return parameters.get(MqttConstants.MQTT_SERVER_HOST_NAME);
+    }
+
+    public String getPort() {
+        return parameters.get(MqttConstants.MQTT_SERVER_PORT);
+    }
+
+    public String getSSLEnable() {
+        return parameters.get(MqttConstants.MQTT_SSL_ENABLE);
+    }
+
+    public String getTempStore() {
+        return parameters.get(MqttConstants.MQTT_TEMP_STORE);
+    }
+
+    public String getTopic() {
+        return parameters.get(MqttConstants.MQTT_TOPIC_NAME);
+    }
+
+    public String getName() {
+        return name;
+    }
+    public String getContentType() {
+        return parameters.get(MqttConstants.CONTENT_TYPE);
     }
 }
