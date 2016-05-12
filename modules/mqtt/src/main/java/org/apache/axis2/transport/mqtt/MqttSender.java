@@ -152,9 +152,9 @@ public class MqttSender extends AbstractTransportSender {
                 mqttMessage.setRetained(isMessageRetained);
 
                 if ((qos >= 0 && qos <= 2)) {
-                    throw new AxisFault("Invalid value for qos " + qos);
-                } else {
                     mqttMessage.setQos(qos);
+                } else {
+                    throw new AxisFault("Invalid value for qos " + qos);
                 }
 
                 mqttAsyncClientCallback.publish(topicName, mqttMessage);
