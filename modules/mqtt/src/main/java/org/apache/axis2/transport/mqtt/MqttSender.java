@@ -159,9 +159,13 @@ public class MqttSender extends AbstractTransportSender {
 
                 mqttAsyncClientCallback.publish(topicName, mqttMessage);
             } catch (MqttException me) {
-                log.error("Exception occurred at sending message", me);
+                handleException("Exception occurred at sending message", me);
             } catch (Throwable th) {
-                log.error("Exception occurred while sending message",th);
+                if (th instanceof Exception) {
+                    handleException("Exception occurred while sending message", (Exception) th);
+                } else {
+                    log.error("Exception occurred while sending message", th);
+                }
             }
         }
     }
