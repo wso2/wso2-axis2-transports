@@ -136,7 +136,7 @@ public class ServiceTaskManager {
     /** State of this Task Manager */
     private volatile int serviceTaskManagerState = STATE_STOPPED;
     /** Number of invoker tasks active */
-    private volatile int activeTaskCount = 0;
+    private AtomicInteger  activeTaskCount = new AtomicInteger(0);
     /** The number of existing JMS message consumers. */
     private final AtomicInteger consumerCount = new AtomicInteger();
     /** The shared thread pool from the Listener */
@@ -231,7 +231,7 @@ public class ServiceTaskManager {
 
         // try to wait a bit for task shutdown
         for (int i=0; i<5; i++) {
-            if (activeTaskCount == 0) {
+            if (activeTaskCount.get() == 0) {
                 break;
             }
             try {
@@ -249,7 +249,7 @@ public class ServiceTaskManager {
             }
         }
 
-        if (activeTaskCount > 0) {
+        if (activeTaskCount.get() > 0) {
             log.warn("Unable to shutdown all polling tasks of service : " + serviceName);
         }
 
@@ -365,6 +365,8 @@ public class ServiceTaskManager {
         private volatile boolean connected = false;
         private volatile boolean listenerPaused = false;
 
+        private boolean connectionReceivedError = false;
+
         /** As soon as we create a new polling task, add it to the STM for control later */
         MessageListenerTask(int listenerState) {
             synchronized(pollingTasks) {
@@ -412,7 +414,7 @@ public class ServiceTaskManager {
          */
         public void run() {
             workerState = STATE_STARTED;
-            activeTaskCount++;
+            activeTaskCount.getAndIncrement();
             int messageCount = 0;
 
             if (log.isDebugEnabled()) {
@@ -496,23 +498,23 @@ public class ServiceTaskManager {
                 closeConnection();
                 
                 workerState = STATE_STOPPED;
-                activeTaskCount--;
+                activeTaskCount.getAndDecrement();
                 synchronized(pollingTasks) {
                     pollingTasks.remove(this);
                 }
 
                 // if this is a JMS onException, ServiceTaskManager#onException will schedule
                 // a new polling task
-                if (!isOnExceptionError) {
-					if (isInitalizeFailed) {
-						if (reconnectDuration != null) {
-							try {
-								Thread.sleep(reconnectDuration);
-							} catch (InterruptedException ignore) {
-							}
-							log.info("Retry in " + (reconnectDuration / 1000) + " Seconds.");
-						}
-					}                 	
+                if (!isOnExceptionError || connectionReceivedError) {
+                    if (isInitalizeFailed) {
+                        if (reconnectDuration != null) {
+                            try {
+                                Thread.sleep(reconnectDuration);
+                            } catch (InterruptedException ignore) {
+                            }
+                            log.info("Retry in " + (reconnectDuration / 1000) + " Seconds.");
+                        }
+                    }
                     // My time is up, so if I am going away, create another
                     scheduleNewTaskIfAppropriate();
                 }
@@ -526,6 +528,7 @@ public class ServiceTaskManager {
          * @return a message read, or null
          */
         private Message receiveMessage() {
+            connectionReceivedError  = false;
 
             // get a new connection, session and consumer to prevent a conflict.
             // If idle, it means we can re-use what we already have 
@@ -552,6 +555,7 @@ public class ServiceTaskManager {
             } catch (IllegalStateException ignore) {
                 // probably the consumer (shared) was closed.. which is still ok.. as we didn't read
             } catch (JMSException e) {
+                connectionReceivedError  = true;
                 logError("Error receiving message for service : " + serviceName, e);
             }
             return null;
@@ -664,50 +668,60 @@ public class ServiceTaskManager {
             int r = 1;
 
             long retryDuration = initialReconnectDuration;
+            boolean connected = false;
 
             do {
                 try {
                     log.info("Reconnection attempt : " + r + " for service : " + serviceName);
                     start();
-                } catch (Exception ignore) {}
+                } catch (Throwable ignore) {}
 
-                boolean connected = false;
-                for (int i=0; i<5; i++) {
-                    if (getConnectedTaskCount() == concurrentConsumers) {
-                        connected = true;
-                        break;
+                finally {
+
+
+                    for (int i = 0; i < 5; i++) {
+                        if (getConnectedTaskCount() == concurrentConsumers) {
+                            connected = true;
+                            break;
+                        }
+                        try {
+                            Thread.sleep(1000);
+                        } catch (InterruptedException ignore) {
+                        }
                     }
-                    try {
-                        Thread.sleep(1000);
-                    } catch (InterruptedException ignore) {}
+
+                    if (!connected) {
+                        if (reconnectDuration != null) {
+                            retryDuration = reconnectDuration;
+                            log.error("Reconnection attempt : " + (r++) + " for service : " +
+                                    serviceName + " failed. Next retry in " + (retryDuration / 1000) +
+                                    " seconds. (Fixed Interval)");
+                        } else {
+                            retryDuration = (long) (retryDuration * reconnectionProgressionFactor);
+                            log.error("Reconnection attempt : " + (r++) + " for service : " +
+                                    serviceName + " failed. Next retry in " + (retryDuration / 1000) +
+                                    " seconds");
+                            if (retryDuration > maxReconnectDuration) {
+                                retryDuration = maxReconnectDuration;
+                            }
+                        }
+                        try {
+                            Thread.sleep(retryDuration);
+                            if (getConnectedTaskCount() == concurrentConsumers) {
+                                connected = true;
+                                log.info("Reconnection attempt: " + r + " for service: " + serviceName +
+                                        " was successful!");
+                            }
+                        } catch (InterruptedException ignore) {
+                        }
+                    } else {
+                        isOnExceptionError = false;
+                        log.info("Reconnection attempt: " + r + " for service: " + serviceName +
+                                " was successful!");
+                    }
+
                 }
-
-                if (!connected) {
-					if (reconnectDuration != null) {
-						retryDuration = reconnectDuration;
-						log.error("Reconnection attempt : " + (r++) + " for service : " +
-						          serviceName + " failed. Next retry in " + (retryDuration / 1000) +
-						          " seconds. (Fixed Interval)");
-					} else {
-						retryDuration = (long) (retryDuration * reconnectionProgressionFactor);
-						log.error("Reconnection attempt : " + (r++) + " for service : " +
-						          serviceName + " failed. Next retry in " + (retryDuration / 1000) +
-						          " seconds");
-						if (retryDuration > maxReconnectDuration) {
-							retryDuration = maxReconnectDuration;
-						}
-					}
-                    try {
-                        Thread.sleep(retryDuration);
-                    } catch (InterruptedException ignore) {}
-                } else {
-                    isOnExceptionError = false;
-                    log.info("Reconnection attempt: " + r + " for service: " + serviceName +
-                            " was successful!");
-                }
-
-
-            } while (!isSTMActive() || getConnectedTaskCount() < concurrentConsumers);
+            } while (!isSTMActive() || !connected);
         }
 
         protected void requestShutdown() {
@@ -1333,7 +1347,7 @@ public class ServiceTaskManager {
     }
 
     public int getActiveTaskCount() {
-        return activeTaskCount;
+        return activeTaskCount.get();
     }
     
     /**
