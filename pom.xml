@@ -226,7 +226,7 @@
             </dependency>
             <dependency>
                 <groupId>org.eclipse.paho</groupId>
-                <artifactId>mqtt-client</artifactId>
+                <artifactId>org.eclipse.paho.client.mqttv3</artifactId>
                 <version>${paho.version}</version>
             </dependency>
 
@@ -579,7 +579,7 @@
         <rabbitmq.orbit.version>3.4.4.wso2v1</rabbitmq.orbit.version>
         <jsmpp-version>2.0.1</jsmpp-version>
         <slf4j-version>1.4.3</slf4j-version>
-        <paho.version>0.4.0</paho.version>
+        <paho.version>1.0.2</paho.version>
     </properties>
 
 </project>

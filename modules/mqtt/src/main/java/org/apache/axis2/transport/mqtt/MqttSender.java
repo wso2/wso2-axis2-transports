@@ -35,15 +35,12 @@ import java.io.OutputStream;
 import java.io.StringWriter;
 import java.nio.charset.UnsupportedCharsetException;
 import java.util.Hashtable;
+import java.util.Random;
 
 public class MqttSender extends AbstractTransportSender {
 
     private MqttConnectionFactoryManager connectionFactoryManager;
-    private Hashtable<String, String> properties = new Hashtable<String, String>();
-    private MqttConnectOptions mqttConnectOptions;
-    private String mqttBlockingSenderEnable;
 
-    MqttConnectionFactory mqttConnectionFactory;
 
     @Override
     public void init(ConfigurationContext cfgCtx, TransportOutDescription transportOutDescription) throws AxisFault {
@@ -54,11 +51,21 @@ public class MqttSender extends AbstractTransportSender {
 
     @Override
     public void sendMessage(MessageContext messageContext, String targetEPR, OutTransportInfo outTransportInfo) throws AxisFault{
+        Hashtable<String, String> properties;
         properties = BaseUtils.getEPRProperties(targetEPR);
+        MqttConnectOptions mqttConnectOptions;
+        String mqttBlockingSenderEnable;
+        MqttConnectionFactory mqttConnectionFactory;
         String username = properties.get(MqttConstants.MQTT_USERNAME);
         String password = properties.get(MqttConstants.MQTT_PASSWORD);
         String cleanSession = properties.get(MqttConstants.MQTT_SESSION_CLEAN);
         String topicName = properties.get(MqttConstants.MQTT_TOPIC_NAME);
+        String clientId = properties.get(MqttConstants.MQTT_CLIENT_ID);
+        String qosValue = properties.get(MqttConstants.MQTT_QOS);
+        String retainedMessage = properties.get(MqttConstants.MQTT_MESSAGE_RETAINED);
+        mqttBlockingSenderEnable = properties.get(MqttConstants.MQTT_BLOCKING_SENDER);
+        int qos;
+        boolean isMessageRetained;
 
         mqttConnectOptions = new MqttConnectOptions();
         if (cleanSession != null) {
@@ -70,69 +77,95 @@ public class MqttSender extends AbstractTransportSender {
         if (username != null) {
             mqttConnectOptions.setUserName(username);
         }
+
         mqttConnectionFactory = new MqttConnectionFactory(properties);
-        mqttBlockingSenderEnable = properties.get(MqttConstants.MQTT_BLOCKING_SENDER);
-        properties = BaseUtils.getEPRProperties(targetEPR);
-        String qos = properties.get(MqttConstants.MQTT_QOS);
+
+        if (qosValue != null && !qosValue.isEmpty()) {
+            qos =  Integer.parseInt(qosValue);
+        } else {
+            qos = mqttConnectionFactory.getQOS();
+        }
+        if (retainedMessage != null && !retainedMessage.isEmpty()) {
+            isMessageRetained =  Boolean.parseBoolean(retainedMessage);
+        } else {
+            //setting default value
+            isMessageRetained = true;
+        }
         MqttClient mqttClient;
         MqttAsyncClient mqttAsyncClient;
         if (mqttBlockingSenderEnable != null && mqttBlockingSenderEnable.equalsIgnoreCase("true")) {
-            mqttClient = mqttConnectionFactory.getMqttClient();
+            //removing the urnid:urnid:
+            String clientIdPostFix = messageContext.getMessageID().substring(9);
+            String uniqueClientId;
+            //appending the clientIdPostFix to create unique client id
+            if(clientId == null) {
+                uniqueClientId = clientIdPostFix;
+            } else {
+                uniqueClientId = clientId + "-" + clientIdPostFix;
+            }
+
+            //sending the message id to make client id unique. Otherwise accessing same store with multiple
+            //thread make errors
+            mqttClient = mqttConnectionFactory.getMqttClient(uniqueClientId, qos);
             try {
                 mqttClient.setCallback(new MqttPublisherCallback());
                 mqttClient.connect(mqttConnectOptions);
 
                 if (mqttClient.isConnected()) {
                     if (topicName == null) {
-                        log.error("The request doesn't contain the required topic fields");
+                        handleException("The request doesn't contain the required topic fields");
                     }
                     MqttTopic mqttTopic = mqttClient.getTopic(topicName);
                     MqttMessage mqttMessage = createMqttMessage(messageContext);
-                    mqttMessage.setRetained(true);
-                    if (qos != null) {
-                        int qosValue = Integer.parseInt(qos);
-                        try {
-                            if (qosValue >=0 && qosValue <=2) {
-                                mqttMessage.setQos(qosValue);
-                            } else {
-                                throw new AxisFault("Invalid value for qos");
-                            }
-                        } catch (AxisMqttException e){handleException("Invalid value for qos: ", e);}
+                    mqttMessage.setRetained(isMessageRetained);
+
+                    if (qos >= 0 && qos <= 2) {
+                        mqttMessage.setQos(qos);
+                    } else {
+                        throw new AxisFault("Invalid value for qos " + qos);
                     }
                     mqttTopic.publish(mqttMessage);
                 }
             } catch (MqttException e) {
-                throw new AxisFault("Exception occured at sending message");
+                handleException("Exception occurred at sending message", e);
             }finally {
                 if (mqttClient!=null) {
                     try {
                         mqttClient.disconnect();
                     } catch (MqttException e) {
-                        log.error("Error while disconnecting the mqtt client");
+                        log.error("Error while disconnecting the mqtt client", e);
                     }
                 }
             }
         } else {
-
-            mqttAsyncClient = mqttConnectionFactory.getMqttAsyncClient();
+            //removing the urnid:urnid:
+            String clientIdPostFix = messageContext.getMessageID().substring(9);
+            //sending the message id to make client id unique. Otherwise accessing same store with multiple
+            //thread make errors
+            //appending the clientIdPostFix to create unique client id
+            String uniqueClientId = clientId + "-" + clientIdPostFix;
+            mqttAsyncClient = mqttConnectionFactory.getMqttAsyncClient(uniqueClientId, qos);
             try {
                 MqttAsyncCallback mqttAsyncClientCallback = new MqttAsyncCallback(mqttAsyncClient);
                 mqttAsyncClientCallback.setConOpt(mqttConnectOptions);
                 MqttMessage mqttMessage = createMqttMessage(messageContext);
-                mqttMessage.setRetained(true);
-                if (qos != null) {
-                    int qosValue = Integer.parseInt(qos);
-                    if (qosValue < 0 || qosValue > 2) {
-                        log.info("Invalid value for qos. It should be an integer between 0 and 2");
-                    } else {
-                        mqttMessage.setQos(qosValue);
-                    }
+                mqttMessage.setRetained(isMessageRetained);
+
+                if ((qos >= 0 && qos <= 2)) {
+                    mqttMessage.setQos(qos);
+                } else {
+                    throw new AxisFault("Invalid value for qos " + qos);
                 }
+
                 mqttAsyncClientCallback.publish(topicName, mqttMessage);
             } catch (MqttException me) {
-                log.error("Exception occured at sending message", me);
+                handleException("Exception occurred at sending message", me);
             } catch (Throwable th) {
-                log.error("Exception occured while sending message",th);
+                if (th instanceof Exception) {
+                    handleException("Exception occurred while sending message", (Exception) th);
+                } else {
+                    log.error("Exception occurred while sending message", th);
+                }
             }
         }
     }

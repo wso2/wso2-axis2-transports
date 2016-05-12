@@ -31,5 +31,6 @@ public class MqttConstants {
     public static final String MQTT_PASSWORD = "mqtt.subscription.password";
     public static final String MQTT_TEMP_STORE = "mqtt.temporary.store.directory";
     public static final String MQTT_BLOCKING_SENDER = "mqtt.blocking.sender";
+    public static final String MQTT_MESSAGE_RETAINED = "mqtt.message.retained";
     public static final String CONTENT_TYPE = "mqtt.content.type";
 }
