@@ -59,15 +59,37 @@ public class MqttConnectionFactory {
         this.parameters = parameters;
     }
 
+    /**
+     * Creating a MqttClient
+     * @param uniqueClientId clientId for Data Store
+     * @param qos qos value
+     * @return MqttClient
+     */
     public MqttClient getMqttClient(String uniqueClientId, int qos) {
         return createMqttClient(uniqueClientId, qos);
     }
 
+    /**
+     * Creating a MqttClient
+     * @param hostName hostname of MQTT Server
+     * @param port post of MQTT Server
+     * @param sslEnable whether SSL is enable or not, values true of false
+     * @param uniqueClientId clientId for Data Store
+     * @param qos qos value
+     * @param tempStore location for data store
+     * @return MqttClient
+     */
     public MqttClient getMqttClient(String hostName, String port, String sslEnable
             , String uniqueClientId, int qos, String tempStore) {
         return createMqttClient(hostName, port, sslEnable, uniqueClientId, qos, tempStore);
     }
 
+    /**
+     * Creating the MqttAsyncClient
+     * @param uniqueClientId - clientId for Data Store
+     * @param qos qos value
+     * @return MqttAsyncClient
+     */
     public MqttAsyncClient getMqttAsyncClient(String uniqueClientId, int qos) {
         return createMqttAsyncClient(uniqueClientId, qos);
     }

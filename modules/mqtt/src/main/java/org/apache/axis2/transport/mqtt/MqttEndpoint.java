@@ -119,9 +119,9 @@ public class MqttEndpoint extends ProtocolEndpoint {
         }
 
         if (sslEnable != null) {
-            setSslEnabled((String) sslEnable.getValue());
+            setSSLEnabled((String) sslEnable.getValue());
         } else {
-            setSslEnabled(mqttConnectionFactory.getSSLEnable());
+            setSSLEnabled(mqttConnectionFactory.getSSLEnable());
         }
 
         if (tempStore != null) {
@@ -218,7 +218,7 @@ public class MqttEndpoint extends ProtocolEndpoint {
         this.port = port;
     }
 
-    public void setSslEnabled(String sslEnabled) {
+    public void setSSLEnabled(String sslEnabled) {
         this.sslEnabled = sslEnabled;
     }
 
