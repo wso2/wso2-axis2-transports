@@ -148,8 +148,12 @@ public class JMSSender extends AbstractTransportSender implements ManagementSupp
                 } catch (JMSException e) {
                     Transaction transaction = null;
                     try {
-                        transaction = ((TransactionManager) msgCtx.getProperty(JMSConstants.JMS_XA_TRANSACTION_MANAGER)).getTransaction();
-                        rollbackXATransaction(transaction);
+                        if (msgCtx.getProperty(JMSConstants.JMS_XA_TRANSACTION_MANAGER) != null) {
+                            transaction =
+                                    ((TransactionManager) msgCtx.getProperty(JMSConstants.JMS_XA_TRANSACTION_MANAGER))
+                                            .getTransaction();
+                            rollbackXATransaction(transaction);
+                        }
                     } catch (SystemException e1) {
                         handleException("Error occurred during obtaining  transaction", e1);
                     }
@@ -599,12 +603,8 @@ public class JMSSender extends AbstractTransportSender implements ManagementSupp
             throw AxisFault.makeFault(ex);
         }
 
-        handleIncomingMessage(
-            responseMsgCtx,
-            JMSUtils.getTransportHeaders(message, responseMsgCtx),
-            JMSUtils.getProperty(message, BaseConstants.SOAPACTION),
-            contentType
-        );
+        handleIncomingMessage(responseMsgCtx, JMSUtils.getTransportHeaders(message, responseMsgCtx),
+                              JMSUtils.getProperty(message, BaseConstants.SOAPACTION), contentType);
     }
 
     private void setProperty(Message message, MessageContext msgCtx, String key) {
