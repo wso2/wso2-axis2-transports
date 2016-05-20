@@ -698,12 +698,13 @@ public class ServiceTaskManager {
                                     " seconds. (Fixed Interval)");
                         } else {
                             retryDuration = (long) (retryDuration * reconnectionProgressionFactor);
-                            log.error("Reconnection attempt : " + (r++) + " for service : " +
-                                    serviceName + " failed. Next retry in " + (retryDuration / 1000) +
-                                    " seconds");
                             if (retryDuration > maxReconnectDuration) {
                                 retryDuration = maxReconnectDuration;
+                                log.info("InitialReconnectDuration reached to MaxReconnectDuration.");
                             }
+                            log.error("Reconnection attempt : " + (r++) + " for service : " +
+                                      serviceName + " failed. Next retry in " + (retryDuration / 1000) +
+                                      " seconds");
                         }
                         try {
                             Thread.sleep(retryDuration);
