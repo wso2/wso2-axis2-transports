@@ -25,7 +25,7 @@
     <parent>
         <groupId>org.apache.axis2.transport</groupId>
         <artifactId>axis2-transports</artifactId>
-        <version>1.1.1-wso2v3-SNAPSHOT</version>
+        <version>1.1.1-wso2v3</version>
         <relativePath>../../pom.xml</relativePath>
     </parent>
 
