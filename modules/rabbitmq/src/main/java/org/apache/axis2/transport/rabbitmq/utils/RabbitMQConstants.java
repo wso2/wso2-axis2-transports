@@ -80,6 +80,8 @@ public class RabbitMQConstants {
 
     public static final String CONSUMER_QOS = "rabbitmq.channel.consumer.qos";
     public static final String CONSUMER_TAG = "rabbitmq.consumer.tag";
+    public static final String CONCURRENT_CONSUMER_COUNT = "rabbitmq.concurrent.consumer.count";
+    public static final String CACHE_LEVEL = "rabbitmq.cache.level";
 
     public static final String DEFAULT_CONTENT_TYPE = "text/plain";
     public static final int DEFAULT_RETRY_INTERVAL = 30000;
@@ -88,6 +90,14 @@ public class RabbitMQConstants {
     public static final int DEFAULT_DELIVERY_MODE = 2; //Default is persistent
     public static final int DEFAULT_REPLY_TO_TIMEOUT = 30000;
     public static final int DEFAULT_CONNECTION_POOL_SIZE = 20;
+    public static final int DEFAULT_WAIT_TIME_BEFORE_CLOSING = 500; //in milliseconds
+
+    /** Do not cache any JMS resources between tasks (when sending) or JMS CF's (when sending) */
+    public static final int CACHE_NONE = 0;
+    /** Cache only the JMS connection between tasks (when receiving), or JMS CF's (when sending)*/
+    public static final int CACHE_CONNECTION = 1;
+    /** Default concurrent consumer count */
+    public static final int CONCURRENT_CONSUMER_COUNT_DEFAULT = 1;
 }
 
 

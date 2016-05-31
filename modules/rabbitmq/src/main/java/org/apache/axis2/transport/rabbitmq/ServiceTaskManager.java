@@ -19,6 +19,7 @@
 package org.apache.axis2.transport.rabbitmq;
 
 import com.rabbitmq.client.AMQP;
+import com.rabbitmq.client.AlreadyClosedException;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConsumerCancelledException;
@@ -39,6 +40,7 @@ import java.util.Collections;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 
 /**
@@ -52,12 +54,32 @@ public class ServiceTaskManager {
     private static final Log log = LogFactory.getLog(ServiceTaskManager.class);
 
     private static final int STATE_STOPPED = 0;
-    private static final int STATE_STARTED = 1;
-    private static final int STATE_PAUSED = 2;
-    private static final int STATE_SHUTTING_DOWN = 3;
-    private static final int STATE_FAILURE = 4;
-    private static final int STATE_FAULTY = 5;
-    private volatile int activeTaskCount = 0;
+    private static final int STATE_STARTING = 1;
+    private static final int STATE_STARTED = 2;
+    private static final int STATE_PAUSED = 3;
+    private static final int STATE_SHUTTING_DOWN = 4;
+    private static final int STATE_FAILURE = 5;
+    private static final int STATE_FAULTY = 6;
+
+    /**
+     * Number of concurrent consumers - for PubSub, this should be 1 to prevent multiple receipt
+     */
+    private int concurrentConsumers = RabbitMQConstants.CONCURRENT_CONSUMER_COUNT_DEFAULT;
+
+    /**
+     * Number of invoker tasks active
+     */
+    private AtomicInteger activeTaskCount = new AtomicInteger(0);
+
+    /**
+     * The JMS Connection shared between multiple polling tasks - when enabled (reccomended)
+     */
+    private Connection sharedConnection = null;
+
+    /**
+     * JMS Resource cache level - Connection, Session, Consumer. Auto will select safe default
+     */
+    private volatile int cacheLevel = RabbitMQConstants.CACHE_NONE;
 
     private WorkerPool workerPool = null;
     private String serviceName;
@@ -66,7 +88,7 @@ public class ServiceTaskManager {
     private final List<MessageListenerTask> pollingTasks =
             Collections.synchronizedList(new ArrayList<MessageListenerTask>());
     private RabbitMQMessageReceiver rabbitMQMessageReceiver;
-    private int serviceTaskManagerState = STATE_STOPPED;
+    private volatile int serviceTaskManagerState = STATE_STOPPED;
 
     public ServiceTaskManager(
             RabbitMQConnectionFactory rabbitMQConnectionFactory) {
@@ -77,7 +99,37 @@ public class ServiceTaskManager {
      * Start  the Task Manager by adding a new MessageListenerTask to the worker pool.
      */
     public synchronized void start() {
-        workerPool.execute(new MessageListenerTask());
+        serviceTaskManagerState = STATE_STARTING;
+        //set the concurrentConsumerCount value so that, serviceTask manager will start that number of messagelistners
+        String concurrentConsumerCountString = rabbitMQProperties.get(RabbitMQConstants.CONCURRENT_CONSUMER_COUNT);
+        if (concurrentConsumerCountString != null && !"".equals(concurrentConsumerCountString)) {
+            try {
+                concurrentConsumers = Integer.parseInt(concurrentConsumerCountString);
+            } catch (NumberFormatException e) {
+                concurrentConsumers = RabbitMQConstants.CONCURRENT_CONSUMER_COUNT_DEFAULT;
+                log.warn("Can't parse given RabbitMQ concurrentConsumerCount value as a integer, hence using " +
+                         "channel with default (one MessageListner), provided concurrentConsumerCount value - " +
+                         concurrentConsumerCountString);
+            }
+        }
+        /**
+         * set the cacheLevel value so that, message listners may or may not share same connection depending on this
+         * value, 0 means no cache (connection per listner) and 1 means shared connection (connection shared between
+         * listners)
+         */
+        String cacheLevelString = rabbitMQProperties.get(RabbitMQConstants.CACHE_LEVEL);
+        if (cacheLevelString != null && !"".equals(cacheLevelString)) {
+            try {
+                cacheLevel = Integer.parseInt(cacheLevelString);
+            } catch (NumberFormatException e) {
+                cacheLevel = RabbitMQConstants.CACHE_NONE;
+                log.warn("Can't parse given RabbitMQ cacheLevel value as a integer, hence using " +
+                         "default (CACHE_NONE - no cache), provided cacheLevel value - " + cacheLevelString);
+            }
+        }
+        for (int i = 0; i < concurrentConsumers; i++) {
+            workerPool.execute(new MessageListenerTask());
+        }
         serviceTaskManagerState = STATE_STARTED;
     }
 
@@ -85,19 +137,29 @@ public class ServiceTaskManager {
      * Stop the consumer by changing the state
      */
     public synchronized void stop() {
-        if (serviceTaskManagerState != STATE_FAILURE) {
-            serviceTaskManagerState = STATE_SHUTTING_DOWN;
-        }
+        serviceTaskManagerState = STATE_SHUTTING_DOWN;
 
         synchronized (pollingTasks) {
             for (MessageListenerTask lstTask : pollingTasks) {
                 lstTask.requestShutdown();
             }
-        }
+            try {
+                //Waiting DEFAULT_WAIT_TIME_BEFORE_CLOSING before starting to close connections
+                Thread.sleep(RabbitMQConstants.DEFAULT_WAIT_TIME_BEFORE_CLOSING);
+            } catch (InterruptedException e) {
+                log.warn("Closing connections before waiting for them to be closed automatically, may throw " +
+                         "exceptions " + serviceName, e);
+            }
+            if (cacheLevel < RabbitMQConstants.CACHE_CONNECTION) {
+                for (MessageListenerTask lstTask : pollingTasks) {
+                    lstTask.closeConnection();
+                }
+            } else {
+                closeSharedConnection();
+            }
 
-        if (serviceTaskManagerState != STATE_FAILURE) {
-            serviceTaskManagerState = STATE_STOPPED;
         }
+        serviceTaskManagerState = STATE_STOPPED;
     }
 
     public synchronized void pause() {
@@ -126,6 +188,28 @@ public class ServiceTaskManager {
 
     public void removeAMQPProperties(String key) {
         this.rabbitMQProperties.remove(key);
+    }
+
+    /**
+     * Helper method to close shared connection if we use connection caching
+     */
+    private void closeSharedConnection() {
+        if (sharedConnection != null && sharedConnection.isOpen()) {
+            try {
+                sharedConnection.close();
+                log.info("RabbitMQ sharedConnection closed for service " + serviceName);
+            } catch (IOException e) {
+                log.error("Error while closing RabbitMQ sharedConnection for service " + serviceName, e);
+            } catch (AlreadyClosedException e) {
+                if (serviceTaskManagerState == STATE_STARTED) {
+                    log.error("Error sharedConnection already closed " + serviceName, e);
+                } else {
+                    log.warn("Error sharedConnection already closed " + serviceName, e);
+                }
+            } finally {
+                sharedConnection = null;
+            }
+        }
     }
 
     /**
@@ -166,8 +250,16 @@ public class ServiceTaskManager {
          * itself. The only use of recovery interval in here is that to output the info message
          */
         public void run() {
+            /**
+             * This happens when message listner count is larger than thread pool size
+             * Then when we stop the message receiver, it will stop currently running listner threads,
+             * so threads which were waiting will start. This check is to stop that behavior
+             */
+            if (serviceTaskManagerState == STATE_SHUTTING_DOWN || serviceTaskManagerState == STATE_STOPPED) {
+                return;
+            }
             workerState = STATE_STARTED;
-            activeTaskCount++;
+            activeTaskCount.getAndIncrement();
             try {
                 initConsumer();
                 while (workerState == STATE_STARTED) {
@@ -176,23 +268,25 @@ public class ServiceTaskManager {
                     } catch (ShutdownSignalException sse) {
                         if (!sse.isInitiatedByApplication()) {
                             log.error("RabbitMQ Listener of the service " + serviceName +
-                                    " was disconnected", sse);
+                                      " was disconnected", sse);
                             waitForConnection();
                         }
                     } catch (OMException e) {
                         log.error("Invalid Message Format while Consuming the message", e);
                     } catch (IOException e) {
                         log.error("RabbitMQ Listener of the service " + serviceName +
-                                " was disconnected", e);
+                                  " was disconnected", e);
                         waitForConnection();
                     }
                 }
             } catch (IOException e) {
                 handleException("Error initializing consumer for service " + serviceName, e);
             } finally {
-                closeConnection();
+                if (cacheLevel < RabbitMQConstants.CACHE_CONNECTION) {
+                    closeConnection();
+                }
                 workerState = STATE_STOPPED;
-                activeTaskCount--;
+                activeTaskCount.getAndDecrement();
                 synchronized (pollingTasks) {
                     pollingTasks.remove(this);
                 }
@@ -204,23 +298,24 @@ public class ServiceTaskManager {
             int retryCountMax = rabbitMQConnectionFactory.getRetryCount();
             int retryCount = 0;
             while ((workerState == STATE_STARTED) && !connection.isOpen()
-                    && ((retryCountMax == -1) || (retryCount < retryCountMax))) {
+                   && ((retryCountMax == -1) || (retryCount < retryCountMax))) {
                 retryCount++;
                 log.info("Attempting to reconnect to RabbitMQ Broker for the service " + serviceName +
-                        " in " + retryInterval + " ms");
+                         " in " + retryInterval + " ms, Thread id - " + Thread.currentThread().getId());
                 try {
                     Thread.sleep(retryInterval);
                 } catch (InterruptedException e) {
-                    log.error("Error while trying to reconnect to RabbitMQ Broker for the service " +
-                            serviceName, e);
+                    log.error("Error while trying to reconnect to RabbitMQ Broker for the service , Thread id - " +
+                              Thread.currentThread().getId() + serviceName, e);
                 }
             }
             if (connection.isOpen()) {
-                log.info("Successfully reconnected to RabbitMQ Broker for the service " + serviceName);
+                log.info("Successfully reconnected to RabbitMQ Broker for the service " + serviceName +
+                         ", Thread id - " + Thread.currentThread().getId());
                 initConsumer();
             } else {
                 log.error("Could not reconnect to the RabbitMQ Broker for the service " + serviceName +
-                        ". Connection is closed.");
+                          ". Connection is closed, Thread id - " + Thread.currentThread().getId());
                 workerState = STATE_FAULTY;
             }
         }
@@ -234,21 +329,7 @@ public class ServiceTaskManager {
          * @throws IOException
          */
         private void startConsumer() throws ShutdownSignalException, IOException {
-            Channel channel;
-            //set the qos value for the consumer
-            String qos = rabbitMQProperties.get(RabbitMQConstants.CONSUMER_QOS);
-            if (qos != null && !"".equals(qos)) {
-                try {
-                    int qosValue = Integer.parseInt(qos);
-                    channel = rmqChannel.getChannelWithQOS(qosValue);
-                } catch (NumberFormatException e) {
-                    channel = rmqChannel.getChannel();
-                    log.warn("Can't parse given RabbitMQ qos value as a integer, hence using " +
-                             "channel without qos, provided qos value - " + qos);
-                }
-            } else {
-                channel = rmqChannel.getChannel();
-            }
+            Channel channel = rmqChannel.getChannel();
 
             //unable to connect to the queue
             if (queueingConsumer == null) {
@@ -263,7 +344,7 @@ public class ServiceTaskManager {
                     }
                     channel.txSelect();
                 } catch (IOException e) {
-                    log.error("Error while starting transaction", e);
+                    log.error("Error while starting transaction, Thread id - " + Thread.currentThread().getId(), e);
                     continue;
                 }
 
@@ -275,6 +356,10 @@ public class ServiceTaskManager {
                 } catch (InterruptedException e) {
                     log.error("Error while consuming message", e);
                     continue;
+                }
+                if (log.isDebugEnabled()) {
+                    log.debug("Processing message by Message Listner Thread - " + Thread.currentThread().getId() +
+                              ", time - " + System.nanoTime() + ", channel(hashcode) - " + channel.hashCode());
                 }
 
                 if (message != null) {
@@ -289,7 +374,11 @@ public class ServiceTaskManager {
                                 }
                                 channel.txCommit();
                             } catch (IOException e) {
-                                log.error("Error while committing transaction", e);
+                                if (isActive()) {
+                                    log.error("Error while committing transaction", e);
+                                } else {
+                                    log.warn("Error while committing transaction", e);
+                                }
                             }
                         } else {
                             try {
@@ -315,11 +404,30 @@ public class ServiceTaskManager {
             if (log.isDebugEnabled()) {
                 log.debug("Initializing consumer for service " + serviceName);
             }
+
+            int qosValue = -1;
+
+            //set the qos value for the RMQ channel so it will be applied when getting a channel back
+            String qos = rabbitMQProperties.get(RabbitMQConstants.CONSUMER_QOS);
+            if (qos != null && !"".equals(qos)) {
+                try {
+                    qosValue = Integer.parseInt(qos);
+                } catch (NumberFormatException e) {
+                    qosValue = -1;
+                    log.warn("Can't parse given RabbitMQ qos value as a integer, hence using " +
+                             "channel without qos, provided qos value - " + qos);
+                }
+            }
             connection = getConnection();
-            rmqChannel = new RMQChannel(connection, connection.createChannel());
+            rmqChannel = new RMQChannel(connection, qosValue);
             queueName = rabbitMQProperties.get(RabbitMQConstants.QUEUE_NAME);
             routeKey = rabbitMQProperties.get(RabbitMQConstants.QUEUE_ROUTING_KEY);
             exchangeName = rabbitMQProperties.get(RabbitMQConstants.EXCHANGE_NAME);
+
+            if (log.isDebugEnabled()) {
+                log.debug("Starting MessageListner Thread - " + Thread.currentThread().getId() +
+                          ", with channel(hashcode) - " + rmqChannel.getChannel().hashCode());
+            }
 
             String autoAckStringValue = rabbitMQProperties.get(RabbitMQConstants.QUEUE_AUTO_ACK);
             if (autoAckStringValue != null) {
@@ -333,13 +441,13 @@ public class ServiceTaskManager {
             if (StringUtils.isEmpty(queueName)) {
                 queueName = serviceName;
                 log.info("No queue name is specified for " + serviceName + ". " +
-                        "Service name will be used as queue name");
+                         "Service name will be used as queue name");
             }
 
             if (routeKey == null) {
                 log.info(
                         "No routing key specified. Using queue name as the " +
-                                "routing key.");
+                        "routing key.");
                 routeKey = queueName;
             }
 
@@ -370,17 +478,6 @@ public class ServiceTaskManager {
                 }
             }
 
-            //set the qos value for the consumer
-            String qos = rabbitMQProperties.get(RabbitMQConstants.CONSUMER_QOS);
-            if (qos != null && !"".equals(qos)) {
-                try {
-                    int qosValue = Integer.parseInt(qos);
-                    rmqChannel.getChannel().basicQos(qosValue);
-                } catch (NumberFormatException e) {
-                    log.warn("Can't parse given RabbitMQ qos value as a integer, hence using " +
-                             "channel without qos, provided qos value - " + qos);
-                }
-            }
 
             queueingConsumer = new QueueingConsumer(rmqChannel.getChannel());
 
@@ -411,11 +508,10 @@ public class ServiceTaskManager {
             QueueingConsumer.Delivery delivery = null;
             try {
                 if (log.isDebugEnabled()) {
-                    log.debug("Waiting for next delivery from queue for service " + serviceName);
+                    log.debug("Waiting for next delivery from queue for service " + serviceName +
+                              ", Thread id - " + Thread.currentThread().getId());
                 }
                 delivery = consumer.nextDelivery();
-            } catch (ShutdownSignalException e) {
-                return null;
             } catch (InterruptedException e) {
                 return null;
             } catch (ConsumerCancelledException e) {
@@ -468,7 +564,6 @@ public class ServiceTaskManager {
 
         protected void requestShutdown() {
             workerState = STATE_SHUTTING_DOWN;
-            closeConnection();
         }
 
         private boolean isActive() {
@@ -488,20 +583,42 @@ public class ServiceTaskManager {
         }
 
         private Connection getConnection() throws IOException {
-            if (connection == null) {
-                connection = createConnection();
+            if (cacheLevel < RabbitMQConstants.CACHE_CONNECTION) {
+                // Connection is not shared
+                if (connection == null) {
+                    connection = createConnection();
+                    setConnected(true);
+                }
+            } else if (connection == null) {
+                // Connection is shared, but may not have been created
+                synchronized (ServiceTaskManager.this) {
+                    if (sharedConnection == null) {
+                        sharedConnection = createConnection();
+                    }
+                }
+                connection = sharedConnection;
                 setConnected(true);
             }
+            // else: Connection is shared and is already referenced by this.connection
             return connection;
         }
 
-        private void closeConnection() {
+        public void closeConnection() {
             if (connection != null && connection.isOpen()) {
                 try {
                     connection.close();
-                    log.info("RabbitMQ connection closed for service " + serviceName);
+                    log.info("RabbitMQ connection closed for service " + serviceName + ", Thread id - " +
+                             Thread.currentThread().getId());
                 } catch (IOException e) {
                     log.error("Error while closing RabbitMQ connection for service " + serviceName, e);
+                } catch (AlreadyClosedException e) {
+                    if (isActive()) {
+                        log.error("Error Connection already closed " + serviceName + ", Thread id - " +
+                                  Thread.currentThread().getId(), e);
+                    } else {
+                        log.warn("Error Connection already closed " + serviceName + ", Thread id - " +
+                                 Thread.currentThread().getId(), e);
+                    }
                 } finally {
                     connection = null;
                 }

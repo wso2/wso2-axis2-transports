@@ -13,10 +13,29 @@ public class RMQChannel {
 
     private Channel channel;
     private Connection connection;
+    private int qos = -1; //-1 means qos is not specified, in that case only basic qos will be applied to channel
 
     public RMQChannel(Connection connection, Channel channel) {
         this.channel = channel;
         this.connection = connection;
+    }
+
+    /**
+     * Constructor with just connection and qos parameters
+     * This constructor will create the channel and if applicable
+     * apply qos as well
+     *
+     * @param connection
+     * @param qos
+     * @throws IOException
+     */
+    public RMQChannel(Connection connection, int qos) throws IOException{
+        this.qos = qos;
+        this.connection = connection;
+        this.channel = this.connection.createChannel();
+        if (this.qos > 0) {
+            this.channel.basicQos(this.qos);
+        }
     }
 
     /**
@@ -28,6 +47,9 @@ public class RMQChannel {
         if (!channel.isOpen()) {
             try {
                 channel = connection.createChannel();
+                if (this.qos > 0) {
+                    channel.basicQos(this.qos);
+                }
             } catch (IOException e) {
                 log.error("Error creating channel for RMQ channel", e);
                 return false;
@@ -48,27 +70,10 @@ public class RMQChannel {
                     log.debug("Channel is closed. Creating a new channel");
                 }
                 channel = connection.createChannel();
-            } catch (IOException e) {
-                log.error("Error creating channel for RMQ channel", e);
-                return null;
-            }
-        }
-        return channel;
-    }
-
-    /**
-     * If channel is closed, recreate the channel and apply qos, then return channel.
-     *
-     * @return an open channel
-     */
-    public Channel getChannelWithQOS(int qos) {
-        if (!channel.isOpen()) {
-            try {
-                if (log.isDebugEnabled()) {
-                    log.debug("Channel is closed. Creating a new channel and applying qos");
+                //If qos is applicable, then apply qos before returning the channel
+                if (this.qos > 0) {
+                    channel.basicQos(this.qos);
                 }
-                channel = connection.createChannel();
-                channel.basicQos(qos);
             } catch (IOException e) {
                 log.error("Error creating channel for RMQ channel", e);
                 return null;
@@ -76,5 +81,4 @@ public class RMQChannel {
         }
         return channel;
     }
-
 }
