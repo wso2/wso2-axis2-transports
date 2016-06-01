@@ -1,7 +1,9 @@
 package org.apache.axis2.transport.rabbitmq;
 
+import com.rabbitmq.client.AlreadyClosedException;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
+import com.rabbitmq.client.ShutdownSignalException;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -80,5 +82,28 @@ public class RMQChannel {
             }
         }
         return channel;
+    }
+
+    /**
+     * Helper method to close connection in RMQChannel
+     *
+     * @throws ShutdownSignalException
+     * @throws IOException
+     * @throws AlreadyClosedException
+     */
+    public void closeConnection() throws ShutdownSignalException, IOException, AlreadyClosedException{
+        if (connection != null) {
+            try {
+                channel.close();
+            } catch (Exception e) {
+                //ignore as the connection gets closed anyway
+            }
+            channel = null;
+            try {
+                connection.close();
+            } finally {
+                connection = null;
+            }
+        }
     }
 }
