@@ -187,6 +187,30 @@ public class RabbitMQUtils {
         }
     }
 
+    /**
+     * Helper method to declare queue when direct channel is given
+     *
+     * @param channel
+     * @param queueName
+     * @param properties
+     * @throws IOException
+     */
+    public static void declareQueue(Channel channel, String queueName,
+                                    Hashtable<String, String> properties) throws IOException {
+
+        Boolean queueAvailable = isQueueAvailable(channel, queueName);
+
+        if (!queueAvailable) {
+            try {
+                channel.queueDeclare(queueName, isDurableQueue(properties),
+                                                     isExclusiveQueue(properties), isAutoDeleteQueue(properties), null);
+
+            } catch (IOException e) {
+                handleException("Error while creating queue: " + queueName, e);
+            }
+        }
+    }
+
     public static void declareExchange(RMQChannel rmqChannel, String exchangeName, Hashtable<String, String> properties) throws IOException {
         Boolean exchangeAvailable = false;
 
@@ -218,6 +242,52 @@ public class RabbitMQUtils {
                     }
                 } else {
                     rmqChannel.getChannel().exchangeDeclare(exchangeName, "direct", true);
+                }
+            } catch (IOException e) {
+                handleException("Error occurred while declaring exchange.", e);
+            }
+        }
+    }
+
+    /**
+     * Helper method to declare exchange when direct channel is given
+     *
+     * @param channel
+     * @param exchangeName
+     * @param properties
+     * @throws IOException
+     */
+    public static void declareExchange(Channel channel, String exchangeName, Hashtable<String, String> properties) throws IOException {
+        Boolean exchangeAvailable = false;
+
+        String exchangeType = properties
+                .get(RabbitMQConstants.EXCHANGE_TYPE);
+        String durable = properties.get(RabbitMQConstants.EXCHANGE_DURABLE);
+        try {
+            // check availability of the named exchange.
+            // The server will raise an IOException
+            // if the named exchange already exists.
+            channel.exchangeDeclarePassive(exchangeName);
+            exchangeAvailable = true;
+        } catch (IOException e) {
+            log.info("Exchange :" + exchangeName + " not found.Declaring exchange.");
+        }
+
+        if (!exchangeAvailable) {
+            // Declare the named exchange if it does not exists.
+            try {
+                if (exchangeType != null
+                    && !exchangeType.equals("")) {
+                    if (durable != null && !durable.equals("")) {
+                        channel.exchangeDeclare(exchangeName,
+                                                                exchangeType,
+                                                                Boolean.parseBoolean(durable));
+                    } else {
+                        channel.exchangeDeclare(exchangeName,
+                                                                exchangeType, true);
+                    }
+                } else {
+                    channel.exchangeDeclare(exchangeName, "direct", true);
                 }
             } catch (IOException e) {
                 handleException("Error occurred while declaring exchange.", e);
