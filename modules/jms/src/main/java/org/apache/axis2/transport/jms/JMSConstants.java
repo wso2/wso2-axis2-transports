@@ -165,6 +165,18 @@ public class JMSConstants {
      */
     public static final String PARAM_RCV_TIMEOUT = "transport.jms.ReceiveTimeout";
     /**
+     * Delay on consume errors.
+     */
+    public static final String PARAM_CONSUME_ERROR_DELAY = "transport.jms.ConsumeErrorDelay";
+    /**
+     * Progression factor on consume errors.
+     */
+    public static final String PARAM_CONSUME_ERROR_PROGRESSION = "transport.jms.ConsumeErrorProgression";
+    /**
+     * Maximum retries on consume error before delay kicks in.
+     */
+    public static final String PARAM_MAX_CONSUME_RETRY_BEFORE_DELAY = "transport.jms.MaxConsumeErrorRetriesBeforeDelay";
+    /**
      *The number of concurrent consumers to be created to poll for messages for this service
      * For Topics, this should be ONE, to prevent receipt of multiple copies of the same message
      */

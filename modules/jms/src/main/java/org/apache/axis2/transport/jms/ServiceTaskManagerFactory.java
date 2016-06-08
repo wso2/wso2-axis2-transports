@@ -52,7 +52,13 @@ public class ServiceTaskManagerFactory {
         stm.setConnFactoryJNDIName(
             getRqdStringProperty(JMSConstants.PARAM_CONFAC_JNDI_NAME, svc, cf));
 		stm.setReconnectDuration(getOptionalLongProperty(JMSConstants.PARAM_RECONNECT_INTERVAL,
-		                                                 svc, cf));          
+		                                                 svc, cf));
+        stm.setConsumeErrorRetryDelay(getOptionalIntProperty(JMSConstants.PARAM_CONSUME_ERROR_DELAY, svc, cf));
+        stm.setConsumeErrorProgressionFactor(getOptionalDoubleProperty(
+                JMSConstants.PARAM_CONSUME_ERROR_PROGRESSION, svc, cf));
+        stm.setMaxConsumeErrorRetryBeforeDelay(getOptionalIntProperty(
+                JMSConstants.PARAM_MAX_CONSUME_RETRY_BEFORE_DELAY, svc, cf));
+
         String destName = getOptionalStringProperty(JMSConstants.PARAM_DESTINATION, svc, cf);
         if (destName == null) {
             destName = service.getName();
