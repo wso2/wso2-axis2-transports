@@ -70,6 +70,7 @@
                 <module>features/org.apache.axis2.transport.xmpp.feature</module>
                 <module>features/org.apache.axis2.transport.rabbitmq.feature</module>
                 <module>features/org.apache.axis2.transport.mqtt.feature</module>
+                <module>features/org.apache.axis2.transport.sms.feature</module>
             </modules>
         </profile>
         <profile>
@@ -151,6 +152,11 @@
             <dependency>
                 <groupId>org.apache.axis2.transport</groupId>
                 <artifactId>axis2-transport-mqtt</artifactId>
+                <version>${axis2.transports.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.axis2.transport</groupId>
+                <artifactId>axis2-transport-sms</artifactId>
                 <version>${axis2.transports.version}</version>
             </dependency>
 
