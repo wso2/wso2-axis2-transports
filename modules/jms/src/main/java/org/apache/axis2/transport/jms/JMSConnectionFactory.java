@@ -22,13 +22,18 @@ import org.apache.axis2.description.ParameterIncludeImpl;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import javax.jms.*;
-import javax.naming.Context;
-import javax.naming.InitialContext;
-import javax.naming.NamingException;
 import java.util.Hashtable;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import javax.jms.Connection;
+import javax.jms.ConnectionFactory;
+import javax.jms.Destination;
+import javax.jms.JMSException;
+import javax.jms.MessageProducer;
+import javax.jms.Session;
+import javax.naming.Context;
+import javax.naming.InitialContext;
+import javax.naming.NamingException;
 
 /**
  * Encapsulate a JMS Connection factory definition within an Axis2.xml
@@ -254,15 +259,7 @@ public class JMSConnectionFactory {
      */
     public boolean isJmsSpec11() {
         return parameters.get(JMSConstants.PARAM_JMS_SPEC_VER) == null ||
-            "1.1".equals(parameters.get(JMSConstants.PARAM_JMS_SPEC_VER));
-    }
-
-    /**
-     *  JMS Spec. Version. This will be used in Transport Sender
-     *  Added with JMS 2.0 update
-     */
-    public String jmsSpecVersion() {
-        return parameters.get(JMSConstants.PARAM_JMS_SPEC_VER);
+            JMSConstants.JMS_SPEC_VERSION_1_1.equals(parameters.get(JMSConstants.PARAM_JMS_SPEC_VER));
     }
 
     /**
@@ -270,15 +267,21 @@ public class JMSConnectionFactory {
      *  Added with JMS 2.0 update
      */
     public boolean isJmsSpec20() {
-        return "2.0".equals(parameters.get(JMSConstants.PARAM_JMS_SPEC_VER));
+        return JMSConstants.JMS_SPEC_VERSION_2_0.equals(parameters.get(JMSConstants.PARAM_JMS_SPEC_VER));
     }
 
     /**
-     *  Should JMS Classic API be used (both 1.1 and 2.0 spec versions uses classic API)
+     *  JMS Spec. Version. This will be used in Transport Sender
      *  Added with JMS 2.0 update
      */
-    public boolean isClassicAPI() {
-        return isJmsSpec11() || isJmsSpec20();
+    public String jmsSpecVersion() {
+        if (isJmsSpec11()) {
+            return JMSConstants.JMS_SPEC_VERSION_1_1;
+        } else if (isJmsSpec20()) {
+            return JMSConstants.JMS_SPEC_VERSION_2_0;
+        } else {
+            return JMSConstants.JMS_SPEC_VERSION_1_0;
+        }
     }
 
     /**
@@ -344,7 +347,7 @@ public class JMSConnectionFactory {
                 conFactory,
                 parameters.get(JMSConstants.PARAM_JMS_USERNAME),
                 parameters.get(JMSConstants.PARAM_JMS_PASSWORD),
-                isClassicAPI(), isQueue(), isDurable(), getClientId());
+                jmsSpecVersion(), isQueue(), isDurable(), getClientId());
 
             if (log.isDebugEnabled()) {
                 log.debug("New JMS Connection from JMS CF : " + name + " created");
@@ -368,13 +371,13 @@ public class JMSConnectionFactory {
                 log.debug("Creating a new JMS Session from JMS CF : " + name);
             }
             return JMSUtils.createSession(
-                connection, isSessionTransacted(), Session.AUTO_ACKNOWLEDGE, isClassicAPI(), isQueue());
+                connection, isSessionTransacted(), Session.AUTO_ACKNOWLEDGE, jmsSpecVersion(), isQueue());
 
         } catch (JMSException e) {
             try {
                 clearSharedConnections();
                 return JMSUtils.createSession(getConnection(), isSessionTransacted(), Session.AUTO_ACKNOWLEDGE,
-                        isJmsSpec11(), isQueue());
+                        jmsSpecVersion(), isQueue());
             } catch (JMSException e1) {
                 handleException("Error creating JMS session from JMS CF : " + name, e);
             }
@@ -396,7 +399,7 @@ public class JMSConnectionFactory {
             }
 
             return JMSUtils.createProducer(
-                session, destination, isQueue(), isClassicAPI());
+                session, destination, isQueue(), jmsSpecVersion());
 
         } catch (JMSException e) {
             handleException("Error creating JMS producer from JMS CF : " + name,e);

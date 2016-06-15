@@ -71,7 +71,7 @@ public class ServiceTaskManagerFactory {
                 JMSConstants.PARAM_DURABLE_SUB_CLIENT_ID, svc, cf));
         }
 
-        stm.setJmsSpec11(
+        stm.setJmsSpec(
             getJMSSpecVersion(svc, cf));
         stm.setTransactionality(
             getTransactionality(svc, cf));
@@ -89,6 +89,8 @@ public class ServiceTaskManagerFactory {
             getOptionalBooleanProperty(JMSConstants.PARAM_SUB_DURABLE, svc, cf));
         stm.setDurableSubscriberName(
             getOptionalStringProperty(JMSConstants.PARAM_DURABLE_SUB_NAME, svc, cf));
+        stm.setSharedSubscription(
+                getOptionalBooleanProperty(JMSConstants.PARAM_IS_SHARED_SUBSCRIPTION, svc, cf));
 
         stm.setCacheLevel(
             getCacheLevel(svc, cf));
@@ -343,7 +345,7 @@ public class ServiceTaskManagerFactory {
         return JMSConstants.CACHE_AUTO;
     }
 
-    private static boolean getJMSSpecVersion(Map<String,String> svcMap, Map<String,String> cfMap) {
+    private static String getJMSSpecVersion(Map<String,String> svcMap, Map<String,String> cfMap) {
 
         String key = JMSConstants.PARAM_JMS_SPEC_VER;
         String val = svcMap.get(key);
@@ -351,10 +353,11 @@ public class ServiceTaskManagerFactory {
             val = cfMap.get(key);
         }
 
-        if (val == null || "1.1".equals(val)) {
-            return true;
+        if (val == null || JMSConstants.JMS_SPEC_VERSION_1_1.equals(val)) {
+            return JMSConstants.JMS_SPEC_VERSION_1_1;
+        } else if (JMSConstants.JMS_SPEC_VERSION_2_0.equals(val)) {
+            return JMSConstants.JMS_SPEC_VERSION_2_0;
         } else {
-            return false;
-        }
+            return JMSConstants.JMS_SPEC_VERSION_1_0;        }
     }
 }
