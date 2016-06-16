@@ -24,8 +24,21 @@ import org.apache.axis2.transport.base.threads.WorkerPool;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import javax.jms.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Hashtable;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
+import javax.jms.Connection;
+import javax.jms.ConnectionFactory;
+import javax.jms.Destination;
+import javax.jms.ExceptionListener;
 import javax.jms.IllegalStateException;
+import javax.jms.JMSException;
+import javax.jms.Message;
+import javax.jms.MessageConsumer;
+import javax.jms.Session;
 import javax.naming.Context;
 import javax.naming.InitialContext;
 import javax.naming.NamingException;
@@ -33,8 +46,6 @@ import javax.transaction.NotSupportedException;
 import javax.transaction.Status;
 import javax.transaction.SystemException;
 import javax.transaction.UserTransaction;
-import java.util.*;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Each service will have one ServiceTaskManager instance that will create, manage and also destroy
@@ -107,8 +118,8 @@ public class ServiceTaskManager {
     private boolean cacheUserTransaction = true;
     /** Shared UserTransactionHandle */
     private UserTransaction sharedUserTransaction = null;
-    /** Should this service use JMS 1.1 ? (when false, defaults to 1.0.2b) */
-    private boolean jmsSpec11 = true;
+    /** JMS Spec (default is 1.1) */
+    private String jmsSpec = JMSConstants.JMS_SPEC_VERSION_1_0;
 
     /** Initial duration to attempt re-connection to JMS provider after failure */
     private int initialReconnectDuration = 10000;
@@ -166,6 +177,9 @@ public class ServiceTaskManager {
     private volatile boolean isOnExceptionError = false;
 
     private volatile boolean isInitalizeFailed = false;
+
+    /** Is a shard topic subscription (JMS 2.0 feature) **/
+    private boolean sharedSubscription = false;
 
      /**
      * Start or re-start the Task Manager by shutting down any existing worker tasks and
@@ -925,7 +939,7 @@ public class ServiceTaskManager {
                     conFactory,
                     jmsProperties.get(JMSConstants.PARAM_JMS_USERNAME),
                     jmsProperties.get(JMSConstants.PARAM_JMS_PASSWORD),
-                    isJmsSpec11(), isQueue(), isSubscriptionDurable(), durableSubscriberClientId);
+                    getJmsSpec(), isQueue(), isSubscriptionDurable(), durableSubscriberClientId);
 
                 connection.setExceptionListener(this);
                 connection.start();
@@ -957,7 +971,7 @@ public class ServiceTaskManager {
                     log.debug("Creating a new JMS Session for service : " + serviceName);
                 }
                 return JMSUtils.createSession(
-                    connection, isSessionTransacted(), getSessionAckMode(), isJmsSpec11(), isQueue());
+                    connection, isSessionTransacted(), getSessionAckMode(), getJmsSpec(), isQueue());
 
             } catch (JMSException e) {
                 handleException("Error creating JMS session for service : " + serviceName, e);
@@ -979,9 +993,9 @@ public class ServiceTaskManager {
 
                 MessageConsumer consumer = JMSUtils.createConsumer(
                     session, getDestination(session), isQueue(),
-                    (isSubscriptionDurable() && getDurableSubscriberName() != null ?
-                        getDurableSubscriberName() : serviceName),
-                    getMessageSelector(), isPubSubNoLocal(), isSubscriptionDurable(), isJmsSpec11());
+                    ((isSubscriptionDurable() || isShardSubscription()) && getDurableSubscriberName() != null ?
+                        getDurableSubscriberName() : serviceName), getMessageSelector(), isPubSubNoLocal(),
+                        isSubscriptionDurable(), getJmsSpec(), isShardSubscription());
                 consumerCount.incrementAndGet();
                 return consumer;
 
@@ -1238,6 +1252,16 @@ public class ServiceTaskManager {
         this.durableSubscriberName = durableSubscriberName;
     }
 
+    public boolean isShardSubscription() {
+        return sharedSubscription;
+    }
+
+    public void setSharedSubscription(Boolean sharedSubscription) {
+        if (sharedSubscription != null) {
+            this.sharedSubscription = sharedSubscription;
+        }
+    }
+
     public boolean isPubSubNoLocal() {
         return pubSubNoLocal;
     }
@@ -1366,12 +1390,12 @@ public class ServiceTaskManager {
         }
     }
 
-    public boolean isJmsSpec11() {
-        return jmsSpec11;
+    public String getJmsSpec() {
+        return jmsSpec;
     }
 
-    public void setJmsSpec11(boolean jmsSpec11) {
-        this.jmsSpec11 = jmsSpec11;
+    public void setJmsSpec(String jmsSpec) {
+        this.jmsSpec = jmsSpec;
     }
 
     public Hashtable<String, String> getJmsProperties() {

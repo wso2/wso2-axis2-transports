@@ -29,21 +29,45 @@ import org.apache.axis2.description.AxisService;
 import org.apache.axis2.format.DataSourceMessageBuilder;
 import org.apache.axis2.format.TextMessageBuilder;
 import org.apache.axis2.format.TextMessageBuilderAdapter;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.axis2.transport.TransportUtils;
 import org.apache.axis2.transport.base.BaseUtils;
 import org.apache.axis2.transport.jms.iowrappers.BytesMessageDataSource;
 import org.apache.axis2.transport.jms.iowrappers.BytesMessageInputStream;
-
-import javax.jms.*;
-import javax.jms.Queue;
-import javax.mail.internet.ContentType;
-import javax.mail.internet.ParseException;
-import javax.naming.*;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 
 import java.lang.reflect.Method;
-import java.util.*;
+import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Properties;
+import javax.jms.BytesMessage;
+import javax.jms.Connection;
+import javax.jms.ConnectionFactory;
+import javax.jms.Destination;
+import javax.jms.JMSException;
+import javax.jms.MapMessage;
+import javax.jms.Message;
+import javax.jms.MessageConsumer;
+import javax.jms.MessageProducer;
+import javax.jms.Queue;
+import javax.jms.QueueConnection;
+import javax.jms.QueueConnectionFactory;
+import javax.jms.QueueSession;
+import javax.jms.Session;
+import javax.jms.TextMessage;
+import javax.jms.Topic;
+import javax.jms.TopicConnection;
+import javax.jms.TopicConnectionFactory;
+import javax.jms.TopicSession;
+import javax.mail.internet.ContentType;
+import javax.mail.internet.ParseException;
+import javax.naming.Context;
+import javax.naming.InitialContext;
+import javax.naming.NameNotFoundException;
+import javax.naming.NamingException;
+import javax.naming.Reference;
 
 /**
  * Miscallaneous methods used for the JMS transport
@@ -667,13 +691,13 @@ public class JMSUtils extends BaseUtils {
      * @param conFac the ConnectionFactory to use
      * @param user optional user name
      * @param pass optional password
-     * @param jmsSpec11 should we use JMS 1.1 API ?
+     * @param jmsSpec should we use JMS 1.1, 1.0.2b or 2.0
      * @param isQueue is this to deal with a Queue?
      * @return a JMS Connection as requested
      * @throws JMSException on errors, to be handled and logged by the caller
      */
     public static Connection createConnection(ConnectionFactory conFac,
-        String user, String pass, boolean jmsSpec11, Boolean isQueue,
+        String user, String pass, String  jmsSpec, Boolean isQueue,
         boolean isDurable, String clientID) throws JMSException {
 
         Connection connection = null;
@@ -683,7 +707,8 @@ public class JMSUtils extends BaseUtils {
         }
 
         try {
-            if (jmsSpec11 || isQueue == null) {
+            if (JMSConstants.JMS_SPEC_VERSION_1_1.equals(jmsSpec) || JMSConstants.JMS_SPEC_VERSION_2_0.equals(jmsSpec)
+                    || isQueue == null) {
                 if (user != null && pass != null) {
                     connection = conFac.createConnection(user, pass);
                 } else {
@@ -739,15 +764,16 @@ public class JMSUtils extends BaseUtils {
      * @param connection the JMS Connection
      * @param transacted should the session be transacted?
      * @param ackMode the ACK mode for the session
-     * @param jmsSpec11 should we use the JMS 1.1 API?
+     * @param jmsSpec should we use the JMS 1.1, 1.0.2b or 2.0
      * @param isQueue is this Session to deal with a Queue?
      * @return a Session created for the given information
      * @throws JMSException on errors, to be handled and logged by the caller
      */
     public static Session createSession(Connection connection, boolean transacted, int ackMode,
-        boolean jmsSpec11, Boolean isQueue) throws JMSException {
+        String jmsSpec, Boolean isQueue) throws JMSException {
 
-        if (jmsSpec11 || isQueue == null) {
+        if (JMSConstants.JMS_SPEC_VERSION_1_1.equals(jmsSpec) || JMSConstants.JMS_SPEC_VERSION_2_0.equals(jmsSpec)
+                || isQueue == null) {
             return connection.createSession(transacted, ackMode);
 
         } else {
@@ -770,16 +796,24 @@ public class JMSUtils extends BaseUtils {
      * @param messageSelector optional message selector
      * @param pubSubNoLocal should we receive messages sent by us during pub-sub?
      * @param isDurable is this a durable topic subscription?
-     * @param jmsSpec11 should we use JMS 1.1 API ?
+     * @param jmsSpec should we use JMS 1.1, 1.0.2b or 2.0
+     * @param isSharedSubscription is this a shared subscription
      * @return a MessageConsumer to receive messages
      * @throws JMSException on errors, to be handled and logged by the caller
      */
     public static MessageConsumer createConsumer(
         Session session, Destination destination, Boolean isQueue,
         String subscriberName, String messageSelector, boolean pubSubNoLocal,
-        boolean isDurable, boolean jmsSpec11) throws JMSException {
+        boolean isDurable, String jmsSpec, Boolean isSharedSubscription) throws JMSException {
 
-        if (jmsSpec11 || isQueue == null) {
+        if (JMSConstants.JMS_SPEC_VERSION_2_0.equals(jmsSpec) && isSharedSubscription) {
+            if (isDurable) {
+                return session.createSharedDurableConsumer((Topic) destination, subscriberName, messageSelector);
+            } else {
+                return session.createSharedConsumer((Topic) destination, subscriberName, messageSelector);
+            }
+        } else if ((JMSConstants.JMS_SPEC_VERSION_1_1.equals(jmsSpec)) || (
+                JMSConstants.JMS_SPEC_VERSION_2_0.equals(jmsSpec) && !isSharedSubscription)) {
             if (isDurable) {
                 return session.createDurableSubscriber(
                     (Topic) destination, subscriberName, messageSelector, pubSubNoLocal);
@@ -808,14 +842,15 @@ public class JMSUtils extends BaseUtils {
      * @param session JMS session
      * @param destination the Destination
      * @param isQueue is the Destination a queue?
-     * @param jmsSpec11 should we use JMS 1.1 API ?
+     * @param jmsSpec should we use JMS 1.1, 1.0.2b or 2.0
      * @return a MessageProducer to send messages to the given Destination
      * @throws JMSException on errors, to be handled and logged by the caller
      */
     public static MessageProducer createProducer(
-        Session session, Destination destination, Boolean isQueue, boolean jmsSpec11) throws JMSException {
+        Session session, Destination destination, Boolean isQueue, String jmsSpec) throws JMSException {
 
-        if (jmsSpec11 || isQueue == null) {
+        if (JMSConstants.JMS_SPEC_VERSION_1_1.equals(jmsSpec) || JMSConstants.JMS_SPEC_VERSION_2_0.equals(jmsSpec)
+                || isQueue == null) {
             return session.createProducer(destination);
         } else {
             if (isQueue) {

@@ -27,6 +27,8 @@ import org.apache.commons.logging.LogFactory;
 import javax.jms.*;
 import javax.transaction.UserTransaction;
 
+import static org.apache.axis2.transport.jms.JMSConstants.JMS_MESSAGE_DELIVERY_COUNT_HEADER;
+
 /**
  * This is the JMS message receiver which is invoked when a message is received. This processes
  * the message through the engine
@@ -190,6 +192,16 @@ public class JMSMessageReceiver {
             msgContext.setProperty(Constants.OUT_TRANSPORT_INFO,
                 new JMSOutTransportInfo(jmsConnectionFactory, replyTo,
                     contentTypeInfo.getPropertyName()));
+        }
+
+        // Setting JMSXDeliveryCount header on the message context
+        try {
+            int deliveryCount = message.getIntProperty(JMS_MESSAGE_DELIVERY_COUNT_HEADER);
+            msgContext.setProperty(JMSConstants.DELIVERY_COUNT, deliveryCount);
+        } catch (NumberFormatException nfe) {
+            if (log.isDebugEnabled()) {
+                log.debug("JMSXDeliveryCount is not set in the received message");
+            }
         }
 
         JMSUtils.setSOAPEnvelope(message, msgContext, contentTypeInfo.getContentType());
