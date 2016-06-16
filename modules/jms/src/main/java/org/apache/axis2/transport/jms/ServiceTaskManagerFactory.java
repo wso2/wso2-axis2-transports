@@ -15,16 +15,15 @@
 */
 package org.apache.axis2.transport.jms;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
-import javax.jms.Session;
-
 import org.apache.axis2.description.AxisService;
 import org.apache.axis2.description.Parameter;
 import org.apache.axis2.transport.base.BaseConstants;
 import org.apache.axis2.transport.base.threads.WorkerPool;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import javax.jms.Session;
 
 public class ServiceTaskManagerFactory {
     private ServiceTaskManagerFactory() {}
@@ -345,7 +344,7 @@ public class ServiceTaskManagerFactory {
         return JMSConstants.CACHE_AUTO;
     }
 
-    private static String getJMSSpecVersion(Map<String,String> svcMap, Map<String,String> cfMap) {
+    private static String getJMSSpecVersion(Map<String, String> svcMap, Map<String, String> cfMap) {
 
         String key = JMSConstants.PARAM_JMS_SPEC_VER;
         String val = svcMap.get(key);
@@ -358,6 +357,7 @@ public class ServiceTaskManagerFactory {
         } else if (JMSConstants.JMS_SPEC_VERSION_2_0.equals(val)) {
             return JMSConstants.JMS_SPEC_VERSION_2_0;
         } else {
-            return JMSConstants.JMS_SPEC_VERSION_1_0;        }
+            return JMSConstants.JMS_SPEC_VERSION_1_0;
+        }
     }
 }
