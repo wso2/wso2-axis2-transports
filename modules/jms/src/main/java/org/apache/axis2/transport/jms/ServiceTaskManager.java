@@ -939,7 +939,7 @@ public class ServiceTaskManager {
                     conFactory,
                     jmsProperties.get(JMSConstants.PARAM_JMS_USERNAME),
                     jmsProperties.get(JMSConstants.PARAM_JMS_PASSWORD),
-                    getJmsSpec(), isQueue(), isSubscriptionDurable(), durableSubscriberClientId);
+                    getJmsSpec(), isQueue(), isSubscriptionDurable(), durableSubscriberClientId, isShardSubscription());
 
                 connection.setExceptionListener(this);
                 connection.start();

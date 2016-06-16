@@ -698,7 +698,7 @@ public class JMSUtils extends BaseUtils {
      */
     public static Connection createConnection(ConnectionFactory conFac,
         String user, String pass, String  jmsSpec, Boolean isQueue,
-        boolean isDurable, String clientID) throws JMSException {
+        boolean isDurable, String clientID, boolean isSharedSubscription) throws JMSException {
 
         Connection connection = null;
         if (log.isDebugEnabled()) {
@@ -714,7 +714,7 @@ public class JMSUtils extends BaseUtils {
                 } else {
                     connection = conFac.createConnection();
                 }
-                if (isDurable) {
+                if (isDurable && !isSharedSubscription) {
                     connection.setClientID(clientID);
                 }
 

@@ -151,7 +151,7 @@ public class JMSListener extends AbstractTransportListenerEx<JMSEndpoint> implem
                     jmsConFactory,
                     jmsProperties.get(JMSConstants.PARAM_JMS_USERNAME),
                     jmsProperties.get(JMSConstants.PARAM_JMS_PASSWORD),
-                    stm.getJmsSpec(), null, false, "");
+                    stm.getJmsSpec(), null, false, "",false);
         } catch (JMSException ignore){
             Throwable innerException = ignore.getLinkedException();
             if(innerException != null){

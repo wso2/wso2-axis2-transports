@@ -331,6 +331,13 @@ public class JMSConnectionFactory {
         return false;
     }
 
+    private boolean isSharedSubscription() {
+        if (parameters.get(JMSConstants.PARAM_IS_SHARED_SUBSCRIPTION) != null) {
+            return Boolean.valueOf(parameters.get(JMSConstants.PARAM_IS_SHARED_SUBSCRIPTION));
+        }
+        return false;
+    }
+
     private String getClientId() {
         return parameters.get(JMSConstants.PARAM_DURABLE_SUB_CLIENT_ID);
     }
@@ -347,7 +354,7 @@ public class JMSConnectionFactory {
                 conFactory,
                 parameters.get(JMSConstants.PARAM_JMS_USERNAME),
                 parameters.get(JMSConstants.PARAM_JMS_PASSWORD),
-                jmsSpecVersion(), isQueue(), isDurable(), getClientId());
+                jmsSpecVersion(), isQueue(), isDurable(), getClientId(), isSharedSubscription());
 
             if (log.isDebugEnabled()) {
                 log.debug("New JMS Connection from JMS CF : " + name + " created");
