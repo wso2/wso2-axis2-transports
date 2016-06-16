@@ -26,12 +26,12 @@ import org.apache.axis2.transport.base.event.TransportErrorListener;
 import org.apache.axis2.transport.base.event.TransportErrorSource;
 import org.apache.axis2.transport.base.event.TransportErrorSourceSupport;
 
+import java.util.Hashtable;
 import javax.jms.Connection;
 import javax.jms.ConnectionFactory;
 import javax.jms.JMSException;
 import javax.naming.InitialContext;
 import javax.naming.NamingException;
-import java.util.Hashtable;
 
 /**
  * The revamped JMS Transport listener implementation. Creates {@link ServiceTaskManager} instances
@@ -150,8 +150,7 @@ public class JMSListener extends AbstractTransportListenerEx<JMSEndpoint> implem
             connection = JMSUtils.createConnection(
                     jmsConFactory,
                     jmsProperties.get(JMSConstants.PARAM_JMS_USERNAME),
-                    jmsProperties.get(JMSConstants.PARAM_JMS_PASSWORD),
-                    stm.getJmsSpec(), null, false, "",false);
+                    jmsProperties.get(JMSConstants.PARAM_JMS_PASSWORD), stm.getJmsSpec(), null, false, "", false);
         } catch (JMSException ignore){
             Throwable innerException = ignore.getLinkedException();
             if(innerException != null){
