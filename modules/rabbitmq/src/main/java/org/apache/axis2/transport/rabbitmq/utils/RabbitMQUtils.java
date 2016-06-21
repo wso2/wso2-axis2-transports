@@ -22,6 +22,7 @@ package org.apache.axis2.transport.rabbitmq.utils;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
+import com.rabbitmq.client.LongString;
 import org.apache.axiom.om.OMElement;
 import org.apache.axis2.AxisFault;
 import org.apache.axis2.Constants;
@@ -94,7 +95,7 @@ public class RabbitMQUtils {
     }
 
     public static Map getTransportHeaders(RabbitMQMessage message) {
-        Map<String, Object> map = new HashMap<String, Object>();
+        Map<String, String> map = new HashMap<String, String>();
 
         // correlation ID
         if (message.getCorrelationId() != null) {
@@ -116,7 +117,8 @@ public class RabbitMQUtils {
         Map<String, Object> headers = message.getHeaders();
         if (headers != null && !headers.isEmpty()) {
             for (String headerName : headers.keySet()) {
-                map.put(headerName, headers.get(headerName));
+                String value = new String(((LongString)(headers.get(headerName))).getBytes());
+                map.put(headerName, value);
             }
         }
 
