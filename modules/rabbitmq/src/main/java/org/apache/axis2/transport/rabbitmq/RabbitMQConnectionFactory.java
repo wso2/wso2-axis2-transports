@@ -245,8 +245,13 @@ public class RabbitMQConnectionFactory {
 
                     if (StringUtils.isEmpty(keyStoreLocation) || StringUtils.isEmpty(keyStoreType) || StringUtils.isEmpty(keyStorePassword) ||
                             StringUtils.isEmpty(trustStoreLocation) || StringUtils.isEmpty(trustStoreType) || StringUtils.isEmpty(trustStorePassword)) {
-                        log.warn("Trustore and keystore information is not provided correctly. Proceeding with default SSL configuration");
-                        connectionFactory.useSslProtocol();
+                        log.info("Trustore and keystore information is not provided");
+                        if (StringUtils.isNotEmpty(sslVersion)) {
+                            connectionFactory.useSslProtocol(sslVersion);
+                        } else {
+                            log.info("Proceeding with default SSL configuration");
+                            connectionFactory.useSslProtocol();
+                        }
                     } else {
                         char[] keyPassphrase = keyStorePassword.toCharArray();
                         KeyStore ks = KeyStore.getInstance(keyStoreType);
