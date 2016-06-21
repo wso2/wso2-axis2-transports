@@ -65,6 +65,7 @@ public class RabbitMQConnectionFactoryManager {
                             props.get(RabbitMQConstants.SERVER_USER_NAME) + "_" +
                             props.get(RabbitMQConstants.SERVER_PASSWORD) + "_" +
                             props.get(RabbitMQConstants.SSL_ENABLED) + "_" +
+                            props.get(RabbitMQConstants.SSL_VERSION) + "_" +
                             props.get(RabbitMQConstants.SERVER_VIRTUAL_HOST) + "_" +
                             props.get(RabbitMQConstants.SERVER_RETRY_INTERVAL) + "_" +
                             props.get(RabbitMQConstants.RETRY_INTERVAL) + "_" +
