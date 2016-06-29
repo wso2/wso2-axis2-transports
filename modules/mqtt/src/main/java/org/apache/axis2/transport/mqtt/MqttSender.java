@@ -65,7 +65,8 @@ public class MqttSender extends AbstractTransportSender {
         String retainedMessage = properties.get(MqttConstants.MQTT_MESSAGE_RETAINED);
         mqttBlockingSenderEnable = properties.get(MqttConstants.MQTT_BLOCKING_SENDER);
         int qos;
-        boolean isMessageRetained;
+        /* Default value is set to false */
+        boolean isMessageRetained = false;
 
         mqttConnectOptions = new MqttConnectOptions();
         if (cleanSession != null) {
@@ -87,9 +88,6 @@ public class MqttSender extends AbstractTransportSender {
         }
         if (retainedMessage != null && !retainedMessage.isEmpty()) {
             isMessageRetained =  Boolean.parseBoolean(retainedMessage);
-        } else {
-            //setting default value
-            isMessageRetained = true;
         }
         MqttClient mqttClient;
         MqttAsyncClient mqttAsyncClient;
