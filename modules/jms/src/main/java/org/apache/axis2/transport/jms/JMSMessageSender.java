@@ -285,14 +285,49 @@ public class JMSMessageSender {
         log.error(message, e);
 
         // Cleanup connections on error. See ESBJAVA-4713
-        if (!isTransacted()) { // else transaction rollback will call close() due to exception thrown below
+        if (!isTransacted()) { // else transaction rollback will call closeOnException() due to exception thrown below
             if (log.isDebugEnabled()) {
                 log.debug("Cleaning up connections on error", e);
             }
-            close();
+            closeOnException();
         }
 
         throw new AxisJMSException(message, e);
+    }
+
+    /**
+     * Close connection upon exception. See ESBJAVA-4713
+     */
+    public void closeOnException() {
+        if (producer != null) {
+            try {
+                producer.close();
+            } catch (JMSException e) {
+                log.error("Error closing JMS MessageProducer after send", e);
+            } finally {
+                producer = null;
+            }
+        }
+
+        if (session != null) {
+            try {
+                session.close();
+            } catch (JMSException e) {
+                log.error("Error closing JMS Session after send", e);
+            } finally {
+                session = null;
+            }
+        }
+
+        if (connection != null) {
+            try {
+                connection.close();
+            } catch (JMSException e) {
+                log.error("Error closing JMS Connection after send", e);
+            } finally {
+                connection = null;
+            }
+        }
     }
 
     private boolean isTransacted() {

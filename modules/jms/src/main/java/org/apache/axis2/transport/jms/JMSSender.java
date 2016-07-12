@@ -638,6 +638,7 @@ public class JMSSender extends AbstractTransportSender implements ManagementSupp
                     msgSender.close();
                 } catch (XAException e) {
                     handleException("Error occurred during rolling back transaction", e);
+                    msgSender.closeOnException();
                 }
 
             }
@@ -656,6 +657,7 @@ public class JMSSender extends AbstractTransportSender implements ManagementSupp
                     msgSender.close();
                 } catch (XAException e) {
                     handleException("Error occurred during rolling back transaction", e);
+                    msgSender.closeOnException();
                 }
             }
             JMSMessageSenderMap.remove(transaction);
