@@ -46,7 +46,7 @@ public class MqttSender extends AbstractTransportSender {
     public void init(ConfigurationContext cfgCtx, TransportOutDescription transportOutDescription) throws AxisFault {
         super.init(cfgCtx, transportOutDescription);
         connectionFactoryManager = new MqttConnectionFactoryManager(transportOutDescription);
-        log.info("Mqtt transport sender initialized....");
+        log.info("Mqtt Transport Sender initialized...");
     }
 
     @Override

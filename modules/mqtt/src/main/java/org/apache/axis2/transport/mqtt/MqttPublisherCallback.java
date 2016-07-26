@@ -35,6 +35,8 @@ public class MqttPublisherCallback implements MqttCallback {
     }
 
     public void deliveryComplete(IMqttDeliveryToken iMqttDeliveryToken) {
-        log.info("message delivered .. : " + iMqttDeliveryToken.toString());
+        if (log.isDebugEnabled()) {
+            log.debug("Message delivered successfully: " + iMqttDeliveryToken.toString());
+        }
     }
 }
