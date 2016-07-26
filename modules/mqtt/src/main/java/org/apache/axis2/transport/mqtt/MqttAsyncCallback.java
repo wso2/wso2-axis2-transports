@@ -110,8 +110,7 @@ public class MqttAsyncCallback implements MqttCallback {
                 try {
                     waiter.wait(maxTTW);
                 } catch (InterruptedException e) {
-                    log.info("timed out");
-                    e.printStackTrace();
+                    log.warn("Timed out while waiting for the senders callback", e);
                 }
                 if (ex != null) {
                     throw (MqttException) ex;
@@ -182,7 +181,9 @@ public class MqttAsyncCallback implements MqttCallback {
     }
 
     public void deliveryComplete(IMqttDeliveryToken iMqttDeliveryToken) {
-        log.info("message delivered .. : " + iMqttDeliveryToken.toString());
+        if (log.isDebugEnabled()) {
+            log.debug("Message delivered: " + iMqttDeliveryToken.toString());
+        }
     }
 
     /**
@@ -197,18 +198,19 @@ public class MqttAsyncCallback implements MqttCallback {
             // Connect to the server
             // Get a token and setup an asynchronous listener on the token which
             // will be notified once the connect completes
-            log.info("Connecting  with client ID " + client.getClientId());
+            if (log.isDebugEnabled()) {
+                log.debug("Connecting  with client ID " + client.getClientId());
+            }
 
             IMqttActionListener conListener = new IMqttActionListener() {
                 public void onSuccess(IMqttToken asyncActionToken) {
-                    log.info("Connected");
                     state = CONNECTED;
                     carryOn();
                 }
                 public void onFailure(IMqttToken asyncActionToken, Throwable exception) {
                     ex = exception;
                     state = ERROR;
-                    log.info("connect failed" + exception);
+                    log.warn("Client " + client.getClientId() + " connection failed." + exception);
                     carryOn();
                 }
                 public void carryOn() {
@@ -250,14 +252,13 @@ public class MqttAsyncCallback implements MqttCallback {
             // Setup a listener object to be notified when the publish completes.
             IMqttActionListener pubListener = new IMqttActionListener() {
                 public void onSuccess(IMqttToken asyncActionToken) {
-                    log.info("Publish Completed");
                     state = PUBLISHED;
                     carryOn();
                 }
                 public void onFailure(IMqttToken asyncActionToken, Throwable exception) {
                     ex = exception;
                     state = ERROR;
-                    log.info("Publish failed" + exception);
+                    log.warn("Message publishing failed" + exception);
                     carryOn();
                 }
                 public void carryOn() {
@@ -287,17 +288,18 @@ public class MqttAsyncCallback implements MqttCallback {
             // Make a subscription
             // Get a token and setup an asynchronous listener on the token which
             // will be notified once the subscription is in place.
-            log.info("Subscribing to topic \"" + topicName + "\" qos " + qos);
+            if (log.isDebugEnabled()) {
+                log.debug("Subscribing to topic \"" + topicName + "\" qos " + qos);
+            }
             IMqttActionListener subListener = new IMqttActionListener() {
                 public void onSuccess(IMqttToken asyncActionToken) {
-                    log.info("Subscribe Completed");
                     state = SUBSCRIBED;
                     carryOn();
                 }
                 public void onFailure(IMqttToken asyncActionToken, Throwable exception) {
                     ex = exception;
                     state = ERROR;
-                    log.info("Subscribe failed" + exception);
+                    log.warn("Topic subscription failed" + exception);
                     carryOn();
                 }
                 public void carryOn() {
@@ -324,17 +326,18 @@ public class MqttAsyncCallback implements MqttCallback {
     public class Disconnector {
         public void doDisconnect() {
             // Disconnect the client
-            log.info("Disconnecting");
+            if (log.isDebugEnabled()) {
+                log.debug("Disconnecting client " + client.getClientId());
+            }
             IMqttActionListener discListener = new IMqttActionListener() {
                 public void onSuccess(IMqttToken asyncActionToken) {
-                    log.info("Disconnect Completed");
                     state = DISCONNECTED;
                     carryOn();
                 }
                 public void onFailure(IMqttToken asyncActionToken, Throwable exception) {
                     ex = exception;
                     state = ERROR;
-                    log.info("Disconnect failed" + exception);
+                    log.warn("Disconnection failed" + exception);
                     carryOn();
                 }
                 public void carryOn() {
