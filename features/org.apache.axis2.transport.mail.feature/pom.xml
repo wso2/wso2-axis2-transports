@@ -20,7 +20,7 @@
     <parent>
         <groupId>org.apache.axis2.transport</groupId>
         <artifactId>axis2-transports</artifactId>
-        <version>1.1.1-wso2v5</version>
+        <version>1.1.1-wso2v6-SNAPSHOT</version>
         <relativePath>../../pom.xml</relativePath>
     </parent>
 
