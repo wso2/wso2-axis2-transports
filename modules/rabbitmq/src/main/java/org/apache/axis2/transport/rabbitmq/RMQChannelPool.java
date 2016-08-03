@@ -1,14 +1,17 @@
 package org.apache.axis2.transport.rabbitmq;
 
 import com.rabbitmq.client.Connection;
-import com.rabbitmq.client.QueueingConsumer;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 
 import java.io.IOException;
 import java.util.concurrent.BlockingDeque;
 import java.util.concurrent.LinkedBlockingDeque;
 
+
 public class RMQChannelPool {
 
+    private static final Log log = LogFactory.getLog(RMQChannelPool.class);
     private BlockingDeque<RMQChannel> RMQChannelPool;
 
     public RMQChannelPool(RabbitMQConnectionFactory connectionFactory, int connectionPoolSize) {
@@ -18,13 +21,10 @@ public class RMQChannelPool {
             Connection connection = connectionFactory.createConnection();
             for (int i = 0; i < connectionPoolSize; i++) {
                 com.rabbitmq.client.Channel channel = connection.createChannel();
-                QueueingConsumer consumer = new QueueingConsumer(channel);
-                String replyQueueName = channel.queueDeclare().getQueue();
-                channel.basicConsume(replyQueueName, false, consumer);
                 RMQChannelPool.add(new RMQChannel(connection, channel));
             }
         } catch (IOException e) {
-            e.printStackTrace();
+            log.error("Exception occurred while creating connection", e);
         }
     }
 
