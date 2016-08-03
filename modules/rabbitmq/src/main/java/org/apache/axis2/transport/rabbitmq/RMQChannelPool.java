@@ -8,7 +8,6 @@ import java.io.IOException;
 import java.util.concurrent.BlockingDeque;
 import java.util.concurrent.LinkedBlockingDeque;
 
-
 public class RMQChannelPool {
 
     private static final Log log = LogFactory.getLog(RMQChannelPool.class);
