@@ -175,13 +175,14 @@ public class SMSManager {
      * send a SMS form the message comming form the Axis2 Engine
      * @param messageContext that is comming form the Axis2
      */
-    public void sendSMS(MessageContext messageContext) {
+    public void sendSMS(MessageContext messageContext) throws AxisFault {
         try {
             SMSMessage sms = messageFormatter.formatSMS(messageContext);
             sms.addProperty(SMSTransportConstents.INVERT_SOURCE_AND_DESTINATION ,"" + invertSourceAndDestination);
             currentImplimentation.sendSMS(sms);
         } catch (Exception e) {
             log.error("Error while sending the SMS " , e);
+            throw new AxisFault(e.getMessage(), e);
         }
 
     }
@@ -190,7 +191,7 @@ public class SMSManager {
      * send the information SMS messages other than messages comming form the Axis2 Engine
      * @param sms
      */
-    public void sentInfo(SMSMessage sms) {
+    public void sentInfo(SMSMessage sms) throws AxisFault {
         currentImplimentation.sendSMS(sms);
     }
 

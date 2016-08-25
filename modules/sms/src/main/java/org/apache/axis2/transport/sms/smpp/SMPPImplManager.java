@@ -178,7 +178,7 @@ public class SMPPImplManager implements SMSImplManager {
         }
     }
 
-    public void sendSMS(SMSMessage sm) {
+    public void sendSMS(SMSMessage sm) throws AxisFault {
         TypeOfNumber sourceTon =TypeOfNumber.UNKNOWN;
         NumberingPlanIndicator sourceNpi = NumberingPlanIndicator.UNKNOWN;
 
@@ -262,16 +262,9 @@ public class SMPPImplManager implements SMSImplManager {
             );
 
             log.debug("Message Submited with id" + messageId);
-        } catch (IOException e) {
-            log.error("Unable to Connect ", e);
-        } catch (InvalidResponseException e) {
-            log.debug("Invalid responce Exception", e);
-        } catch (PDUException e) {
-            log.debug("PDU Exception", e);
-        } catch (NegativeResponseException e) {
-            log.debug(e);
-        } catch (ResponseTimeoutException e) {
-            log.debug(e);
+        } catch (Exception e) {
+            this.outSession = null;
+            throw new AxisFault(e.getMessage(), e);
         }
 
     }
