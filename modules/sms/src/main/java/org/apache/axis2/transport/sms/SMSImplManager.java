@@ -59,7 +59,7 @@ public interface SMSImplManager {
      * the SMSMessage )
      * @param sm  SMSMessage to be send
      */
-    public void sendSMS(SMSMessage sm);
+    public void sendSMS(SMSMessage sm) throws AxisFault;
 
     /**
      * set the SMS manager that carries out SMS In task to the SMSImplimentaion

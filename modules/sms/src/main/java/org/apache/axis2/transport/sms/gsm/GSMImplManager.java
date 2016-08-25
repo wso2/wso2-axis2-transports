@@ -199,7 +199,7 @@ public class GSMImplManager implements SMSImplManager {
         }
     }
 
-    public void sendSMS(SMSMessage sm) {
+    public void sendSMS(SMSMessage sm) throws AxisFault {
         if (service == null && !serviceRepo.gatewayInUse(gsmTransportOutDetails.getGatewayId())) {
             //Operating in the Out Only mode
             service = new Service();
@@ -227,7 +227,7 @@ public class GSMImplManager implements SMSImplManager {
                 this.service.startService();
 
             } catch (Exception e) {
-                log.error(e);
+                throw new AxisFault(e.getMessage(), e);
             }
 
         } else if(serviceRepo.gatewayInUse(gsmTransportOutDetails.getGatewayId())) {
@@ -240,7 +240,7 @@ public class GSMImplManager implements SMSImplManager {
             // normal rate is about 6msgs per minute
             service.sendMessage(msg);
         } catch (Exception e) {
-            log.error(e);
+            throw new AxisFault(e.getMessage(), e);
         }
     }
 
