@@ -150,7 +150,8 @@ public class JMSListener extends AbstractTransportListenerEx<JMSEndpoint> implem
             connection = JMSUtils.createConnection(
                     jmsConFactory,
                     jmsProperties.get(JMSConstants.PARAM_JMS_USERNAME),
-                    jmsProperties.get(JMSConstants.PARAM_JMS_PASSWORD), stm.getJmsSpec(), null, false, "", false);
+                    jmsProperties.get(JMSConstants.PARAM_JMS_PASSWORD),
+                    stm.getJmsSpec(), null, false, JMSConstants.EMPTY_STRING, false);
         } catch (JMSException ignore){
             Throwable innerException = ignore.getLinkedException();
             if(innerException != null){
