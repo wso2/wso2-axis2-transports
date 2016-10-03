@@ -189,15 +189,15 @@ public class JMSOutTransportInfo implements OutTransportInfo {
     private Destination getDestination(Context context, String url) {
         String destinationName = JMSUtils.getDestination(url);
         if (log.isDebugEnabled()) {
-            log.debug("Lookup the JMS destination " + destinationName + " of type "
-                    + destinationType + " extracted from the URL " + url);
+            log.debug("Lookup the JMS destination " + destinationName + " of type " + destinationType
+                    + " extracted from the URL " + JMSUtils.maskURLPasswordAndCredentials(url));
         }
         
         try {
             return JMSUtils.lookupDestination(context, destinationName, destinationType);
         } catch (NamingException e) {
-            handleException("Couldn't locate the JMS destination " + destinationName
-                    + " of type " + destinationType + " extracted from the URL " + url, e);
+            handleException("Couldn't locate the JMS destination " + destinationName + " of type " + destinationType
+                    + " extracted from the URL " + JMSUtils.maskURLPasswordAndCredentials(url), e);
         }
 
         // never executes but keeps the compiler happy
@@ -214,15 +214,16 @@ public class JMSOutTransportInfo implements OutTransportInfo {
     private Destination getReplyDestination(Context context, String url) {
         String replyDestinationName = properties.get(JMSConstants.PARAM_REPLY_DESTINATION);
         if (log.isDebugEnabled()) {
-            log.debug("Lookup the JMS destination " + replyDestinationName + " of type "
-                    + replyDestinationType + " extracted from the URL " + url);
+            log.debug("Lookup the JMS destination " + replyDestinationName + " of type " + replyDestinationType
+                    + " extracted from the URL " + JMSUtils.maskURLPasswordAndCredentials(url));
         }
         
         try {
             return JMSUtils.lookupDestination(context, replyDestinationName, replyDestinationType);
         } catch (NamingException e) {
-            handleException("Couldn't locate the JMS destination " + replyDestinationName
-                    + " of type " + replyDestinationType + " extracted from the URL " + url, e);
+            handleException(
+                    "Couldn't locate the JMS destination " + replyDestinationName + " of type " + replyDestinationType
+                            + " extracted from the URL " + JMSUtils.maskURLPasswordAndCredentials(url), e);
         }
 
         // never executes but keeps the compiler happy
