@@ -384,4 +384,6 @@ public class JMSConstants {
     public static final String DELIVERY_COUNT = "jms.message.delivery.count";
 
     public static final String JMS_MESSAGE_DELIVERY_COUNT_HEADER = "JMSXDeliveryCount";
+
+    public static final String EMPTY_STRING = "";
 }

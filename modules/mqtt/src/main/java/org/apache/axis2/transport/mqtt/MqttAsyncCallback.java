@@ -110,7 +110,7 @@ public class MqttAsyncCallback implements MqttCallback {
                 try {
                     waiter.wait(maxTTW);
                 } catch (InterruptedException e) {
-                    log.warn("Timed out while waiting for the senders callback", e);
+                    log.warn("Timed out while waiting for the sender's callback", e);
                 }
                 if (ex != null) {
                     throw (MqttException) ex;
