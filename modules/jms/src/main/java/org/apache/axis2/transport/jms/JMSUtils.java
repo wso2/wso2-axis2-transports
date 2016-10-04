@@ -42,6 +42,8 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Properties;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import javax.jms.BytesMessage;
 import javax.jms.Connection;
 import javax.jms.ConnectionFactory;
@@ -77,6 +79,22 @@ public class JMSUtils extends BaseUtils {
     private static final Log log = LogFactory.getLog(JMSUtils.class);
     private static final Class<?>[]  NOARGS  = new Class<?>[] {};
     private static final Object[] NOPARMS = new Object[] {};
+    /**
+     * URL pattern
+     */
+    private static final Pattern URL_PATTERN = Pattern.compile("[a-z]+://.*");
+    /**
+     * Password pattern in JMS URL
+     */
+    private static final Pattern PASSWORD_PATTERN = Pattern.compile("transport.jms.Password=([^/&]+)(&|$)");
+    /**
+     * Security credential pattern in JMS URL
+     */
+    private static final Pattern SECURITY_CREDENTIAL_PATTERN = Pattern
+            .compile("java.naming.security.credentials=" + "([^/&]+)(&|$)");
+    private static final String URL_PASSWORD_SUB_STRING = "transport.jms.Password=***&";
+    private static final String URL_CREDENTIALS_SUB_STRING = "java.naming.security.credentials=***&";
+    private static final String PATTERN_END = "&";
 
     /**
      * Should this service be enabled over the JMS transport?
@@ -931,5 +949,28 @@ public class JMSUtils extends BaseUtils {
             log.warn("Cannot locate destination : " + destinationName, e);
             throw e;
         }
+    }
+
+    /**
+     * Mask the password and Security credentials of the connection url.
+     * @param url the actual url
+     * @return the masked url
+     */
+    public static String maskURLPasswordAndCredentials(String url) {
+        final Matcher urlMatcher = URL_PATTERN.matcher(url);
+        if (urlMatcher.find()) {
+            final Matcher credentialMatcher = SECURITY_CREDENTIAL_PATTERN.matcher(url);
+            String maskurl = credentialMatcher.replaceFirst(URL_CREDENTIALS_SUB_STRING);
+            final Matcher pwdMatcher = PASSWORD_PATTERN.matcher(maskurl);
+            maskurl = pwdMatcher.replaceFirst(URL_PASSWORD_SUB_STRING);
+            if (maskurl.endsWith(PATTERN_END)) {
+                int end = maskurl.lastIndexOf(PATTERN_END);
+                String newurl = maskurl.substring(0, end);
+                return newurl;
+            }
+
+            return maskurl;
+        }
+        return url;
     }
 }
