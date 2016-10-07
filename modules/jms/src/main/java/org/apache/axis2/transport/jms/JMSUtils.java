@@ -39,6 +39,7 @@ import org.apache.commons.logging.LogFactory;
 import java.lang.reflect.Method;
 import java.util.Enumeration;
 import java.util.HashMap;
+import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Properties;
@@ -95,6 +96,7 @@ public class JMSUtils extends BaseUtils {
     private static final String URL_PASSWORD_SUB_STRING = "transport.jms.Password=***&";
     private static final String URL_CREDENTIALS_SUB_STRING = "java.naming.security.credentials=***&";
     private static final String PATTERN_END = "&";
+    private static final String MASKING_STRING = "***";
 
     /**
      * Should this service be enabled over the JMS transport?
@@ -972,5 +974,24 @@ public class JMSUtils extends BaseUtils {
             return maskurl;
         }
         return url;
+    }
+
+    /**
+     * Masks the sensitive parameters in axis2.xml configs for JMS for error logging. Do not use for info logs.
+     * @param sensitiveParamsTable Hash table with axis2 configs
+     * @return the hash table with masked values.
+     */
+    public static Hashtable<String, String> maskAxis2ConfigSensitiveParameters(
+            Hashtable<String, String> sensitiveParamsTable) {
+
+        Hashtable<String, String> maskedParamsTable = sensitiveParamsTable;
+        if (maskedParamsTable.get(JMSConstants.PARAM_JMS_PASSWORD) != null) {
+            maskedParamsTable.put(JMSConstants.PARAM_JMS_PASSWORD, MASKING_STRING);
+        }
+        if (sensitiveParamsTable.get(JMSConstants.PARAM_NAMING_SECURITY_CREDENTIALS) != null) {
+            maskedParamsTable.put(JMSConstants.PARAM_NAMING_SECURITY_CREDENTIALS, MASKING_STRING);
+        }
+
+        return maskedParamsTable;
     }
 }
