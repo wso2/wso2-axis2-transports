@@ -20,6 +20,8 @@ package org.apache.axis2.transport.jms;
 import junit.framework.Assert;
 import junit.framework.TestCase;
 
+import java.util.Hashtable;
+
 /**
  * Unit test for the JMSUtil.java
  */
@@ -36,6 +38,29 @@ public class JMSUtilTest extends TestCase {
     public void testUrlMask() {
         String maskedUrl = JMSUtils.maskURLPasswordAndCredentials(url);
         Assert.assertFalse("URL masking test", maskedUrl.contains("secret"));
+    }
+
+    /**
+     * Testing the masking of sensitive info in axis2.xml configs
+     */
+    public void testMaskConfigs() {
+
+        Hashtable<String, String> paramsTable = new Hashtable<String, String>();
+        paramsTable.put(JMSConstants.CONTENT_TYPE_PARAM,"topic");
+        paramsTable.put(JMSConstants.CONTENT_TYPE_PARAM,"text/xml");
+        paramsTable.put(JMSConstants.PARAM_JMS_USERNAME,"username");
+
+        //when no security params
+        Hashtable<String, String> newParamsTable = JMSUtils.maskAxis2ConfigSensitiveParameters(paramsTable);
+        Assert.assertSame("Axis2 configs masking when no security params exist", paramsTable, newParamsTable);
+
+        paramsTable.put(JMSConstants.PARAM_JMS_PASSWORD, "password");
+        paramsTable.put(JMSConstants.PARAM_NAMING_SECURITY_CREDENTIALS, "Credentials");
+
+        newParamsTable = JMSUtils.maskAxis2ConfigSensitiveParameters(paramsTable);
+        Assert.assertFalse("Axis2 configs masking", newParamsTable.toString().contains("password"));
+        Assert.assertFalse("Axis2 configs masking", newParamsTable.toString().contains("Credentials"));
+
     }
 
 }

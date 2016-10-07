@@ -384,4 +384,10 @@ public class JMSConstants {
     public static final String DELIVERY_COUNT = "jms.message.delivery.count";
 
     public static final String JMS_MESSAGE_DELIVERY_COUNT_HEADER = "JMSXDeliveryCount";
+
+
+    /**
+     * Parameter for jndi security credentials in jms configs of axis2.xml
+     */
+    public static final String PARAM_NAMING_SECURITY_CREDENTIALS = "java.naming.security.credentials";
 }
