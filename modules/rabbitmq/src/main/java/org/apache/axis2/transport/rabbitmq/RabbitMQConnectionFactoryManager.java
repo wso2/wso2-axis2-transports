@@ -22,6 +22,7 @@ import org.apache.axis2.description.Parameter;
 import org.apache.axis2.description.ParameterInclude;
 import org.apache.axis2.transport.rabbitmq.utils.RabbitMQConstants;
 import org.apache.commons.lang.StringUtils;
+import org.wso2.securevault.SecretResolver;
 
 import java.util.HashMap;
 import java.util.Hashtable;
@@ -39,8 +40,8 @@ public class RabbitMQConnectionFactoryManager {
      *
      * @param description
      */
-    public RabbitMQConnectionFactoryManager(ParameterInclude description) {
-        loadConnectionFactoryDefinitions(description);
+    public RabbitMQConnectionFactoryManager(ParameterInclude description, SecretResolver secretResolver) {
+        loadConnectionFactoryDefinitions(description, secretResolver);
     }
 
     /**
@@ -115,9 +116,9 @@ public class RabbitMQConnectionFactoryManager {
      *
      * @param trpDesc the transport description for RabbitMQ AMQP
      */
-    private void loadConnectionFactoryDefinitions(ParameterInclude trpDesc) {
+    private void loadConnectionFactoryDefinitions(ParameterInclude trpDesc, SecretResolver secretResolver) {
         for (Parameter parameter : trpDesc.getParameters()) {
-            RabbitMQConnectionFactory amqpConFactory = new RabbitMQConnectionFactory(parameter);
+            RabbitMQConnectionFactory amqpConFactory = new RabbitMQConnectionFactory(parameter, secretResolver);
             connectionFactories.put(amqpConFactory.getName(), amqpConFactory);
         }
     }
