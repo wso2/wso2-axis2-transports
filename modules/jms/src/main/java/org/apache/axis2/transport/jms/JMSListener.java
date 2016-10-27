@@ -145,7 +145,7 @@ public class JMSListener extends AbstractTransportListenerEx<JMSEndpoint> implem
                         new InitialContext(stm.getJmsProperties()), ConnectionFactory.class, stm.getConnFactoryJNDIName());
             } catch (NamingException e) {
                 log.error("Error looking up connection factory : " + stm.getConnFactoryJNDIName() +
-                        "using JNDI properties : " + jmsProperties, e);
+                        "using JNDI properties : " + JMSUtils.maskAxis2ConfigSensitiveParameters(jmsProperties), e);
             }
             connection = JMSUtils.createConnection(
                     jmsConFactory,

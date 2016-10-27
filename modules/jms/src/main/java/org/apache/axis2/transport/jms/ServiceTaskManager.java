@@ -929,7 +929,7 @@ public class ServiceTaskManager {
                 log.debug("Connected to the JMS connection factory : " + getConnFactoryJNDIName());
             } catch (NamingException e) {
                 handleException("Error looking up connection factory : " + getConnFactoryJNDIName() +
-                    " using JNDI properties : " + jmsProperties, e);
+                    " using JNDI properties : " + JMSUtils.maskAxis2ConfigSensitiveParameters(jmsProperties), e);
             }
 
             Connection connection = null;
@@ -948,7 +948,8 @@ public class ServiceTaskManager {
 				isInitalizeFailed = true;
 				String msg =
 				             "Error acquiring a JMS connection to : " + getConnFactoryJNDIName() +
-				                     " using JNDI properties : " + jmsProperties + ". " +
+				                     " using JNDI properties : " + JMSUtils.maskAxis2ConfigSensitiveParameters
+                                     (jmsProperties) + ". " +
 				                     e.getMessage();
 				if (log.isDebugEnabled()) {
 					log.error(msg, e);
@@ -1076,7 +1077,8 @@ public class ServiceTaskManager {
                 } catch (JMSException j) {
                     handleException("Error looking up JMS destination and auto " +
                             "creating JMS destination : " + getDestinationJNDIName() +
-                            " using JNDI properties : " + jmsProperties, e);
+                            " using JNDI properties : " + JMSUtils.maskAxis2ConfigSensitiveParameters(jmsProperties),
+                            e);
                 }
             }
         }
@@ -1100,7 +1102,7 @@ public class ServiceTaskManager {
                     JMSUtils.lookup(context, UserTransaction.class, getUserTransactionJNDIName());
             } catch (NamingException e) {
                 handleException("Error looking up UserTransaction : " + getUserTransactionJNDIName() +
-                    " using JNDI properties : " + jmsProperties, e);
+                    " using JNDI properties : " + JMSUtils.maskAxis2ConfigSensitiveParameters(jmsProperties), e);
             }
         }
         
@@ -1114,7 +1116,7 @@ public class ServiceTaskManager {
                 }
             } catch (NamingException e) {
                 handleException("Error looking up UserTransaction : " + getUserTransactionJNDIName() +
-                    " using JNDI properties : " + jmsProperties, e);
+                    " using JNDI properties : " + JMSUtils.maskAxis2ConfigSensitiveParameters(jmsProperties), e);
             }
         }
         return sharedUserTransaction;
