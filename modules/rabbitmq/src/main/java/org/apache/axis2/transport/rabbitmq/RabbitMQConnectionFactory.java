@@ -20,6 +20,7 @@ package org.apache.axis2.transport.rabbitmq;
 
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
+import org.apache.axiom.om.OMAttribute;
 import org.apache.axiom.om.OMElement;
 import org.apache.axis2.AxisFault;
 import org.apache.axis2.description.Parameter;
@@ -32,10 +33,13 @@ import org.apache.axis2.transport.rabbitmq.utils.RabbitMQUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.wso2.securevault.SecretResolver;
+import org.wso2.securevault.SecureVaultException;
 
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManagerFactory;
+import javax.xml.namespace.QName;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.security.KeyStore;
@@ -64,13 +68,12 @@ public class RabbitMQConnectionFactory {
     private int retryCount = RabbitMQConstants.DEFAULT_RETRY_COUNT;
     private int connectionPoolSize = RabbitMQConstants.DEFAULT_CONNECTION_POOL_SIZE;
 
-
     /**
      * Digest a AMQP CF definition from an axis2.xml 'Parameter' and construct
      *
      * @param parameter the axis2.xml 'Parameter' that defined the AMQP CF
      */
-    public RabbitMQConnectionFactory(Parameter parameter) {
+    public RabbitMQConnectionFactory(Parameter parameter, SecretResolver secretResolver) {
         this.name = parameter.getName();
         ParameterIncludeImpl pi = new ParameterIncludeImpl();
 
@@ -80,9 +83,24 @@ public class RabbitMQConnectionFactory {
             handleException("Error reading parameters for RabbitMQ connection factory" + name, axisFault);
         }
 
-        for (Object o : pi.getParameters()) {
-            Parameter p = (Parameter) o;
-            parameters.put(p.getName(), (String) p.getValue());
+        for (Parameter p : pi.getParameters()) {
+            OMElement paramElement = p.getParameterElement();
+            String propertyValue = p.getValue().toString();
+            if (paramElement != null) {
+                OMAttribute attribute = paramElement.getAttribute(
+                        new QName(RabbitMQConstants.SECURE_VAULT_NS, RabbitMQConstants.SECRET_ALIAS_ATTRIBUTE));
+                if (attribute != null && attribute.getAttributeValue() != null &&
+                    !attribute.getAttributeValue().isEmpty()) {
+                    if (secretResolver == null) {
+                        throw new SecureVaultException(
+                                "Cannot resolve secret password because axis2 secret resolver " + "is null");
+                    }
+                    if (secretResolver.isTokenProtected(attribute.getAttributeValue())) {
+                        propertyValue = secretResolver.resolve(attribute.getAttributeValue());
+                    }
+                }
+            }
+            parameters.put(p.getName(), propertyValue);
         }
         initConnectionFactory();
         log.info("RabbitMQ ConnectionFactory : " + name + " initialized");
@@ -119,7 +137,7 @@ public class RabbitMQConnectionFactory {
             while ((connection == null) && ((retryCount == -1) || (retryC < retryCount))) {
                 retryC++;
                 log.info("[" + name + "] Attempting to create connection to RabbitMQ Broker" +
-                        " in " + retryInterval + " ms");
+                         " in " + retryInterval + " ms");
                 try {
                     Thread.sleep(retryInterval);
                     connection = RabbitMQUtils.createConnection(connectionFactory);
@@ -131,7 +149,8 @@ public class RabbitMQConnectionFactory {
                 }
             }
             if (connection == null) {
-                handleException("[" + name + "] Could not connect to RabbitMQ Broker. Error while creating connection", e);
+                handleException("[" + name + "] Could not connect to RabbitMQ Broker. Error while creating connection",
+                                e);
             }
         }
         return connection;
@@ -243,8 +262,10 @@ public class RabbitMQConnectionFactory {
                     String trustStorePassword = parameters.get(RabbitMQConstants.SSL_TRUSTSTORE_PASSWORD);
                     String sslVersion = parameters.get(RabbitMQConstants.SSL_VERSION);
 
-                    if (StringUtils.isEmpty(keyStoreLocation) || StringUtils.isEmpty(keyStoreType) || StringUtils.isEmpty(keyStorePassword) ||
-                            StringUtils.isEmpty(trustStoreLocation) || StringUtils.isEmpty(trustStoreType) || StringUtils.isEmpty(trustStorePassword)) {
+                    if (StringUtils.isEmpty(keyStoreLocation) || StringUtils.isEmpty(keyStoreType) ||
+                        StringUtils.isEmpty(keyStorePassword) ||
+                        StringUtils.isEmpty(trustStoreLocation) || StringUtils.isEmpty(trustStoreType) ||
+                        StringUtils.isEmpty(trustStorePassword)) {
                         log.info("Trustore and keystore information is not provided");
                         if (StringUtils.isNotEmpty(sslVersion)) {
                             connectionFactory.useSslProtocol(sslVersion);
@@ -264,7 +285,8 @@ public class RabbitMQConnectionFactory {
                         KeyStore tks = KeyStore.getInstance(trustStoreType);
                         tks.load(new FileInputStream(trustStoreLocation), trustPassphrase);
 
-                        TrustManagerFactory tmf = TrustManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+                        TrustManagerFactory tmf =
+                                TrustManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
                         tmf.init(tks);
 
                         SSLContext c = SSLContext.getInstance(sslVersion);
@@ -317,7 +339,8 @@ public class RabbitMQConnectionFactory {
             try {
                 retryInterval = Integer.parseInt(retryIntervalS);
             } catch (NumberFormatException e) {
-                log.warn("Number format error in reading retry interval value. Proceeding with default value (30000ms)", e);
+                log.warn("Number format error in reading retry interval value. Proceeding with default value (30000ms)",
+                         e);
             }
         }
 
@@ -326,7 +349,8 @@ public class RabbitMQConnectionFactory {
                 int serverRetryInterval = Integer.parseInt(serverRetryIntervalS);
                 connectionFactory.setNetworkRecoveryInterval(serverRetryInterval);
             } catch (NumberFormatException e) {
-                log.warn("Number format error in reading server retry interval value. Proceeding with default value", e);
+                log.warn("Number format error in reading server retry interval value. Proceeding with default value",
+                         e);
             }
         }
 

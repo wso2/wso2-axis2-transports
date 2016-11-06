@@ -30,6 +30,7 @@ import org.apache.axis2.transport.rabbitmq.utils.AxisRabbitMQException;
 import org.apache.axis2.transport.rabbitmq.utils.RabbitMQConstants;
 import org.apache.axis2.transport.rabbitmq.utils.RabbitMQUtils;
 import org.apache.commons.lang.StringUtils;
+import org.wso2.securevault.SecretResolver;
 
 import java.io.IOException;
 import java.util.Hashtable;
@@ -56,7 +57,8 @@ public class RabbitMQSender extends AbstractTransportSender {
     public void init(ConfigurationContext cfgCtx, TransportOutDescription transportOut)
             throws AxisFault {
         super.init(cfgCtx, transportOut);
-        rabbitMQConnectionFactoryManager = new RabbitMQConnectionFactoryManager(transportOut);
+        SecretResolver secretResolver = cfgCtx.getAxisConfiguration().getSecretResolver();
+        rabbitMQConnectionFactoryManager = new RabbitMQConnectionFactoryManager(transportOut, secretResolver);
         log.info("RabbitMQ AMQP Transport Sender initialized...");
 
     }
