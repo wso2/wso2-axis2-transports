@@ -46,15 +46,15 @@ import javax.xml.stream.XMLStreamException;
  */
 public class TCPWorker implements Runnable {
 
-    private static final Log log = LogFactory.getLog(TCPWorker.class);
+	private static final Log log = LogFactory.getLog(TCPWorker.class);
 
-    private TCPEndpoint endpoint;
-    private Socket socket;
+	private TCPEndpoint endpoint;
+	private Socket socket;
 
-    public TCPWorker(TCPEndpoint endpoint, Socket socket) {
-        this.endpoint = endpoint;
-        this.socket = socket;
-    }
+	public TCPWorker(TCPEndpoint endpoint, Socket socket) {
+		this.endpoint = endpoint;
+		this.socket = socket;
+	}
 
 	public void run() {
 		MessageContext msgContext = null;
@@ -79,7 +79,13 @@ public class TCPWorker implements Runnable {
 				this.handleRecordLength(msgContext, input, recordLength);
 				handled = true;
 			}
-			
+
+			int delimiterLength = endpoint.getRecordDelimiterLength();
+			if (delimiterLength > -1) {
+				this.handleRecordDelimiterLengthStream(msgContext, input, delimiterLength, delimiterType);
+				handled = true;
+			}
+
 			if (!delimiter.isEmpty() && !handled) {
 				if (inputType != null) {
 					if (TCPConstants.STRING_INPUT_TYPE.equalsIgnoreCase(inputType)) {
@@ -104,7 +110,7 @@ public class TCPWorker implements Runnable {
 				}
 				handled = true;
 			}
-			
+
 			if (!handled) {
 				SOAPEnvelope envelope = TransportUtils.createSOAPMessage(msgContext, input,
 						endpoint.getContentType());
@@ -124,9 +130,55 @@ public class TCPWorker implements Runnable {
 		}
 	}
 
+	private void handleRecordDelimiterLengthStream(MessageContext msgContext, InputStream input, int delimiterLength, String delimiterType) throws AxisFault {
+		try {
+			int		delimiterLengthCount	= 0;
+			int		recordLengthCount		= 0;
+			int		recordLength			= 0;
+			byte[]	recordBytes				= null;
+			byte[]	delimiterBytes			= new byte[delimiterLength];
+			boolean isBinaryDelimiter		= delimiterType.equalsIgnoreCase("binary") ? true : false;
+
+			int readCount;
+			while (true) {
+				while (delimiterLengthCount < delimiterLength) {
+					readCount = input.read(delimiterBytes, delimiterLengthCount, delimiterLength - delimiterLengthCount);
+					if (readCount == -1) {
+						return;
+					}
+					delimiterLengthCount += readCount;
+				}
+
+				if (isBinaryDelimiter) {
+					recordLength = convertBinaryBytesToInt(delimiterBytes);
+				} else {
+					recordLength = convertAsciiBytesToInt(delimiterBytes);
+				}
+
+				recordBytes = new byte[recordLength];
+				while (recordLengthCount < recordLength) {
+					readCount = input.read(recordBytes, recordLengthCount, recordLength - recordLengthCount);
+					if (readCount == -1) {
+						return;
+					}
+					recordLengthCount += readCount;
+				}
+
+				handleEnvelope(msgContext, recordBytes);
+
+				delimiterLengthCount 	= 0;
+				recordLengthCount		= 0;
+				recordBytes				= null;
+			}
+		} catch (IOException e) {
+			sendFault(msgContext, e);
+		} finally {
+		}
+	}
+
 	/**
 	 * Handling record delimiter character type for string stream
-	 * 
+	 *
 	 * @param msgContext the messahe contenxt
 	 * @param input socket input stream
 	 * @param delimiter character value to delimit incoming message
@@ -134,7 +186,7 @@ public class TCPWorker implements Runnable {
 	 * @throws FactoryConfigurationError if configuration issue occurred
 	 */
 	private void handleCharacterRecordDelimiterStringStream(MessageContext msgContext, InputStream input,
-	                                                        int delimiter) throws AxisFault {
+															int delimiter) throws AxisFault {
 		if(log.isDebugEnabled()) {
 			log.debug("Handle message with character delimiter type string stream");
 		}
@@ -160,17 +212,17 @@ public class TCPWorker implements Runnable {
 			sendFault(msgContext, e);
 		}
 	}
-	
+
 	/**
 	 * Handling record delimiter character type in binary stream
-	 * 
+	 *
 	 * @param msgContext the message context
 	 * @param input socket input stream
 	 * @param delimiter character value to delimit incoming message
 	 * @throws AxisFault if error occurred while processing
 	 */
 	private void handleCharacterRecordDelimiterBinaryStream(MessageContext msgContext, InputStream input,
-	                                                        int delimiter) throws AxisFault {
+															int delimiter) throws AxisFault {
 		if(log.isDebugEnabled()) {
 			log.debug("Handle message with character delimiter type binary stream");
 		}
@@ -226,7 +278,7 @@ public class TCPWorker implements Runnable {
 	 * @throws AxisFault if error occurred while processing
 	 */
 	private void handleStringRecordDelimiterStringStream(MessageContext msgContext, InputStream input,
-	                                                     String delimiter) throws AxisFault {
+														 String delimiter) throws AxisFault {
 		if(log.isDebugEnabled()) {
 			log.debug("Handle message with string delimiter type string stream");
 		}
@@ -251,11 +303,11 @@ public class TCPWorker implements Runnable {
 		} catch (IOException e) {
 			sendFault(msgContext, e);
 		} finally {
-				try {
-					bos.close();
-				} catch (IOException e) {
-					sendFault(msgContext, e);
-				}
+			try {
+				bos.close();
+			} catch (IOException e) {
+				sendFault(msgContext, e);
+			}
 		}
 	}
 
@@ -268,7 +320,7 @@ public class TCPWorker implements Runnable {
 	 * @throws AxisFault if error occurred while processing
 	 */
 	private void handleStringRecordDelimiterBinaryStream(MessageContext msgContext, InputStream input,
-	                                                     String delimiter) throws AxisFault {
+														 String delimiter) throws AxisFault {
 		if(log.isDebugEnabled()) {
 			log.debug("Handle message with string delimiter type binary stream");
 		}
@@ -324,31 +376,31 @@ public class TCPWorker implements Runnable {
 	 * @throws AxisFault if error occurred while processing
 	 */
 	private void handleRecordLength(MessageContext msgContext, InputStream input,
-			int recordLength) throws AxisFault {
+									int recordLength) throws AxisFault {
 		ByteArrayOutputStream baos = null;
 		ByteArrayInputStream bais = null;
 		byte[] bytes = new byte[recordLength];
-			try {
-				for (int len; (len = input.read(bytes)) > 0;) {
-					baos = new ByteArrayOutputStream();
-					baos.write(bytes, 0, len);
-					bais = new ByteArrayInputStream(baos.toByteArray());
-					SOAPEnvelope envelope = TransportUtils.createSOAPMessage(msgContext, bais,
-							endpoint.getContentType());
-					msgContext.setEnvelope(envelope);
-					AxisEngine.receive(msgContext);
+		try {
+			for (int len; (len = input.read(bytes)) > 0;) {
+				baos = new ByteArrayOutputStream();
+				baos.write(bytes, 0, len);
+				bais = new ByteArrayInputStream(baos.toByteArray());
+				SOAPEnvelope envelope = TransportUtils.createSOAPMessage(msgContext, bais,
+						endpoint.getContentType());
+				msgContext.setEnvelope(envelope);
+				AxisEngine.receive(msgContext);
+			}
+		} catch (IOException e) {
+			sendFault(msgContext, e);
+		} catch (XMLStreamException e) {
+			sendFault(msgContext, e);
+		} finally {
+			if(baos != null) {
+				try {
+					baos.close();
+				} catch (IOException e) {
+					sendFault(msgContext, e);
 				}
-			} catch (IOException e) {
-				sendFault(msgContext, e);
-			} catch (XMLStreamException e) {
-				sendFault(msgContext, e);
-			} finally {
-				if(baos != null) {
-					try {
-						baos.close();
-					} catch (IOException e) {
-						sendFault(msgContext, e);
-					}
 				if(bais != null) {
 					try {
 						bais.close();
@@ -356,9 +408,9 @@ public class TCPWorker implements Runnable {
 						sendFault(msgContext, e);
 					}
 				}
-				}
 			}
 		}
+	}
 
 	private void handleEnvelope(MessageContext msgContext, byte [] value) throws AxisFault {
 		ByteArrayInputStream bais = null;
@@ -383,19 +435,49 @@ public class TCPWorker implements Runnable {
 		}
 	}
 
-    private void sendFault(MessageContext msgContext, Exception fault) {
-        log.error("Error while processing TCP request through the Axis2 engine", fault);
-        try {
-            if (msgContext != null) {
-                msgContext.setProperty(MessageContext.TRANSPORT_OUT, socket.getOutputStream());
+	private void sendFault(MessageContext msgContext, Exception fault) {
+		log.error("Error while processing TCP request through the Axis2 engine", fault);
+		try {
+			if (msgContext != null) {
+				msgContext.setProperty(MessageContext.TRANSPORT_OUT, socket.getOutputStream());
 
-                MessageContext faultContext =
-                        MessageContextBuilder.createFaultMessageContext(msgContext, fault);
+				MessageContext faultContext =
+						MessageContextBuilder.createFaultMessageContext(msgContext, fault);
 
-                AxisEngine.sendFault(faultContext);
-            }
-        } catch (Exception e) {
-            log.error("Error while sending the fault response", e);
-        }
-    }
+				AxisEngine.sendFault(faultContext);
+			}
+		} catch (Exception e) {
+			log.error("Error while sending the fault response", e);
+		}
+	}
+
+	private static int convertBinaryBytesToInt(byte[] input) {
+		int     output = 0;
+		byte[]  bytes;
+
+		if (input.length > 4) {
+			bytes = new byte[4];
+			System.arraycopy(input, (input.length - 4), bytes, 0, 4);
+		} else {
+			bytes = input;
+		}
+
+		for (int i = 0; i < bytes.length; i++) {
+			output = ((output << 8) & 0xFFFFFF00) + (0x000000FF & bytes[i]);
+		}
+
+		return output;
+	}
+
+	private static int convertAsciiBytesToInt(byte[] input) {
+		int     output = 0;
+		int[]   factor  = { 1000, 100, 10, 1 };
+		int     slot    = 4 - input.length;
+
+		for (int i = 0; i < input.length; i++) {
+			output += (input[i] & 0x0f) * factor[slot + i];
+		}
+
+		return output;
+	}
 }
