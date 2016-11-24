@@ -50,17 +50,34 @@ import java.util.HashMap;
 
 public class TCPTransportSender extends AbstractTransportSender {
 
+    Map<Integer, Socket> persitentConnections = new HashMap<>();
+
     public void sendMessage(MessageContext msgContext, String targetEPR,
                             OutTransportInfo outTransportInfo) throws AxisFault {
 
         if (targetEPR != null) {
+            Integer clientId = (Integer)msgContext.getProperty("clientId");
+            Socket socket = persitentConnections.get(clientId);
             Map<String, String> params = getURLParameters(targetEPR);
-            int timeout = -1;
-            if (params.containsKey("timeout")) {
-                timeout = Integer.parseInt(params.get("timeout"));
+
+            if (msgContext.getProperty("websocket.source.handshake.present") != null && (boolean)msgContext.getProperty("websocket.source.handshake.present")) {
+                int timeout = -1;
+                if (params.containsKey("timeout")) {
+                    timeout = Integer.parseInt(params.get("timeout"));
+                }
+
+                if (socket == null) {
+                    persitentConnections.put(clientId, openTCPConnection(targetEPR, timeout));
+                }
+                return;
             }
-            Socket socket = openTCPConnection(targetEPR, timeout);
-            msgContext.setProperty(TCPConstants.TCP_OUTPUT_SOCKET, socket);
+            if (msgContext.getProperty("websocket.terminate") != null && (boolean)msgContext.getProperty("websocket.terminate")) {
+                persitentConnections.remove(clientId);
+                return;
+            }
+            //Socket socket = openTCPConnection(targetEPR, timeout);
+
+            //msgContext.setProperty(TCPConstants.TCP_OUTPUT_SOCKET, socket);
 
             try {
                 writeMessageOut(msgContext, socket.getOutputStream(), params.get("delimiter"),
@@ -72,7 +89,7 @@ public class TCPTransportSender extends AbstractTransportSender {
             } catch (IOException e) {
                 handleException("Error while sending a TCP request", e);
             } finally {
-                closeConnection(socket);
+                //closeConnection(socket);
             }
 
         } else if (outTransportInfo != null && (outTransportInfo instanceof TCPOutTransportInfo)) {
@@ -118,8 +135,10 @@ public class TCPTransportSender extends AbstractTransportSender {
         } else {
             byte[] message = messageFormatter.getBytes(msgContext, format);
             byte[] delimiterByteArray = getDelimiter(msgContext, message, delimiterType, Integer.parseInt(delimiterLength));
-            outputStream.write(delimiterByteArray);
-            outputStream.write(message);
+            ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream( );
+            byteArrayOutputStream.write(delimiterByteArray);
+            byteArrayOutputStream.write(message);
+            outputStream.write(byteArrayOutputStream.toByteArray());
         }
         outputStream.flush();
     }
@@ -152,6 +171,7 @@ public class TCPTransportSender extends AbstractTransportSender {
                     delimiterType, Integer.parseInt(delimiterLength))), msgContext);
             SOAPEnvelope envelope = TransportUtils.createSOAPEnvelope(documentElement);
             responseMsgCtx.setEnvelope(envelope);
+            responseMsgCtx.setProperty("backendMessageType", "binary/octet-stream");
             AxisEngine.receive(responseMsgCtx);
         } catch (Exception e) {
             handleException("Error while processing response", e);
