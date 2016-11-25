@@ -55,4 +55,5 @@ public class TCPConstants {
     public static final String IS_PING = "isPing";
     public static final String PONG = "pong";
     public static final String IS_CONNECTION_ALIVE = "isConnectionAlive";
+    public static final String IS_PERSISTENT = "isPersistent";
 }

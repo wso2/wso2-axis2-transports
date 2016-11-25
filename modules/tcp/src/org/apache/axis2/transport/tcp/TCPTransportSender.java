@@ -55,54 +55,86 @@ public class TCPTransportSender extends AbstractTransportSender {
             throws AxisFault {
 
         if (targetEPR != null) {
-            Integer clientId = (Integer) msgContext.getProperty(TCPConstants.CLIENT_ID);
-            Socket socket = persistentConnectionsMap.get(clientId);
             Map<String, String> params = getURLParameters(targetEPR);
+            String isPersistent = params.get(TCPConstants.IS_PERSISTENT);
+            int timeout = -1;
+            if (params != null && params.containsKey(TCPConstants.TIMEOUT)) {
+                timeout = Integer.parseInt(params.get(TCPConstants.TIMEOUT));
+            }
 
-            Object wsSourceHandshakePresentProperty = msgContext.getProperty(TCPConstants.WS_SOURCE_HANDSHAKE_PRESENT);
-            if (wsSourceHandshakePresentProperty != null && (boolean) wsSourceHandshakePresentProperty) {
-                int timeout = -1;
-                if (params != null && params.containsKey(TCPConstants.TIMEOUT)) {
-                    timeout = Integer.parseInt(params.get(TCPConstants.TIMEOUT));
+            Socket socket;
+            Integer clientId = 0;
+
+            if (isPersistent != null && Boolean.parseBoolean(isPersistent)) {
+                clientId = (Integer) msgContext.getProperty(TCPConstants.CLIENT_ID);
+                socket = persistentConnectionsMap.get(clientId);
+
+                Object wsSourceHandshakePresentProperty = msgContext.getProperty(TCPConstants.WS_SOURCE_HANDSHAKE_PRESENT);
+                if (wsSourceHandshakePresentProperty != null && (boolean) wsSourceHandshakePresentProperty) {
+                    if (socket == null) {
+                        persistentConnectionsMap.put(clientId, openTCPConnection(msgContext, targetEPR, timeout));
+                    }
+                    return;
                 }
-                if (socket == null) {
-                    persistentConnectionsMap.put(clientId, openTCPConnection(msgContext, targetEPR, timeout));
+
+            } else {
+                socket = openTCPConnection(msgContext, targetEPR, timeout);
+            }
+            if (isPersistent != null && Boolean.parseBoolean(isPersistent)) {
+                Object wsTerminateProperty = msgContext.getProperty(TCPConstants.WS_TERMINATE);
+                if (wsTerminateProperty != null && (boolean) wsTerminateProperty) {
+                    persistentConnectionsMap.remove(clientId);
+                    return;
                 }
-                return;
             }
-            Object wsTerminateProperty = msgContext.getProperty(TCPConstants.WS_TERMINATE);
-            if (wsTerminateProperty != null && (boolean) wsTerminateProperty) {
-                persistentConnectionsMap.remove(clientId);
-                return;
-            }
+
             try {
                 Object isPing = msgContext.getProperty(TCPConstants.IS_PING);
                 if (isPing != null && (boolean) isPing) {
-                    boolean isValid = isConnectionValid(socket);
-                    if (!isValid) {
-                        persistentConnectionsMap.remove(clientId);
-                    }
-                    try {
-                        MessageContext responseMsgCtx = createResponseMessageContext(msgContext);
-                        OMElement documentElement = createDocumentElement(
-                                new ByteArrayDataSource(TCPConstants.PONG.getBytes()), msgContext);
-                        SOAPEnvelope envelope = TransportUtils.createSOAPEnvelope(documentElement);
-                        responseMsgCtx.setEnvelope(envelope);
-                        responseMsgCtx.setProperty(TCPConstants.IS_CONNECTION_ALIVE, isValid);
-                        AxisEngine.receive(responseMsgCtx);
-                    } catch (Exception e) {
-                        handleException("Error while processing response", e);
-                    }
-                } else {
-                    writeMessageOut(msgContext, socket.getOutputStream(), params.get(TCPConstants.DELIMITER),
-                            params.get(TCPConstants.DELIMITER_TYPE), params.get(TCPConstants.DELIMITER_LENGTH));
-                    if (!msgContext.getOptions().isUseSeparateListener() && !msgContext.isServerSide()) {
-                        waitForReply(msgContext, socket, params.get(TCPConstants.CONTENT_TYPE),
-                                params.get(TCPConstants.DELIMITER_TYPE), params.get(TCPConstants.DELIMITER_LENGTH));
+                    if (isPersistent != null && Boolean.parseBoolean(isPersistent)) {
+                        boolean isValid = isConnectionValid(socket);
+                        if (!isValid) {
+                            persistentConnectionsMap.remove(clientId);
+                        }
+                        try {
+                            MessageContext responseMsgCtx = createResponseMessageContext(msgContext);
+                            OMElement documentElement = createDocumentElement(
+                                    new ByteArrayDataSource(TCPConstants.PONG.getBytes()), msgContext);
+                            SOAPEnvelope envelope = TransportUtils.createSOAPEnvelope(documentElement);
+                            responseMsgCtx.setEnvelope(envelope);
+                            responseMsgCtx.setProperty(TCPConstants.IS_CONNECTION_ALIVE, isValid);
+                            AxisEngine.receive(responseMsgCtx);
+                        } catch (Exception e) {
+                            handleException("Error while processing response", e);
+                        }
+                        return;
+                    } else {
+                        try {
+                            MessageContext responseMsgCtx = createResponseMessageContext(msgContext);
+                            OMElement documentElement = createDocumentElement(
+                                    new ByteArrayDataSource(TCPConstants.PONG.getBytes()), msgContext);
+                            SOAPEnvelope envelope = TransportUtils.createSOAPEnvelope(documentElement);
+                            responseMsgCtx.setEnvelope(envelope);
+                            responseMsgCtx.setProperty(TCPConstants.IS_CONNECTION_ALIVE, true);
+                            AxisEngine.receive(responseMsgCtx);
+                        } catch (Exception e) {
+                            handleException("Error while processing response", e);
+                        }
+                        return;
                     }
                 }
+
+                writeMessageOut(msgContext, socket.getOutputStream(), params.get(TCPConstants.DELIMITER),
+                        params.get(TCPConstants.DELIMITER_TYPE), params.get(TCPConstants.DELIMITER_LENGTH));
+                if (!msgContext.getOptions().isUseSeparateListener() && !msgContext.isServerSide()) {
+                    waitForReply(msgContext, socket, params.get(TCPConstants.CONTENT_TYPE),
+                            params.get(TCPConstants.DELIMITER_TYPE), params.get(TCPConstants.DELIMITER_LENGTH));
+                }
+
             } catch (IOException e) {
-                persistentConnectionsMap.remove(clientId);
+                if (isPersistent != null && Boolean.parseBoolean(isPersistent)) {
+                    persistentConnectionsMap.remove(clientId);
+                }
                 try {
                     MessageContext responseMsgCtx = createResponseMessageContext(msgContext);
                     OMElement documentElement = createDocumentElement(
