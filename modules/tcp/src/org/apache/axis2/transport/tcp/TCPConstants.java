@@ -41,4 +41,15 @@ public class TCPConstants {
     public static final int TCP_DEFAULT_BACKLOG = 50;
     public static final String TCP_DEFAULT_CONTENT_TYPE = "text/xml";
     public static final String TCP_OUTPUT_SOCKET = "transport.tcp.outputSocket";
+    public static final String CLIENT_ID = "clientId";
+    public static final String WS_SOURCE_HANDSHAKE_PRESENT = "websocket.source.handshake.present";
+    public static final String TIMEOUT = "timeout";
+    public static final String WS_TERMINATE = "websocket.terminate";
+    public static final String DELIMITER = "delimiter";
+    public static final String DELIMITER_TYPE = "delimiterType";
+    public static final String DELIMITER_LENGTH = "delimiterLength";
+    public static final String CONTENT_TYPE = "contentType";
+    public static final String BACKEND_MESSAGE_TYPE = "backendMessageType";
+    public static final String BINARY_OCTET_STREAM = "binary/octet-stream";
+    public static final String WRAPPER = "Wrapper";
 }

@@ -80,11 +80,11 @@ public class TCPWorker implements Runnable {
 				handled = true;
 			}
 
-			int delimiterLength = endpoint.getRecordDelimiterLength();
-			if (delimiterLength > -1) {
-				this.handleRecordDelimiterLengthStream(msgContext, input, delimiterLength, delimiterType);
-				handled = true;
-			}
+            int delimiterLength = endpoint.getRecordDelimiterLength();
+            if (delimiterLength > -1) {
+                this.handleRecordDelimiterLengthStream(msgContext, input, delimiterLength, delimiterType);
+                handled = true;
+            }
 
 			if (!delimiter.isEmpty() && !handled) {
 				if (inputType != null) {
@@ -130,51 +130,46 @@ public class TCPWorker implements Runnable {
 		}
 	}
 
-	private void handleRecordDelimiterLengthStream(MessageContext msgContext, InputStream input, int delimiterLength, String delimiterType) throws AxisFault {
-		try {
-			int		delimiterLengthCount	= 0;
-			int		recordLengthCount		= 0;
-			int		recordLength			= 0;
-			byte[]	recordBytes				= null;
-			byte[]	delimiterBytes			= new byte[delimiterLength];
-			boolean isBinaryDelimiter		= delimiterType.equalsIgnoreCase("binary") ? true : false;
-
-			int readCount;
-			while (true) {
-				while (delimiterLengthCount < delimiterLength) {
-					readCount = input.read(delimiterBytes, delimiterLengthCount, delimiterLength - delimiterLengthCount);
-					if (readCount == -1) {
-						return;
-					}
-					delimiterLengthCount += readCount;
-				}
-
-				if (isBinaryDelimiter) {
-					recordLength = convertBinaryBytesToInt(delimiterBytes);
-				} else {
-					recordLength = convertAsciiBytesToInt(delimiterBytes);
-				}
-
-				recordBytes = new byte[recordLength];
-				while (recordLengthCount < recordLength) {
-					readCount = input.read(recordBytes, recordLengthCount, recordLength - recordLengthCount);
-					if (readCount == -1) {
-						return;
-					}
-					recordLengthCount += readCount;
-				}
-
-				handleEnvelope(msgContext, recordBytes);
-
-				delimiterLengthCount 	= 0;
-				recordLengthCount		= 0;
-				recordBytes				= null;
-			}
-		} catch (IOException e) {
-			sendFault(msgContext, e);
-		} finally {
-		}
-	}
+    private void handleRecordDelimiterLengthStream(MessageContext msgContext, InputStream input, int delimiterLength,
+                                                   String delimiterType) throws AxisFault {
+        try {
+            int delimiterLengthCount = 0;
+            int recordLengthCount = 0;
+            int recordLength ;
+            byte[] recordBytes ;
+            byte[] delimiterBytes = new byte[delimiterLength];
+            boolean isBinaryDelimiter = delimiterType.equalsIgnoreCase(TCPConstants.BINARY_DELIMITER_TYPE);
+            int readCount;
+            while (true) {
+                while (delimiterLengthCount < delimiterLength) {
+                    readCount = input.read(delimiterBytes, delimiterLengthCount,
+                            delimiterLength - delimiterLengthCount);
+                    if (readCount == -1) {
+                        return;
+                    }
+                    delimiterLengthCount += readCount;
+                }
+                if (isBinaryDelimiter) {
+                    recordLength = TCPUtils.convertBinaryBytesToInt(delimiterBytes);
+                } else {
+                    recordLength = TCPUtils.convertAsciiBytesToInt(delimiterBytes);
+                }
+                recordBytes = new byte[recordLength];
+                while (recordLengthCount < recordLength) {
+                    readCount = input.read(recordBytes, recordLengthCount, recordLength - recordLengthCount);
+                    if (readCount == -1) {
+                        return;
+                    }
+                    recordLengthCount += readCount;
+                }
+                handleEnvelope(msgContext, recordBytes);
+                delimiterLengthCount = 0;
+                recordLengthCount = 0;
+            }
+        } catch (IOException e) {
+            sendFault(msgContext, e);
+        }
+    }
 
 	/**
 	 * Handling record delimiter character type for string stream
@@ -449,35 +444,5 @@ public class TCPWorker implements Runnable {
 		} catch (Exception e) {
 			log.error("Error while sending the fault response", e);
 		}
-	}
-
-	private static int convertBinaryBytesToInt(byte[] input) {
-		int     output = 0;
-		byte[]  bytes;
-
-		if (input.length > 4) {
-			bytes = new byte[4];
-			System.arraycopy(input, (input.length - 4), bytes, 0, 4);
-		} else {
-			bytes = input;
-		}
-
-		for (int i = 0; i < bytes.length; i++) {
-			output = ((output << 8) & 0xFFFFFF00) + (0x000000FF & bytes[i]);
-		}
-
-		return output;
-	}
-
-	private static int convertAsciiBytesToInt(byte[] input) {
-		int     output = 0;
-		int[]   factor  = { 1000, 100, 10, 1 };
-		int     slot    = 4 - input.length;
-
-		for (int i = 0; i < input.length; i++) {
-			output += (input[i] & 0x0f) * factor[slot + i];
-		}
-
-		return output;
 	}
 }
