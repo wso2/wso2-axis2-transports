@@ -66,7 +66,7 @@ public class TCPTransportSender extends AbstractTransportSender {
                     timeout = Integer.parseInt(params.get(TCPConstants.TIMEOUT));
                 }
                 if (socket == null) {
-                    persistentConnectionsMap.put(clientId, openTCPConnection(targetEPR, timeout));
+                    persistentConnectionsMap.put(clientId, openTCPConnection(msgContext, targetEPR, timeout));
                 }
                 return;
             }
@@ -76,13 +76,44 @@ public class TCPTransportSender extends AbstractTransportSender {
                 return;
             }
             try {
-                writeMessageOut(msgContext, socket.getOutputStream(), params.get(TCPConstants.DELIMITER),
-                        params.get(TCPConstants.DELIMITER_TYPE), params.get(TCPConstants.DELIMITER_LENGTH));
-                if (!msgContext.getOptions().isUseSeparateListener() && !msgContext.isServerSide()) {
-                    waitForReply(msgContext, socket, params.get(TCPConstants.CONTENT_TYPE),
+                Object isPing = msgContext.getProperty(TCPConstants.IS_PING);
+                if (isPing != null && (boolean) isPing) {
+                    boolean isValid = isConnectionValid(socket);
+                    if (!isValid) {
+                        persistentConnectionsMap.remove(clientId);
+                    }
+                    try {
+                        MessageContext responseMsgCtx = createResponseMessageContext(msgContext);
+                        OMElement documentElement = createDocumentElement(
+                                new ByteArrayDataSource(TCPConstants.PONG.getBytes()), msgContext);
+                        SOAPEnvelope envelope = TransportUtils.createSOAPEnvelope(documentElement);
+                        responseMsgCtx.setEnvelope(envelope);
+                        responseMsgCtx.setProperty(TCPConstants.IS_CONNECTION_ALIVE, isValid);
+                        AxisEngine.receive(responseMsgCtx);
+                    } catch (Exception e) {
+                        handleException("Error while processing response", e);
+                    }
+                } else {
+                    writeMessageOut(msgContext, socket.getOutputStream(), params.get(TCPConstants.DELIMITER),
                             params.get(TCPConstants.DELIMITER_TYPE), params.get(TCPConstants.DELIMITER_LENGTH));
+                    if (!msgContext.getOptions().isUseSeparateListener() && !msgContext.isServerSide()) {
+                        waitForReply(msgContext, socket, params.get(TCPConstants.CONTENT_TYPE),
+                                params.get(TCPConstants.DELIMITER_TYPE), params.get(TCPConstants.DELIMITER_LENGTH));
+                    }
                 }
             } catch (IOException e) {
+                persistentConnectionsMap.remove(clientId);
+                try {
+                    MessageContext responseMsgCtx = createResponseMessageContext(msgContext);
+                    OMElement documentElement = createDocumentElement(
+                            new ByteArrayDataSource(TCPConstants.PONG.getBytes()), msgContext);
+                    SOAPEnvelope envelope = TransportUtils.createSOAPEnvelope(documentElement);
+                    responseMsgCtx.setEnvelope(envelope);
+                    responseMsgCtx.setProperty(TCPConstants.IS_CONNECTION_ALIVE, false);
+                    AxisEngine.receive(responseMsgCtx);
+                } catch (Exception e2) {
+                    handleException("Error while processing response", e2);
+                }
                 handleException("Error while sending a TCP request", e);
             }
         } else if (outTransportInfo != null && (outTransportInfo instanceof TCPOutTransportInfo)) {
@@ -187,7 +218,7 @@ public class TCPTransportSender extends AbstractTransportSender {
         return null;
     }
 
-    private Socket openTCPConnection(String url, int timeout) throws AxisFault {
+    private Socket openTCPConnection(MessageContext msgContext, String url, int timeout) throws AxisFault {
         try {
             URI tcpUrl = new URI(url);
             if (!tcpUrl.getScheme().equals("tcp")) {
@@ -201,6 +232,17 @@ public class TCPTransportSender extends AbstractTransportSender {
             socket.connect(address);
             return socket;
         } catch (Exception e) {
+            try {
+                MessageContext responseMsgCtx = createResponseMessageContext(msgContext);
+                OMElement documentElement = createDocumentElement(
+                        new ByteArrayDataSource(TCPConstants.PONG.getBytes()), msgContext);
+                SOAPEnvelope envelope = TransportUtils.createSOAPEnvelope(documentElement);
+                responseMsgCtx.setEnvelope(envelope);
+                responseMsgCtx.setProperty(TCPConstants.IS_CONNECTION_ALIVE, false);
+                AxisEngine.receive(responseMsgCtx);
+            } catch (Exception e2) {
+                handleException("Error while processing response", e2);
+            }
             handleException("Error while opening TCP connection to : " + url, e);
         }
         return null;
@@ -211,6 +253,18 @@ public class TCPTransportSender extends AbstractTransportSender {
             socket.close();
         } catch (IOException e) {
             log.error("Error while closing a TCP socket", e);
+        }
+    }
+
+    private boolean isConnectionValid(Socket socket) {
+        try {
+            // We need to send data at least 2 times to make sure that the connection is not closed
+            socket.sendUrgentData(1);
+            socket.sendUrgentData(1);
+            return true;
+        } catch (IOException e) {
+            e.printStackTrace();
+            return false;
         }
     }
 

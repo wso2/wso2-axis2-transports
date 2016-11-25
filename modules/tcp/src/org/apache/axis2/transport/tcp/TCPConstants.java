@@ -52,4 +52,7 @@ public class TCPConstants {
     public static final String BACKEND_MESSAGE_TYPE = "backendMessageType";
     public static final String BINARY_OCTET_STREAM = "binary/octet-stream";
     public static final String WRAPPER = "Wrapper";
+    public static final String IS_PING = "isPing";
+    public static final String PONG = "pong";
+    public static final String IS_CONNECTION_ALIVE = "isConnectionAlive";
 }
