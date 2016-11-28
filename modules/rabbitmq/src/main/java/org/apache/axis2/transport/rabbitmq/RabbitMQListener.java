@@ -24,6 +24,7 @@ import org.apache.axis2.description.AxisService;
 import org.apache.axis2.description.Parameter;
 import org.apache.axis2.transport.base.AbstractTransportListenerEx;
 import org.apache.axis2.transport.rabbitmq.utils.RabbitMQConstants;
+import org.wso2.securevault.SecretResolver;
 
 /**
  * The RabbitMQ AMQP Transport listener implementation. Creates {@link ServiceTaskManager} instances
@@ -38,10 +39,12 @@ public class RabbitMQListener extends AbstractTransportListenerEx<RabbitMQEndpoi
      * The ConnectionFactoryManager which centralizes the management of defined factories
      */
     private RabbitMQConnectionFactoryManager rabbitMQConnectionFactoryManager;
+    private SecretResolver secretResolver;
 
     @Override
     protected void doInit() throws AxisFault {
-        rabbitMQConnectionFactoryManager = new RabbitMQConnectionFactoryManager(getTransportInDescription());
+        secretResolver = getConfigurationContext().getAxisConfiguration().getSecretResolver();
+        rabbitMQConnectionFactoryManager = new RabbitMQConnectionFactoryManager(getTransportInDescription(), secretResolver);
         log.info("RabbitMQ AMQP Transport Receiver initialized...");
     }
 
