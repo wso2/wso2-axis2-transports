@@ -98,6 +98,9 @@ public class RabbitMQConstants {
     public static final int CACHE_CONNECTION = 1;
     /** Default concurrent consumer count */
     public static final int CONCURRENT_CONSUMER_COUNT_DEFAULT = 1;
+
+    public static final String SECURE_VAULT_NAMESPACE = "http://org.wso2.securevault/configuration";
+    public static final String SECRET_ALIAS_ATTRIBUTE = "secretAlias";
 }
 
 
