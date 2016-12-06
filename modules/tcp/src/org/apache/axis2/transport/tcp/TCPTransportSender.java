@@ -49,7 +49,7 @@ import java.util.HashMap;
 
 public class TCPTransportSender extends AbstractTransportSender {
 
-    private Map<Integer, Socket> persistentConnectionsMap = new HashMap<>();
+    private Map<String, Socket> persistentConnectionsMap = new HashMap<>();
 
     public void sendMessage(MessageContext msgContext, String targetEPR, OutTransportInfo outTransportInfo)
             throws AxisFault {
@@ -63,20 +63,17 @@ public class TCPTransportSender extends AbstractTransportSender {
             }
 
             Socket socket;
-            Integer clientId = 0;
+            String clientId = null;
 
             if (isPersistent != null && Boolean.parseBoolean(isPersistent)) {
-                clientId = (Integer) msgContext.getProperty(TCPConstants.CLIENT_ID);
+                if (msgContext.getProperty(TCPConstants.CLIENT_ID) != null) {
+                    clientId = msgContext.getProperty(TCPConstants.CLIENT_ID).toString();
+                }
                 socket = persistentConnectionsMap.get(clientId);
-
-                Object wsSourceHandshakePresentProperty = msgContext.getProperty(TCPConstants.WS_SOURCE_HANDSHAKE_PRESENT);
-                if (wsSourceHandshakePresentProperty != null && (boolean) wsSourceHandshakePresentProperty) {
-                    if (socket == null) {
-                        persistentConnectionsMap.put(clientId, openTCPConnection(msgContext, targetEPR, timeout));
-                    }
+                if (socket == null) {
+                    persistentConnectionsMap.put(clientId, openTCPConnection(msgContext, targetEPR, timeout));
                     return;
                 }
-
             } else {
                 socket = openTCPConnection(msgContext, targetEPR, timeout);
             }
@@ -95,19 +92,21 @@ public class TCPTransportSender extends AbstractTransportSender {
                         boolean isValid = isConnectionValid(socket);
                         if (!isValid) {
                             persistentConnectionsMap.remove(clientId);
+                        } else {
+                            try {
+                                MessageContext responseMsgCtx = createResponseMessageContext(msgContext);
+                                OMElement documentElement = createDocumentElement(
+                                        new ByteArrayDataSource(TCPConstants.PONG.getBytes()), msgContext);
+                                SOAPEnvelope envelope = TransportUtils.createSOAPEnvelope(documentElement);
+                                responseMsgCtx.setEnvelope(envelope);
+                                responseMsgCtx.setProperty(TCPConstants.IS_CONNECTION_ALIVE, isValid);
+                                AxisEngine.receive(responseMsgCtx);
+                            } catch (Exception e) {
+                                handleException("Error while processing response", e);
+                            }
+                            return;
                         }
-                        try {
-                            MessageContext responseMsgCtx = createResponseMessageContext(msgContext);
-                            OMElement documentElement = createDocumentElement(
-                                    new ByteArrayDataSource(TCPConstants.PONG.getBytes()), msgContext);
-                            SOAPEnvelope envelope = TransportUtils.createSOAPEnvelope(documentElement);
-                            responseMsgCtx.setEnvelope(envelope);
-                            responseMsgCtx.setProperty(TCPConstants.IS_CONNECTION_ALIVE, isValid);
-                            AxisEngine.receive(responseMsgCtx);
-                        } catch (Exception e) {
-                            handleException("Error while processing response", e);
-                        }
-                        return;
+
                     } else {
                         try {
                             MessageContext responseMsgCtx = createResponseMessageContext(msgContext);
@@ -134,17 +133,6 @@ public class TCPTransportSender extends AbstractTransportSender {
             } catch (IOException e) {
                 if (isPersistent != null && Boolean.parseBoolean(isPersistent)) {
                     persistentConnectionsMap.remove(clientId);
-                }
-                try {
-                    MessageContext responseMsgCtx = createResponseMessageContext(msgContext);
-                    OMElement documentElement = createDocumentElement(
-                            new ByteArrayDataSource(TCPConstants.PONG.getBytes()), msgContext);
-                    SOAPEnvelope envelope = TransportUtils.createSOAPEnvelope(documentElement);
-                    responseMsgCtx.setEnvelope(envelope);
-                    responseMsgCtx.setProperty(TCPConstants.IS_CONNECTION_ALIVE, false);
-                    AxisEngine.receive(responseMsgCtx);
-                } catch (Exception e2) {
-                    handleException("Error while processing response", e2);
                 }
                 handleException("Error while sending a TCP request", e);
             }
@@ -264,17 +252,6 @@ public class TCPTransportSender extends AbstractTransportSender {
             socket.connect(address);
             return socket;
         } catch (Exception e) {
-            try {
-                MessageContext responseMsgCtx = createResponseMessageContext(msgContext);
-                OMElement documentElement = createDocumentElement(
-                        new ByteArrayDataSource(TCPConstants.PONG.getBytes()), msgContext);
-                SOAPEnvelope envelope = TransportUtils.createSOAPEnvelope(documentElement);
-                responseMsgCtx.setEnvelope(envelope);
-                responseMsgCtx.setProperty(TCPConstants.IS_CONNECTION_ALIVE, false);
-                AxisEngine.receive(responseMsgCtx);
-            } catch (Exception e2) {
-                handleException("Error while processing response", e2);
-            }
             handleException("Error while opening TCP connection to : " + url, e);
         }
         return null;
@@ -288,14 +265,14 @@ public class TCPTransportSender extends AbstractTransportSender {
         }
     }
 
-    private boolean isConnectionValid(Socket socket) {
+    private boolean isConnectionValid(Socket socket) throws AxisFault {
         try {
             // We need to send data at least 2 times to make sure that the connection is not closed
             socket.sendUrgentData(1);
             socket.sendUrgentData(1);
             return true;
         } catch (IOException e) {
-            e.printStackTrace();
+            handleException("Error while connecting to backend. ", e);
             return false;
         }
     }

@@ -112,6 +112,7 @@ public class TCPWorker implements Runnable {
 			}
 
 			if (!handled) {
+            	msgContext.setProperty("clientId", endpoint.getClientId());
 				SOAPEnvelope envelope = TransportUtils.createSOAPMessage(msgContext, input,
 						endpoint.getContentType());
 				msgContext.setEnvelope(envelope);

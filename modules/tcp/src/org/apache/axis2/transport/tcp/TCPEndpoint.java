@@ -42,6 +42,7 @@ public class TCPEndpoint extends ProtocolEndpoint {
     private Integer recordLength;
     private boolean clientResponseRequired;
     private String inputType;
+    private String clientId;
 
     public TCPEndpoint() {
 
@@ -174,4 +175,11 @@ public class TCPEndpoint extends ProtocolEndpoint {
         return new EndpointReference[] { new EndpointReference(url) };
     }
 
+    public String getClientId() {
+        return clientId;
+    }
+
+    public void setClientId(String clientId) {
+        this.clientId = clientId;
+    }
 }
