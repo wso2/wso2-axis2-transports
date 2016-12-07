@@ -70,7 +70,7 @@ public class TCPTransportSender extends AbstractTransportSender {
                     clientId = msgContext.getProperty(TCPConstants.CLIENT_ID).toString();
                 }
                 socket = persistentConnectionsMap.get(clientId);
-                if (socket == null) {
+                if (socket == null && clientId != null) {
                     persistentConnectionsMap.put(clientId, openTCPConnection(msgContext, targetEPR, timeout));
                     return;
                 }
@@ -78,8 +78,8 @@ public class TCPTransportSender extends AbstractTransportSender {
                 socket = openTCPConnection(msgContext, targetEPR, timeout);
             }
             if (isPersistent != null && Boolean.parseBoolean(isPersistent)) {
-                Object wsTerminateProperty = msgContext.getProperty(TCPConstants.WS_TERMINATE);
-                if (wsTerminateProperty != null && (boolean) wsTerminateProperty) {
+                Object terminateProperty = msgContext.getProperty(TCPConstants.CONNECTION_TERMINATE);
+                if (terminateProperty != null && (boolean) terminateProperty) {
                     persistentConnectionsMap.remove(clientId);
                     return;
                 }
@@ -140,7 +140,7 @@ public class TCPTransportSender extends AbstractTransportSender {
             TCPOutTransportInfo outInfo = (TCPOutTransportInfo) outTransportInfo;
             try {
                 writeMessageOut(msgContext, outInfo.getSocket().getOutputStream(), outInfo.getDelimiter(),
-                        outInfo.getDelimiterType(), null);
+                        outInfo.getDelimiterType(), Integer.toString(outInfo.getRecordDelimiterLength()));
             } catch (IOException e) {
                 handleException("Error while sending a TCP response", e);
             } finally {

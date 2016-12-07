@@ -19,6 +19,8 @@
 
 package org.apache.axis2.transport.tcp;
 
+import org.apache.axiom.attachments.ByteArrayDataSource;
+import org.apache.axiom.om.OMElement;
 import org.apache.axiom.soap.SOAPEnvelope;
 import org.apache.axis2.AxisFault;
 import org.apache.axis2.Constants;
@@ -60,6 +62,14 @@ public class TCPWorker implements Runnable {
 		MessageContext msgContext = null;
 		try {
 			msgContext = endpoint.createMessageContext();
+
+			msgContext.setProperty("clientId", endpoint.getClientId());
+			OMElement documentElement = TCPTransportSender.createDocumentElement(
+					new ByteArrayDataSource(TCPConstants.PONG.getBytes()), msgContext);
+			SOAPEnvelope handshakeEnvelope = TransportUtils.createSOAPEnvelope(documentElement);
+			msgContext.setEnvelope(handshakeEnvelope);
+			AxisEngine.receive(msgContext);
+
 			msgContext.setIncomingTransportName(Constants.TRANSPORT_TCP);
 			TCPOutTransportInfo outInfo = new TCPOutTransportInfo();
 			outInfo.setSocket(socket);
@@ -71,6 +81,7 @@ public class TCPWorker implements Runnable {
 			String delimiterType = endpoint.getRecordDelimiterType();
 			outInfo.setDelimiter(delimiter);
 			outInfo.setDelimiterType(delimiterType);
+			outInfo.setRecordDelimiterLength(endpoint.getRecordDelimiterLength());
 			msgContext.setProperty(Constants.OUT_TRANSPORT_INFO, outInfo);
 			// create the SOAP Envelope
 			InputStream input = socket.getInputStream();
@@ -112,7 +123,6 @@ public class TCPWorker implements Runnable {
 			}
 
 			if (!handled) {
-            	msgContext.setProperty("clientId", endpoint.getClientId());
 				SOAPEnvelope envelope = TransportUtils.createSOAPMessage(msgContext, input,
 						endpoint.getContentType());
 				msgContext.setEnvelope(envelope);
@@ -146,6 +156,12 @@ public class TCPWorker implements Runnable {
                     readCount = input.read(delimiterBytes, delimiterLengthCount,
                             delimiterLength - delimiterLengthCount);
                     if (readCount == -1) {
+                    	msgContext.setProperty(TCPConstants.CONNECTION_TERMINATE, true);
+						OMElement documentElement = TCPTransportSender.createDocumentElement(
+								new ByteArrayDataSource(TCPConstants.PONG.getBytes()), msgContext);
+						SOAPEnvelope handshakeEnvelope = TransportUtils.createSOAPEnvelope(documentElement);
+						msgContext.setEnvelope(handshakeEnvelope);
+						AxisEngine.receive(msgContext);
                         return;
                     }
                     delimiterLengthCount += readCount;
@@ -159,6 +175,12 @@ public class TCPWorker implements Runnable {
                 while (recordLengthCount < recordLength) {
                     readCount = input.read(recordBytes, recordLengthCount, recordLength - recordLengthCount);
                     if (readCount == -1) {
+						msgContext.setProperty("websocket.terminate", true);
+						OMElement documentElement = TCPTransportSender.createDocumentElement(
+								new ByteArrayDataSource(TCPConstants.PONG.getBytes()), msgContext);
+						SOAPEnvelope handshakeEnvelope = TransportUtils.createSOAPEnvelope(documentElement);
+						msgContext.setEnvelope(handshakeEnvelope);
+						AxisEngine.receive(msgContext);
                         return;
                     }
                     recordLengthCount += readCount;

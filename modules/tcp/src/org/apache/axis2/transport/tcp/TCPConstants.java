@@ -44,7 +44,7 @@ public class TCPConstants {
     public static final String CLIENT_ID = "clientId";
     public static final String WS_SOURCE_HANDSHAKE_PRESENT = "websocket.source.handshake.present";
     public static final String TIMEOUT = "timeout";
-    public static final String WS_TERMINATE = "websocket.terminate";
+    public static final String CONNECTION_TERMINATE = "connection.terminate";
     public static final String DELIMITER = "delimiter";
     public static final String DELIMITER_TYPE = "delimiterType";
     public static final String DELIMITER_LENGTH = "delimiterLength";
