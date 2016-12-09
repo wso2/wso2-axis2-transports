@@ -30,6 +30,7 @@ public class TCPConstants {
     public static final String PARAM_RECORD_DELIMITER_LENGTH = "transport.tcp.recordDelimiterLength";
     public static final String PARAM_RECORD_LENGTH = "transport.tcp.recordLength";
     public static final String PARAM_RESPONSE_CLIENT = "transport.tcp.responseClient";
+    public static final String PERSISTABLE_BACKEND_CONNECTION = "transport.tcp.persistableBackendConnection";
     public static final String PARAM_RESPONSE_INPUT_TYPE = "transport.tcp.inputType";
     public static final String BINARY_INPUT_TYPE = "binary";
     public static final String STRING_INPUT_TYPE = "string";

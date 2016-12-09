@@ -43,6 +43,7 @@ public class TCPEndpoint extends ProtocolEndpoint {
     private boolean clientResponseRequired;
     private String inputType;
     private String clientId;
+    private boolean persistableBackendConnection;
 
     public TCPEndpoint() {
 
@@ -146,6 +147,8 @@ public class TCPEndpoint extends ProtocolEndpoint {
 
         clientResponseRequired =  ParamUtils.getOptionalParamBoolean(params, TCPConstants.PARAM_RESPONSE_CLIENT, false);
 
+        persistableBackendConnection =  ParamUtils.getOptionalParamBoolean(params, TCPConstants.PERSISTABLE_BACKEND_CONNECTION, false);
+
         host = ParamUtils.getOptionalParam(params, TCPConstants.PARAM_HOST);
         backlog = ParamUtils.getOptionalParamInt(params, TCPConstants.PARAM_BACKLOG, TCPConstants.TCP_DEFAULT_BACKLOG);
 
@@ -181,5 +184,13 @@ public class TCPEndpoint extends ProtocolEndpoint {
 
     public void setClientId(String clientId) {
         this.clientId = clientId;
+    }
+
+    public boolean isPersistableBackendConnection() {
+        return persistableBackendConnection;
+    }
+
+    public void setPersistableBackendConnection(boolean persistableBackendConnection) {
+        this.persistableBackendConnection = persistableBackendConnection;
     }
 }

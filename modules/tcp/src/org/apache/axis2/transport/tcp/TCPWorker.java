@@ -62,13 +62,14 @@ public class TCPWorker implements Runnable {
 		MessageContext msgContext = null;
 		try {
 			msgContext = endpoint.createMessageContext();
-
-			msgContext.setProperty("clientId", endpoint.getClientId());
-			OMElement documentElement = TCPTransportSender.createDocumentElement(
-					new ByteArrayDataSource(TCPConstants.PONG.getBytes()), msgContext);
-			SOAPEnvelope handshakeEnvelope = TransportUtils.createSOAPEnvelope(documentElement);
-			msgContext.setEnvelope(handshakeEnvelope);
-			AxisEngine.receive(msgContext);
+			if (endpoint.isPersistableBackendConnection()) {
+				msgContext.setProperty("clientId", endpoint.getClientId());
+				OMElement documentElement = TCPTransportSender.createDocumentElement(
+						new ByteArrayDataSource("".getBytes()), msgContext);
+				SOAPEnvelope handshakeEnvelope = TransportUtils.createSOAPEnvelope(documentElement);
+				msgContext.setEnvelope(handshakeEnvelope);
+				AxisEngine.receive(msgContext);
+			}
 
 			msgContext.setIncomingTransportName(Constants.TRANSPORT_TCP);
 			TCPOutTransportInfo outInfo = new TCPOutTransportInfo();
@@ -156,12 +157,14 @@ public class TCPWorker implements Runnable {
                     readCount = input.read(delimiterBytes, delimiterLengthCount,
                             delimiterLength - delimiterLengthCount);
                     if (readCount == -1) {
-                    	msgContext.setProperty(TCPConstants.CONNECTION_TERMINATE, true);
-						OMElement documentElement = TCPTransportSender.createDocumentElement(
-								new ByteArrayDataSource(TCPConstants.PONG.getBytes()), msgContext);
-						SOAPEnvelope handshakeEnvelope = TransportUtils.createSOAPEnvelope(documentElement);
-						msgContext.setEnvelope(handshakeEnvelope);
-						AxisEngine.receive(msgContext);
+                    	if (endpoint.isPersistableBackendConnection()) {
+							msgContext.setProperty(TCPConstants.CONNECTION_TERMINATE, true);
+							OMElement documentElement = TCPTransportSender.createDocumentElement(
+									new ByteArrayDataSource("".getBytes()), msgContext);
+							SOAPEnvelope handshakeEnvelope = TransportUtils.createSOAPEnvelope(documentElement);
+							msgContext.setEnvelope(handshakeEnvelope);
+							AxisEngine.receive(msgContext);
+						}
                         return;
                     }
                     delimiterLengthCount += readCount;

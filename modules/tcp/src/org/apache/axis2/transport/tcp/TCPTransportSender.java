@@ -65,10 +65,10 @@ public class TCPTransportSender extends AbstractTransportSender {
             Socket socket;
             String clientId = null;
 
+            if (msgContext.getProperty(TCPConstants.CLIENT_ID) != null) {
+                clientId = msgContext.getProperty(TCPConstants.CLIENT_ID).toString();
+            }
             if (isPersistent != null && Boolean.parseBoolean(isPersistent)) {
-                if (msgContext.getProperty(TCPConstants.CLIENT_ID) != null) {
-                    clientId = msgContext.getProperty(TCPConstants.CLIENT_ID).toString();
-                }
                 socket = persistentConnectionsMap.get(clientId);
                 if (socket == null && clientId != null) {
                     persistentConnectionsMap.put(clientId, openTCPConnection(msgContext, targetEPR, timeout));
