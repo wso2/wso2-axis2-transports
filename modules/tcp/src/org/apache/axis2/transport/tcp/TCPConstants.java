@@ -57,4 +57,5 @@ public class TCPConstants {
     public static final String PONG = "pong";
     public static final String IS_CONNECTION_ALIVE = "isConnectionAlive";
     public static final String IS_PERSISTENT = "isPersistent";
+    public static final String SOURCE_HANDSHAKE_PRESENT = "source.handshake.present";
 }

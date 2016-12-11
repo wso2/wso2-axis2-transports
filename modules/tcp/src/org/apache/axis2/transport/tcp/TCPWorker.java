@@ -63,7 +63,8 @@ public class TCPWorker implements Runnable {
 		try {
 			msgContext = endpoint.createMessageContext();
 			if (endpoint.isPersistableBackendConnection()) {
-				msgContext.setProperty("clientId", endpoint.getClientId());
+				msgContext.setProperty(TCPConstants.CLIENT_ID, endpoint.getClientId());
+				msgContext.setProperty(TCPConstants.SOURCE_HANDSHAKE_PRESENT, true);
 				OMElement documentElement = TCPTransportSender.createDocumentElement(
 						new ByteArrayDataSource("".getBytes()), msgContext);
 				SOAPEnvelope handshakeEnvelope = TransportUtils.createSOAPEnvelope(documentElement);
@@ -156,6 +157,7 @@ public class TCPWorker implements Runnable {
                 while (delimiterLengthCount < delimiterLength) {
                     readCount = input.read(delimiterBytes, delimiterLengthCount,
                             delimiterLength - delimiterLengthCount);
+					msgContext.removeProperty(TCPConstants.SOURCE_HANDSHAKE_PRESENT);
                     if (readCount == -1) {
                     	if (endpoint.isPersistableBackendConnection()) {
 							msgContext.setProperty(TCPConstants.CONNECTION_TERMINATE, true);
@@ -178,9 +180,9 @@ public class TCPWorker implements Runnable {
                 while (recordLengthCount < recordLength) {
                     readCount = input.read(recordBytes, recordLengthCount, recordLength - recordLengthCount);
                     if (readCount == -1) {
-						msgContext.setProperty("websocket.terminate", true);
+						msgContext.setProperty(TCPConstants.CONNECTION_TERMINATE, true);
 						OMElement documentElement = TCPTransportSender.createDocumentElement(
-								new ByteArrayDataSource(TCPConstants.PONG.getBytes()), msgContext);
+								new ByteArrayDataSource("".getBytes()), msgContext);
 						SOAPEnvelope handshakeEnvelope = TransportUtils.createSOAPEnvelope(documentElement);
 						msgContext.setEnvelope(handshakeEnvelope);
 						AxisEngine.receive(msgContext);
