@@ -34,6 +34,8 @@ import org.apache.axis2.transport.base.AbstractTransportSender;
 import org.apache.axis2.transport.base.BaseConstants;
 import org.apache.axis2.transport.base.BaseUtils;
 import org.apache.axiom.om.OMOutputFormat;
+import org.apache.commons.codec.DecoderException;
+import org.apache.commons.codec.binary.Hex;
 
 import javax.activation.DataHandler;
 import javax.activation.DataSource;
@@ -44,6 +46,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.*;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.HashMap;
 
@@ -93,7 +96,9 @@ public class TCPTransportSender extends AbstractTransportSender {
                 Object isPing = msgContext.getProperty(TCPConstants.IS_PING);
                 if (isPing != null && (boolean) isPing) {
                     if (isPersistent != null && Boolean.parseBoolean(isPersistent)) {
-                        boolean isValid = isConnectionValid(socket);
+                        String echoMessage = params.get("echo");
+                        byte[] echoBytes = Hex.decodeHex(echoMessage.toCharArray());
+                        boolean isValid = isConnectionValid(socket, echoBytes);
                         if (!isValid) {
                             persistentConnectionsMap.remove(clientId);
                         } else {
@@ -139,6 +144,8 @@ public class TCPTransportSender extends AbstractTransportSender {
                     persistentConnectionsMap.remove(clientId);
                 }
                 handleException("Error while sending a TCP request", e);
+            } catch (DecoderException e) {
+                handleException("Error while decoding hex echo message to text. ", e);
             }
         } else if (outTransportInfo != null && (outTransportInfo instanceof TCPOutTransportInfo)) {
             TCPOutTransportInfo outInfo = (TCPOutTransportInfo) outTransportInfo;
@@ -269,12 +276,22 @@ public class TCPTransportSender extends AbstractTransportSender {
         }
     }
 
-    private boolean isConnectionValid(Socket socket) throws AxisFault {
+    private boolean isConnectionValid(Socket socket, byte[] echoRequest) throws AxisFault {
         try {
-            // We need to send data at least 2 times to make sure that the connection is not closed
-            socket.sendUrgentData(1);
-            socket.sendUrgentData(1);
-            return true;
+            if (echoRequest.length > 0) {
+                socket.getOutputStream().write(echoRequest);
+                socket.getOutputStream().flush();
+                InputStream in = socket.getInputStream();
+                byte[] echoResponse = new byte[echoRequest.length];
+                in.read(echoResponse);
+                return Arrays.equals(echoResponse, echoRequest);
+
+            } else {
+                // We need to send data at least 2 times to make sure that the connection is not closed
+                socket.sendUrgentData(1);
+                socket.sendUrgentData(1);
+                return true;
+            }
         } catch (IOException e) {
             handleException("Error while connecting to backend. ", e);
             return false;
