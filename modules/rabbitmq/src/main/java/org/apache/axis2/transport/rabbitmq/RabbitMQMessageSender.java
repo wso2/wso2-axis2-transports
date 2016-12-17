@@ -77,13 +77,15 @@ public class RabbitMQMessageSender {
 
     public void send(RabbitMQMessage message, MessageContext msgContext) throws
             AxisRabbitMQException, IOException {
-        publish(message, msgContext);
-
-        //release the rmq channel to the pool
         try {
-            connectionFactory.pushRMQChannel(rmqChannel);
-        } catch (InterruptedException e) {
-            handleException(e.getMessage());
+            publish(message, msgContext);
+        } finally {
+            //release the rmq channel to the pool
+            try {
+                connectionFactory.pushRMQChannel(rmqChannel);
+            } catch (InterruptedException e) {
+                handleException(e.getMessage());
+            }
         }
     }
 
