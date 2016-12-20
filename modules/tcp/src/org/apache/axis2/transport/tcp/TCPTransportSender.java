@@ -97,8 +97,10 @@ public class TCPTransportSender extends AbstractTransportSender {
                 if (isPing != null && (boolean) isPing) {
                     if (isPersistent != null && Boolean.parseBoolean(isPersistent)) {
                         String echoMessage = params.get("echo");
+                        String isEchoResponse = params.get("isEchoResponse");
                         byte[] echoBytes = Hex.decodeHex(echoMessage.toCharArray());
-                        boolean isValid = isConnectionValid(socket, echoBytes);
+                        boolean isValid = isConnectionValid(socket, echoBytes, isEchoResponse,
+                                params.get(TCPConstants.DELIMITER_TYPE),params.get(TCPConstants.DELIMITER_LENGTH));
                         if (!isValid) {
                             persistentConnectionsMap.remove(clientId);
                         } else {
@@ -276,16 +278,32 @@ public class TCPTransportSender extends AbstractTransportSender {
         }
     }
 
-    private boolean isConnectionValid(Socket socket, byte[] echoRequest) throws AxisFault {
+    private boolean isConnectionValid(Socket socket, byte[] echoRequest, String isEchoResponse, String delimiterType, String delimiterLength) throws AxisFault {
         try {
             if (echoRequest.length > 0) {
-                socket.getOutputStream().write(echoRequest);
-                socket.getOutputStream().flush();
-                InputStream in = socket.getInputStream();
-                byte[] echoResponse = new byte[echoRequest.length];
-                in.read(echoResponse);
-                return Arrays.equals(echoResponse, echoRequest);
+                byte[] delimiterByteArray = getDelimiter(new MessageContext(), echoRequest, delimiterType,
+                        Integer.parseInt(delimiterLength));
+                if (isEchoResponse != null && Boolean.parseBoolean(isEchoResponse)) {
+                    socket.getOutputStream().write(delimiterByteArray);
+                    socket.getOutputStream().write(echoRequest);
+                    socket.getOutputStream().flush();
+                    InputStream in = socket.getInputStream();
 
+                    //concatenate echo request and delimiter byte arrays
+                    ByteArrayOutputStream outputStream = new ByteArrayOutputStream( );
+                    outputStream.write(delimiterByteArray);
+                    outputStream.write(echoRequest);
+
+                    byte[] echoResponse = new byte[delimiterByteArray.length + echoRequest.length];
+                    in.read(echoResponse);
+
+                    return Arrays.equals(echoResponse, outputStream.toByteArray());
+                } else {
+                    socket.getOutputStream().write(delimiterByteArray);
+                    socket.getOutputStream().write(echoRequest);
+                    socket.getOutputStream().flush();
+                    return true;
+                }
             } else {
                 // We need to send data at least 2 times to make sure that the connection is not closed
                 socket.sendUrgentData(1);
