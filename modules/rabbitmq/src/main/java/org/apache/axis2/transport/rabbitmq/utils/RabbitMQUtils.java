@@ -19,6 +19,7 @@
 
 package org.apache.axis2.transport.rabbitmq.utils;
 
+import com.rabbitmq.client.Address;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
@@ -49,8 +50,8 @@ public class RabbitMQUtils {
 
     private static final Log log = LogFactory.getLog(RabbitMQUtils.class);
 
-    public static Connection createConnection(ConnectionFactory factory) throws IOException {
-        Connection connection = factory.newConnection();
+    public static Connection createConnection(ConnectionFactory factory, Address[] addresses) throws IOException {
+        Connection connection = factory.newConnection(addresses);
         return connection;
     }
 
