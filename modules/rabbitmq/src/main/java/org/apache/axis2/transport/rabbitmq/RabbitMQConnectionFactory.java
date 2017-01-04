@@ -18,6 +18,7 @@
 
 package org.apache.axis2.transport.rabbitmq;
 
+import com.rabbitmq.client.Address;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 import org.apache.axiom.om.OMAttribute;
@@ -67,7 +68,7 @@ public class RabbitMQConnectionFactory {
     private int retryInterval = RabbitMQConstants.DEFAULT_RETRY_INTERVAL;
     private int retryCount = RabbitMQConstants.DEFAULT_RETRY_COUNT;
     private int connectionPoolSize = RabbitMQConstants.DEFAULT_CONNECTION_POOL_SIZE;
-
+    private Address[] addresses;
 
     /**
      * Digest a AMQP CF definition from an axis2.xml 'Parameter' and construct
@@ -129,7 +130,7 @@ public class RabbitMQConnectionFactory {
     public Connection createConnection() throws IOException {
         Connection connection = null;
         try {
-            connection = RabbitMQUtils.createConnection(connectionFactory);
+            connection = RabbitMQUtils.createConnection(connectionFactory, addresses);
             log.info("[" + name + "] Successfully connected to RabbitMQ Broker");
         } catch (IOException e) {
             log.error("[" + name + "] Error creating connection to RabbitMQ Broker. Reattempting to connect.", e);
@@ -140,7 +141,7 @@ public class RabbitMQConnectionFactory {
                         " in " + retryInterval + " ms");
                 try {
                     Thread.sleep(retryInterval);
-                    connection = RabbitMQUtils.createConnection(connectionFactory);
+                    connection = RabbitMQUtils.createConnection(connectionFactory, addresses);
                     log.info("[" + name + "] Successfully connected to RabbitMQ Broker");
                 } catch (InterruptedException e1) {
                     log.error("[" + name + "] Error while trying to reconnect to RabbitMQ Broker", e1);
@@ -304,20 +305,26 @@ public class RabbitMQConnectionFactory {
             }
         }
 
-        if (!StringUtils.isEmpty(hostName)) {
-            connectionFactory.setHost(hostName);
+        // Resolving hostname(s) and port(s)
+        if (!StringUtils.isEmpty(hostName) && !StringUtils.isEmpty(portValue)) {
+            String[] hostNames = hostName.split(",");
+            String[] portValues = portValue.split(",");
+            if (hostNames.length == portValues.length) {
+                addresses = new Address[hostNames.length];
+                for (int i = 0; i < hostNames.length; i++) {
+                    if (!hostNames[i].isEmpty() && !portValues[i].isEmpty()) {
+                        try {
+                            addresses[i] = new Address(hostNames[i].trim(), Integer.parseInt(portValues[i].trim()));
+                        } catch (NumberFormatException e) {
+                            handleException("Number format error in port number", e);
+                        }
+                    }
+                }
+            }
         } else {
-            handleException("Host name is not defined");
+            handleException("Host name(s) and port(s) are not correctly defined");
         }
 
-        try {
-            int port = Integer.parseInt(portValue);
-            if (port > 0) {
-                connectionFactory.setPort(port);
-            }
-        } catch (NumberFormatException e) {
-            handleException("Number format error in port number", e);
-        }
 
         if (!StringUtils.isEmpty(userName)) {
             connectionFactory.setUsername(userName);
