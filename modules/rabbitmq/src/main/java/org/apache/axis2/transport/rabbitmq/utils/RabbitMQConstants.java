@@ -101,6 +101,8 @@ public class RabbitMQConstants {
 
     public static final String SECURE_VAULT_NAMESPACE = "http://org.wso2.securevault/configuration";
     public static final String SECRET_ALIAS_ATTRIBUTE = "secretAlias";
+    /** parameter to enable confirmed delivery (Ensure reliable delivery) in sender **/
+    public static final String CONFIRMED_DELIVERY = "rabbitmq.confirm.delivery";
 }
 
 
