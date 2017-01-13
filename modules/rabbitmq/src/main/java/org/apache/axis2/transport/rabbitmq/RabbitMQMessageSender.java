@@ -240,6 +240,16 @@ public class RabbitMQMessageSender {
             }
 
             try {
+                /**
+                 * Check for parameter on confirmed delivery in RabbitMq to ensure reliable delivery.
+                 * Can be enabled by setting the parameter "rabbitmq.confirm.delivery" to "true" in broker URL.
+                 */
+                boolean isConfirmedDeliveryEnabled = Boolean.parseBoolean(properties.get(RabbitMQConstants
+                        .CONFIRMED_DELIVERY));
+                if (isConfirmedDeliveryEnabled) {
+                    rmqChannel.getChannel().confirmSelect();
+                }
+
                 if (exchangeName != null && exchangeName != "") {
                     rmqChannel.getChannel().basicPublish(exchangeName, routeKey, basicProperties,
                             messageBody);
@@ -247,8 +257,15 @@ public class RabbitMQMessageSender {
                     rmqChannel.getChannel().basicPublish("", routeKey, basicProperties,
                             messageBody);
                 }
+
+                if (isConfirmedDeliveryEnabled) {
+                    rmqChannel.getChannel().waitForConfirmsOrDie();
+                }
+
             } catch (IOException e) {
                 handleException("Error while publishing the message", e);
+            } catch (InterruptedException e) {
+                handleException("InterruptedException while waiting for AMQP message confirm :", e);
             }
         } else {
             handleException("Channel cannot be created");
