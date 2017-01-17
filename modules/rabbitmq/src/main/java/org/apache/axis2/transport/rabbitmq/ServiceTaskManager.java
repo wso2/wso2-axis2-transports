@@ -40,6 +40,7 @@ import java.util.Collections;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeoutException;
 
 /**
  * Each service will have one ServiceTaskManager instance that will send, manage and also destroy
@@ -939,6 +940,13 @@ public class ServiceTaskManager {
                         if (log.isDebugEnabled()) {
                             log.debug("Error while closing consumer Connection, SocketException, service - " +
                                       serviceName + ", Listner id - " + Thread.currentThread().getId(), exx);
+                        }
+                    } catch (TimeoutException e) {
+                        log.warn("Error while closing consumer Connection, TimeoutException, service - " + serviceName +
+                                ", Listner id - " + Thread.currentThread().getId());
+                        if (log.isDebugEnabled()) {
+                            log.debug("Error while closing consumer Connection, TimeoutException, service - " +
+                                    serviceName + ", Listner id - " + Thread.currentThread().getId(), e);
                         }
                     } catch (IOException e) {
                         log.warn("Error while closing consumer Connection, IOException, service - " + serviceName +
