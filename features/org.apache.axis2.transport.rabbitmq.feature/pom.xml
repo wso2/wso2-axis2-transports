@@ -60,7 +60,7 @@
                             </adviceFile>
                             <bundles>
                                 <bundleDef>org.apache.axis2.transport:axis2-transport-rabbitmq-amqp</bundleDef>
-                                <bundleDef>com.rabbitmq.wso2:amqp-client:${rabbitmq.orbit.version}</bundleDef>
+                                <bundleDef>org.wso2.orbit.com.rabbitmq:amqp-client:${rabbitmq.orbit.version}</bundleDef>
                             </bundles>
                             <importFeatures>
                                 <importFeatureDef>org.wso2.carbon.core.common:compatible:${carbon.kernel.version}</importFeatureDef>
