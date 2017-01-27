@@ -99,7 +99,7 @@ public class MailTransportListener extends AbstractPollingTransportListener<Poll
         Session session = entry.getSession();
         Store store = null;
         Folder folder = null;
-        boolean mailProcessingStarted = false;
+        boolean nextPollScheduled = false;
 
         while (!connected) {
             try {
@@ -182,22 +182,24 @@ public class MailTransportListener extends AbstractPollingTransportListener<Poll
                                     + " : " + messages[i].getSubject() + " - Status: RO");
                             }
                             latch.countDown();
+                            nextPollScheduled = false;
                         } else if (messages[i].isSet(Flags.Flag.SEEN)) {
                             if (log.isDebugEnabled()) {
                                 log.debug("Skipping message # : " + messages[i].getMessageNumber()
                                     + " : " + messages[i].getSubject() + " - already marked SEEN");
                             }
                             latch.countDown();
+                            nextPollScheduled = false;
                         } else if (messages[i].isSet(Flags.Flag.DELETED)) {
                             if (log.isDebugEnabled()) {
                                 log.debug("Skipping message # : " + messages[i].getMessageNumber()
                                     + " : " +  messages[i].getSubject() + " - already marked DELETED");
                             }
                             latch.countDown();
-
+                            nextPollScheduled = false;
                         } else {
                             processMail(entry, folder, store, messages[i], latch, onCompletion);
-                            mailProcessingStarted = true;
+                            nextPollScheduled = true;
                         }
                     } catch (MessageRemovedException ignore) {
                         // while reading the meta information, this mail was deleted, thats ok
@@ -206,10 +208,11 @@ public class MailTransportListener extends AbstractPollingTransportListener<Poll
                                 " as it has been DELETED by another thread after processing");
                         }
                         latch.countDown();
+                        nextPollScheduled = false;
                     }
                 }
 
-                if (!mailProcessingStarted) {
+                if (!nextPollScheduled) {
                     // if we didnt process any mail in this run, the onCompletion will not
                     // run from the mail processor by default
                     onCompletion.run();
