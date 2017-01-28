@@ -98,8 +98,11 @@ public class JMSConnectionFactory {
             conFactory = JMSUtils.lookup(context, ConnectionFactory.class,
                 parameters.get(JMSConstants.PARAM_CONFAC_JNDI_NAME));
             if (parameters.get(JMSConstants.PARAM_DESTINATION) != null) {
-                sharedDestination = JMSUtils.lookup(context, Destination.class,
-                    parameters.get(JMSConstants.PARAM_DESTINATION));
+                sharedDestination = getDestination(parameters.get(JMSConstants.PARAM_DESTINATION),
+                        (JMSConstants.DESTINATION_TYPE_TOPIC
+                                .equalsIgnoreCase(parameters.get(JMSConstants.PARAM_CONFAC_TYPE)) ?
+                                JMSConstants.DESTINATION_TYPE_TOPIC :
+                                JMSConstants.DESTINATION_TYPE_QUEUE));
             }
             log.info("JMS ConnectionFactory : " + name + " initialized");
 
