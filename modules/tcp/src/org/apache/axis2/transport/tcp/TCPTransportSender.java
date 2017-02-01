@@ -19,7 +19,6 @@
 
 package org.apache.axis2.transport.tcp;
 
-import org.apache.axiom.attachments.ByteArrayDataSource;
 import org.apache.axiom.om.*;
 import org.apache.axiom.soap.SOAPEnvelope;
 import org.apache.axis2.AxisFault;
@@ -34,32 +33,29 @@ import org.apache.axis2.transport.base.AbstractTransportSender;
 import org.apache.axis2.transport.base.BaseConstants;
 import org.apache.axis2.transport.base.BaseUtils;
 import org.apache.axiom.om.OMOutputFormat;
-import org.apache.commons.codec.DecoderException;
-import org.apache.commons.codec.binary.Hex;
 
 import javax.activation.DataHandler;
 import javax.activation.DataSource;
 import javax.xml.namespace.QName;
+import javax.xml.stream.XMLStreamException;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.io.*;
 import java.net.*;
-import java.util.Arrays;
-import java.util.Map;
-import java.util.HashMap;
+import java.util.*;
 
 public class TCPTransportSender extends AbstractTransportSender {
 
     private Map<String, Socket> persistentConnectionsMap = new HashMap<>();
+    private Map<String, Queue<MessageContext>> responseMessageContextsMap = new HashMap<>();
 
     public void sendMessage(MessageContext msgContext, String targetEPR, OutTransportInfo outTransportInfo)
             throws AxisFault {
-
         if (targetEPR != null) {
             Map<String, String> params = getURLParameters(targetEPR);
             String isPersistent = params.get(TCPConstants.IS_PERSISTENT);
+            String retryInterval = params.get(TCPConstants.RETRY_INTERVAL);
+            int noOfRetries = params.get(TCPConstants.NO_OF_RETRIES) != null ? Integer.parseInt(
+                    params.get(TCPConstants.NO_OF_RETRIES)) : -1;
             int timeout = -1;
             if (params != null && params.containsKey(TCPConstants.TIMEOUT)) {
                 timeout = Integer.parseInt(params.get(TCPConstants.TIMEOUT));
@@ -74,7 +70,7 @@ public class TCPTransportSender extends AbstractTransportSender {
             if (isPersistent != null && Boolean.parseBoolean(isPersistent)) {
                 socket = persistentConnectionsMap.get(clientId);
                 if (socket == null && clientId != null) {
-                    socket = openTCPConnection(msgContext, targetEPR, timeout);
+                    socket = openTCPConnection(targetEPR, timeout, retryInterval);
                     persistentConnectionsMap.put(clientId, socket);
                     if (msgContext.getProperty(TCPConstants.SOURCE_HANDSHAKE_PRESENT) != null
                             && msgContext.getProperty(TCPConstants.SOURCE_HANDSHAKE_PRESENT).equals(true)) {
@@ -82,7 +78,7 @@ public class TCPTransportSender extends AbstractTransportSender {
                     }
                 }
             } else {
-                socket = openTCPConnection(msgContext, targetEPR, timeout);
+                socket = openTCPConnection(targetEPR, timeout, retryInterval);
             }
             if (isPersistent != null && Boolean.parseBoolean(isPersistent)) {
                 Object terminateProperty = msgContext.getProperty(TCPConstants.CONNECTION_TERMINATE);
@@ -93,61 +89,42 @@ public class TCPTransportSender extends AbstractTransportSender {
             }
 
             try {
-                Object isPing = msgContext.getProperty(TCPConstants.IS_PING);
-                if (isPing != null && (boolean) isPing) {
-                    if (isPersistent != null && Boolean.parseBoolean(isPersistent)) {
-                        String echoMessage = params.get("echo");
-                        String isEchoResponse = params.get("isEchoResponse");
-                        byte[] echoBytes = Hex.decodeHex(echoMessage.toCharArray());
-                        boolean isValid = isConnectionValid(socket, echoBytes, isEchoResponse,
-                                params.get(TCPConstants.DELIMITER_TYPE),params.get(TCPConstants.DELIMITER_LENGTH));
-                        if (!isValid) {
-                            persistentConnectionsMap.remove(clientId);
-                        } else {
-                            try {
-                                MessageContext responseMsgCtx = createResponseMessageContext(msgContext);
-                                OMElement documentElement = createDocumentElement(
-                                        new ByteArrayDataSource(TCPConstants.PONG.getBytes()), msgContext);
-                                SOAPEnvelope envelope = TransportUtils.createSOAPEnvelope(documentElement);
-                                responseMsgCtx.setEnvelope(envelope);
-                                responseMsgCtx.setProperty(TCPConstants.IS_CONNECTION_ALIVE, isValid);
-                                AxisEngine.receive(responseMsgCtx);
-                            } catch (Exception e) {
-                                handleException("Error while processing response", e);
-                            }
-                            return;
-                        }
-
-                    } else {
-                        try {
-                            MessageContext responseMsgCtx = createResponseMessageContext(msgContext);
-                            OMElement documentElement = createDocumentElement(
-                                    new ByteArrayDataSource(TCPConstants.PONG.getBytes()), msgContext);
-                            SOAPEnvelope envelope = TransportUtils.createSOAPEnvelope(documentElement);
-                            responseMsgCtx.setEnvelope(envelope);
-                            responseMsgCtx.setProperty(TCPConstants.IS_CONNECTION_ALIVE, true);
-                            AxisEngine.receive(responseMsgCtx);
-                        } catch (Exception e) {
-                            handleException("Error while processing response", e);
-                        }
-                        return;
-                    }
-                }
 
                 writeMessageOut(msgContext, socket.getOutputStream(), params.get(TCPConstants.DELIMITER),
                         params.get(TCPConstants.DELIMITER_TYPE), params.get(TCPConstants.DELIMITER_LENGTH));
                 if (!msgContext.getOptions().isUseSeparateListener() && !msgContext.isServerSide()) {
                     waitForReply(msgContext, socket, params.get(TCPConstants.CONTENT_TYPE),
-                            params.get(TCPConstants.DELIMITER_TYPE), params.get(TCPConstants.DELIMITER_LENGTH));
+                            params.get(TCPConstants.DELIMITER_TYPE), params.get(TCPConstants.DELIMITER_LENGTH), clientId);
                 }
 
             } catch (IOException e) {
+                socket = null;
                 if (isPersistent != null && Boolean.parseBoolean(isPersistent)) {
                     persistentConnectionsMap.remove(clientId);
+                    responseMessageContextsMap.remove(clientId);
+                }
+                if (retryInterval != null) {
+                    try {
+                        int retries = 0;
+                        while (socket == null) {
+                            Thread.sleep(Long.parseLong(retryInterval));
+                            socket = openTCPConnection(targetEPR, timeout, retryInterval);
+                            if (socket != null) {
+                                persistentConnectionsMap.put(clientId, socket);
+                                return;
+                            } else {
+                                retries++;
+                                if (noOfRetries != -1 && noOfRetries == retries) {
+                                    break;
+                                }
+                            }
+                        }
+                    } catch (InterruptedException e1) {
+                        log.error("Error occurred while waiting for next connection retry.", e1);
+                    }
+
                 }
                 handleException("Error while sending a TCP request", e);
-            } catch (DecoderException e) {
-                handleException("Error while decoding hex echo message to text. ", e);
             }
         } else if (outTransportInfo != null && (outTransportInfo instanceof TCPOutTransportInfo)) {
             TCPOutTransportInfo outInfo = (TCPOutTransportInfo) outTransportInfo;
@@ -208,7 +185,7 @@ public class TCPTransportSender extends AbstractTransportSender {
     }
 
     private void waitForReply(MessageContext msgContext, Socket socket, String contentType, String delimiterType,
-                              String delimiterLength) throws AxisFault {
+                              String delimiterLength, String clientId) throws AxisFault {
 
         if (!(msgContext.getAxisOperation() instanceof OutInAxisOperation) &&
                 msgContext.getProperty(org.apache.axis2.Constants.PIGGYBACK_MESSAGE) == null) {
@@ -221,12 +198,22 @@ public class TCPTransportSender extends AbstractTransportSender {
 
         try {
             MessageContext responseMsgCtx = createResponseMessageContext(msgContext);
-            OMElement documentElement = createDocumentElement(new ByteArrayDataSource(getMessage(msgContext, socket,
-                    delimiterType, Integer.parseInt(delimiterLength))), msgContext);
-            SOAPEnvelope envelope = TransportUtils.createSOAPEnvelope(documentElement);
-            responseMsgCtx.setEnvelope(envelope);
-            responseMsgCtx.setProperty(TCPConstants.BACKEND_MESSAGE_TYPE, TCPConstants.BINARY_OCTET_STREAM);
-            AxisEngine.receive(responseMsgCtx);
+            SOAPEnvelope envelope;
+            if (delimiterLength == null) {
+                envelope = TransportUtils.createSOAPMessage(msgContext, socket.getInputStream(), contentType);
+                responseMsgCtx.setEnvelope(envelope);
+                AxisEngine.receive(responseMsgCtx);
+            } else {
+                responseMsgCtx.setProperty(TCPConstants.BACKEND_MESSAGE_TYPE, TCPConstants.BINARY_OCTET_STREAM);
+                Queue<MessageContext> responseMessageContexts = responseMessageContextsMap.get(clientId);
+                if(responseMessageContexts == null) {
+                    responseMessageContexts = new LinkedList<>();
+                }
+                responseMessageContexts.add(responseMsgCtx);
+                responseMessageContextsMap.put(clientId, responseMessageContexts);
+                getMessage(msgContext, socket,delimiterType, Integer.parseInt(delimiterLength),
+                        contentType, clientId);
+            }
         } catch (Exception e) {
             handleException("Error while processing response", e);
         }
@@ -251,7 +238,7 @@ public class TCPTransportSender extends AbstractTransportSender {
         return null;
     }
 
-    private Socket openTCPConnection(MessageContext msgContext, String url, int timeout) throws AxisFault {
+    private Socket openTCPConnection(String url, int timeout, String retryInterval) throws AxisFault {
         try {
             URI tcpUrl = new URI(url);
             if (!tcpUrl.getScheme().equals("tcp")) {
@@ -265,7 +252,9 @@ public class TCPTransportSender extends AbstractTransportSender {
             socket.connect(address);
             return socket;
         } catch (Exception e) {
-            handleException("Error while opening TCP connection to : " + url, e);
+            if (retryInterval == null) {
+                handleException("Error while opening TCP connection to : " + url, e);
+            }
         }
         return null;
     }
@@ -275,44 +264,6 @@ public class TCPTransportSender extends AbstractTransportSender {
             socket.close();
         } catch (IOException e) {
             log.error("Error while closing a TCP socket", e);
-        }
-    }
-
-    private boolean isConnectionValid(Socket socket, byte[] echoRequest, String isEchoResponse, String delimiterType, String delimiterLength) throws AxisFault {
-        try {
-            if (echoRequest.length > 0) {
-                byte[] delimiterByteArray = getDelimiter(new MessageContext(), echoRequest, delimiterType,
-                        Integer.parseInt(delimiterLength));
-                if (isEchoResponse != null && Boolean.parseBoolean(isEchoResponse)) {
-                    socket.getOutputStream().write(delimiterByteArray);
-                    socket.getOutputStream().write(echoRequest);
-                    socket.getOutputStream().flush();
-                    InputStream in = socket.getInputStream();
-
-                    //concatenate echo request and delimiter byte arrays
-                    ByteArrayOutputStream outputStream = new ByteArrayOutputStream( );
-                    outputStream.write(delimiterByteArray);
-                    outputStream.write(echoRequest);
-
-                    byte[] echoResponse = new byte[delimiterByteArray.length + echoRequest.length];
-                    in.read(echoResponse);
-
-                    return Arrays.equals(echoResponse, outputStream.toByteArray());
-                } else {
-                    socket.getOutputStream().write(delimiterByteArray);
-                    socket.getOutputStream().write(echoRequest);
-                    socket.getOutputStream().flush();
-                    return true;
-                }
-            } else {
-                // We need to send data at least 2 times to make sure that the connection is not closed
-                socket.sendUrgentData(1);
-                socket.sendUrgentData(1);
-                return true;
-            }
-        } catch (IOException e) {
-            handleException("Error while connecting to backend. ", e);
-            return false;
         }
     }
 
@@ -331,61 +282,41 @@ public class TCPTransportSender extends AbstractTransportSender {
         return wrapper;
     }
 
-    public static final byte[] getMessage(MessageContext msgContext, Socket socket, String delimiterType,
-                                          int delimiterLength) throws AxisFault {
-        byte[] message;
+    private void getMessage(MessageContext msgContext,Socket socket,
+                                          String delimiterType, int delimiterLength, String contentType, String clientId)
+            throws AxisFault, XMLStreamException {
         try {
             int messageLength;
-            int messageLengthCount = 0;
-            int delimiterLengthCount = 0;
-            int bufferCount;
-            int remaining;
-            byte[] buffer = new byte[4096];
             InputStream inputStream = socket.getInputStream();
-            ByteArrayOutputStream delimiterStream = new ByteArrayOutputStream();
-            ByteArrayOutputStream messageStream = new ByteArrayOutputStream();
 
-            while (delimiterLengthCount < delimiterLength) {
-                bufferCount = inputStream.read(buffer);
-                if ((delimiterLengthCount + bufferCount) >= delimiterLength) {
-                    remaining = delimiterLength - delimiterLengthCount;
-                    delimiterStream.write(buffer, 0, remaining);
-                    messageLengthCount = bufferCount - remaining;
-                    if (messageLengthCount > 0) {
-                        messageStream.write(buffer, remaining, messageLengthCount);
-                    }
-                    break;
-                } else {
-                    delimiterStream.write(buffer, 0, bufferCount);
-                    delimiterLengthCount += bufferCount;
-                }
-            }
-            if (delimiterType.equalsIgnoreCase(TCPConstants.BINARY_DELIMITER_TYPE)) {
-                messageLength = TCPUtils.convertBinaryBytesToInt(delimiterStream.toByteArray());
-            } else if (delimiterType.equalsIgnoreCase(TCPConstants.ASCII_DELIMITER_TYPE)) {
-                messageLength = TCPUtils.convertAsciiBytesToInt(delimiterStream.toByteArray());
-            } else {
-                return null;
-            }
-            while (messageLengthCount < messageLength) {
-                bufferCount = inputStream.read(buffer);
-                if ((messageLengthCount + bufferCount) >= messageLength) {
-                    remaining = messageLength - messageLengthCount;
-                    messageStream.write(buffer, 0, remaining);
-                    break;
-                } else {
-                    messageStream.write(buffer, 0, bufferCount);
-                    messageLengthCount += bufferCount;
-                }
-            }
-            message = messageStream.toByteArray();
+            ExcessAndReadBytes excessAndReadBytesFromReadDelimitingLength;
+            ExcessAndReadBytes excessAndReadBytesFromReadMessageLength = new ExcessAndReadBytes();
+            excessAndReadBytesFromReadMessageLength.setExcessBytes(new byte[0]);
+
+            do {
+                excessAndReadBytesFromReadDelimitingLength = readUntilLength(
+                        excessAndReadBytesFromReadMessageLength.getExcessBytes(),delimiterLength, inputStream);
+
+                messageLength = getMessageLength(delimiterType, excessAndReadBytesFromReadDelimitingLength.getReadBytes());
+
+                excessAndReadBytesFromReadMessageLength = readUntilLength(excessAndReadBytesFromReadDelimitingLength.getExcessBytes(),
+                        messageLength, inputStream);
+
+                MessageContext responseMsgCtx = responseMessageContextsMap.get(clientId).remove();
+
+                responseMsgCtx.setEnvelope(TransportUtils.createSOAPMessage(msgContext,
+                        new ByteArrayInputStream(excessAndReadBytesFromReadMessageLength.getReadBytes()), contentType));
+                AxisEngine.receive(responseMsgCtx);
+
+            } while (excessAndReadBytesFromReadMessageLength.getExcessBytes()!= null &&
+                    excessAndReadBytesFromReadMessageLength.getExcessBytes().length > 0);
+
         } catch (IOException e) {
             throw new AxisFault("Unable to read message payload", e);
         }
-        return message;
     }
 
-    public static byte[] getDelimiter(MessageContext msgContext, byte[] message, String delimiterType, int
+    private byte[] getDelimiter(MessageContext msgContext, byte[] message, String delimiterType, int
             delimiterLength) {
         byte[] delimiter = null;
         if (delimiterType.equalsIgnoreCase(TCPConstants.BINARY_DELIMITER_TYPE)) {
@@ -394,5 +325,60 @@ public class TCPTransportSender extends AbstractTransportSender {
             delimiter = TCPUtils.convertIntToAsciiBytes(message.length, delimiterLength);
         }
         return delimiter;
+    }
+
+    /**
+     *
+     * @param excessReadBytes Excess read bytes from previous read.
+     * @param length Length to be read.
+     * @param inputStream Input stream to be read.
+     * @return ExcessAndReadBytes object which contains read bytes and excess read bytes.
+     */
+    private  ExcessAndReadBytes readUntilLength(byte[] excessReadBytes, int length, InputStream inputStream) throws AxisFault {
+        ExcessAndReadBytes excessAndReadBytes = new ExcessAndReadBytes();
+        byte[] buffer = new byte[4096];
+        int readLengthCount = 0, bufferCount = 0, remaining, excessLengthCount;
+        ByteArrayOutputStream readStream = new ByteArrayOutputStream();
+        try {
+            while (readLengthCount < length) {
+                if(excessReadBytes.length > 0) {
+                    bufferCount = excessReadBytes.length;
+                    buffer = excessReadBytes;
+                } else {
+                    bufferCount = inputStream.read(buffer);
+                }
+                if ((readLengthCount + bufferCount) >= length) {
+                    remaining = length - readLengthCount;
+                    readStream.write(buffer, 0, remaining);
+                    excessLengthCount = bufferCount - remaining;
+                    if (excessLengthCount > 0) {
+                        excessAndReadBytes.setExcessBytes(Arrays.copyOfRange(buffer, remaining, bufferCount));
+                    }
+                    break;
+                } else {
+                    readStream.write(buffer, 0, bufferCount);
+                    readLengthCount += bufferCount;
+                }
+            }
+        } catch (IOException e) {
+           handleException("Error occurred while reading data from backend", e);
+        }
+        excessAndReadBytes.setReadBytes(readStream.toByteArray());
+        return excessAndReadBytes;
+    }
+
+    /**
+     *
+     * @param delimiterType Delimiter type binary or ascii.
+     * @param delimiterBytes Delimiter length encoded in binary or ascii.
+     * @return Decoded message length.
+     */
+    private int getMessageLength(String delimiterType, byte[] delimiterBytes) {
+        if (delimiterType.equalsIgnoreCase(TCPConstants.BINARY_DELIMITER_TYPE)) {
+           return TCPUtils.convertBinaryBytesToInt(delimiterBytes);
+        } else if (delimiterType.equalsIgnoreCase(TCPConstants.ASCII_DELIMITER_TYPE)) {
+           return  TCPUtils.convertAsciiBytesToInt(delimiterBytes);
+        }
+        return -1;
     }
 }

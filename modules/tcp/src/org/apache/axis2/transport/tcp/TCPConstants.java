@@ -58,4 +58,6 @@ public class TCPConstants {
     public static final String IS_CONNECTION_ALIVE = "isConnectionAlive";
     public static final String IS_PERSISTENT = "isPersistent";
     public static final String SOURCE_HANDSHAKE_PRESENT = "source.handshake.present";
+    public static final String RETRY_INTERVAL = "retryInterval";
+    public static final String NO_OF_RETRIES = "noOfRetries";
 }
