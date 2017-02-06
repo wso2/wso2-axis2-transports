@@ -339,11 +339,13 @@ public class TCPTransportSender extends AbstractTransportSender {
         byte[] buffer = new byte[4096];
         int readLengthCount = 0, bufferCount = 0, remaining, excessLengthCount;
         ByteArrayOutputStream readStream = new ByteArrayOutputStream();
+        boolean excessBytesAssigned = false;
         try {
             while (readLengthCount < length) {
-                if(excessReadBytes.length > 0) {
+                if(excessReadBytes.length > 0 && !excessBytesAssigned) {
                     bufferCount = excessReadBytes.length;
                     buffer = excessReadBytes;
+                    excessBytesAssigned = true;
                 } else {
                     bufferCount = inputStream.read(buffer);
                 }
