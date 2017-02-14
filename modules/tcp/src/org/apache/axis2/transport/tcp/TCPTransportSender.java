@@ -155,7 +155,7 @@ public class TCPTransportSender extends AbstractTransportSender {
                                               String delimiterType, String delimiterLength) throws IOException {
         MessageFormatter messageFormatter = BaseUtils.getMessageFormatter(msgContext);
         OMOutputFormat format = BaseUtils.getOMOutputFormat(msgContext);
-        if (delimiterLength == null) {
+        if (delimiterLength.equalsIgnoreCase("-1")) {
             messageFormatter.writeTo(msgContext, format, outputStream, true);
             if (delimiter != null && !delimiter.isEmpty()) {
                 if (TCPConstants.BYTE_DELIMITER_TYPE.equalsIgnoreCase(delimiterType)) {

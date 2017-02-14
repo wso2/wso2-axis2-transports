@@ -180,13 +180,15 @@ public class TCPWorker implements Runnable {
                 while (recordLengthCount < recordLength) {
                     readCount = input.read(recordBytes, recordLengthCount, recordLength - recordLengthCount);
                     if (readCount == -1) {
-						msgContext.setProperty(TCPConstants.CONNECTION_TERMINATE, true);
-						OMElement documentElement = TCPTransportSender.createDocumentElement(
-								new ByteArrayDataSource("".getBytes()), msgContext);
-						SOAPEnvelope handshakeEnvelope = TransportUtils.createSOAPEnvelope(documentElement);
-						msgContext.setEnvelope(handshakeEnvelope);
-						AxisEngine.receive(msgContext);
-                        return;
+                    	if (endpoint.isPersistableBackendConnection()) {
+							msgContext.setProperty(TCPConstants.CONNECTION_TERMINATE, true);
+							OMElement documentElement = TCPTransportSender.createDocumentElement(
+									new ByteArrayDataSource("".getBytes()), msgContext);
+							SOAPEnvelope handshakeEnvelope = TransportUtils.createSOAPEnvelope(documentElement);
+							msgContext.setEnvelope(handshakeEnvelope);
+							AxisEngine.receive(msgContext);
+							return;
+						}
                     }
                     recordLengthCount += readCount;
                 }
