@@ -42,11 +42,17 @@ import javax.xml.stream.XMLStreamException;
 import java.io.*;
 import java.net.*;
 import java.util.*;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 
 public class TCPTransportSender extends AbstractTransportSender {
 
-    private Map<String, Socket> persistentConnectionsMap = new HashMap<>();
-    private Map<String, Queue<MessageContext>> responseMessageContextsMap = new HashMap<>();
+    private static final Map<String, PersistentConnectionInfoBean> persistentConnectionInfoBeanMap = new HashMap<>();
+    private static final Map<String, ThreadHolderBean> threadHolder = new HashMap<>();
+    private static final Map<String, BlockingQueue> exceptionMapper = new HashMap<>();
+    private static final Map<String, BlockingQueue<MessageContextToResponseContext>> messageContextHolder = new HashMap<>();
+
+    private static boolean exceptionMapperStarted = false;
 
     public void sendMessage(MessageContext msgContext, String targetEPR, OutTransportInfo outTransportInfo)
             throws AxisFault {
@@ -61,20 +67,121 @@ public class TCPTransportSender extends AbstractTransportSender {
                 timeout = Integer.parseInt(params.get(TCPConstants.TIMEOUT));
             }
 
-            Socket socket;
             String clientId = null;
 
             if (msgContext.getProperty(TCPConstants.CLIENT_ID) != null) {
                 clientId = msgContext.getProperty(TCPConstants.CLIENT_ID).toString();
             }
+            Socket socket;
+
             if (isPersistent != null && Boolean.parseBoolean(isPersistent)) {
-                socket = persistentConnectionsMap.get(clientId);
+
+                if ( msgContext.getProperty(TCPConstants.SOURCE_HANDSHAKE_PRESENT) == null ||
+                        msgContext.getProperty(TCPConstants.SOURCE_HANDSHAKE_PRESENT) != null
+                        && !msgContext.getProperty(TCPConstants.SOURCE_HANDSHAKE_PRESENT).equals(true)) {
+                    BlockingQueue messageContexts = messageContextHolder.get(clientId);
+
+                    MessageContext responseMsgCtx = createResponseMessageContext(msgContext);
+                    MessageContextToResponseContext messageContextToResponseContext =
+                            new MessageContextToResponseContext();
+                    messageContextToResponseContext.setMessageContext(msgContext);
+                    messageContextToResponseContext.setResponseContext(responseMsgCtx);
+                    messageContexts.add(messageContextToResponseContext);
+                }
+            }
+
+            if (isPersistent != null && Boolean.parseBoolean(isPersistent)) {
+                PersistentConnectionInfoBean persistentConnectionInfoBean = persistentConnectionInfoBeanMap.get(clientId);
+                if (persistentConnectionInfoBean == null) {
+                    persistentConnectionInfoBean = new PersistentConnectionInfoBean();
+                    persistentConnectionInfoBean.setMessagesQueue(new LinkedBlockingQueue<byte[]>());
+                    persistentConnectionInfoBeanMap.put(clientId, persistentConnectionInfoBean);
+                }
+                socket = persistentConnectionInfoBean.getPersistentConnection();
+
                 if (socket == null && clientId != null) {
                     socket = openTCPConnection(targetEPR, timeout, retryInterval);
-                    persistentConnectionsMap.put(clientId, socket);
-                    if (msgContext.getProperty(TCPConstants.SOURCE_HANDSHAKE_PRESENT) != null
-                            && msgContext.getProperty(TCPConstants.SOURCE_HANDSHAKE_PRESENT).equals(true)) {
-                        return;
+                    if (socket == null) {
+                        throw new AxisFault("Could not create connection to server.");
+                    }
+                    persistentConnectionInfoBean.setPersistentConnection(socket);
+
+                    BlockingQueue<Exception> exceptions = exceptionMapper.get(clientId);
+
+                    if (exceptions == null) {
+                        exceptions = new LinkedBlockingQueue<>();
+                        exceptionMapper.put(clientId, exceptions);
+                    }
+
+                    BlockingQueue messageContexts = messageContextHolder.get(clientId);
+
+                    if (messageContexts == null) {
+                        messageContexts = new LinkedBlockingQueue();
+                        messageContextHolder.put(clientId, messageContexts);
+                    }
+
+
+                    ThreadHolderBean threadHolderBean = threadHolder.get(clientId);
+                    if (threadHolderBean == null) {
+
+                        PersistentConnectionInfoBean persistentConnectionInfoBean1 = persistentConnectionInfoBeanMap.get(clientId);
+
+                        BlockingQueue<byte[]> messages = persistentConnectionInfoBean1.getMessagesQueue();
+
+                        Thread listenerThread = new Thread(new TCPBackendListener(messages, persistentConnectionInfoBean1.getPersistentConnection(), exceptions));
+                        Thread senderThread = new Thread(new TCPResponseSender(
+                                messageContexts, messages, Integer.parseInt(params.get(TCPConstants.DELIMITER_LENGTH)),
+                                params.get(TCPConstants.DELIMITER_TYPE), params.get(TCPConstants.CONTENT_TYPE)));
+
+                        threadHolderBean = new ThreadHolderBean();
+                        threadHolderBean.setBackendListener(listenerThread);
+                        threadHolderBean.setResponseSender(senderThread);
+
+                        if (!listenerThread.isAlive()) {
+                            listenerThread.start();
+                        }
+
+                        if (!senderThread.isAlive()) {
+                            senderThread.start();
+                        }
+
+                        threadHolder.put(clientId, threadHolderBean);
+                    }
+
+                    if (!exceptionMapperStarted) {
+                        exceptionMapperStarted = true;
+                        BlockingQueue<Exception> exceptionsQueue = exceptionMapper.get(clientId);
+                        try {
+                            if (exceptionsQueue.take() != null) {
+                                socket = null;
+                                cleanPersistentDataHolders(clientId);
+                                if (retryInterval != null) {
+                                    try {
+                                        int retries = 0;
+                                        while (socket == null) {
+                                            Thread.sleep(Long.parseLong(retryInterval));
+                                            socket = openTCPConnection(targetEPR, timeout, retryInterval);
+                                            if (socket != null) {
+                                                persistentConnectionInfoBeanMap.get(clientId).setPersistentConnection(socket);
+                                                return;
+                                            } else {
+                                                retries++;
+                                                if (noOfRetries != -1 && noOfRetries == retries) {
+                                                    exceptionMapperStarted = false;
+                                                    throw new AxisFault("Failed to connect to backend server.");
+                                                }
+                                            }
+                                        }
+                                    } catch (InterruptedException e1) {
+                                        log.error("Error occurred while waiting for next connection retry.", e1);
+                                    }
+
+                                }
+                                throw new AxisFault("Error occurred while reading or writing to backend.");
+                            }
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
                     }
                 }
             } else {
@@ -83,7 +190,7 @@ public class TCPTransportSender extends AbstractTransportSender {
             if (isPersistent != null && Boolean.parseBoolean(isPersistent)) {
                 Object terminateProperty = msgContext.getProperty(TCPConstants.CONNECTION_TERMINATE);
                 if (terminateProperty != null && (boolean) terminateProperty) {
-                    persistentConnectionsMap.remove(clientId);
+                    cleanPersistentDataHolders(clientId);
                     return;
                 }
             }
@@ -93,15 +200,13 @@ public class TCPTransportSender extends AbstractTransportSender {
                 writeMessageOut(msgContext, socket.getOutputStream(), params.get(TCPConstants.DELIMITER),
                         params.get(TCPConstants.DELIMITER_TYPE), params.get(TCPConstants.DELIMITER_LENGTH));
                 if (!msgContext.getOptions().isUseSeparateListener() && !msgContext.isServerSide()) {
-                    waitForReply(msgContext, socket, params.get(TCPConstants.CONTENT_TYPE),
-                            params.get(TCPConstants.DELIMITER_TYPE), params.get(TCPConstants.DELIMITER_LENGTH), clientId);
+                    waitForReply(msgContext, socket.getInputStream(), params);
                 }
 
             } catch (IOException e) {
                 socket = null;
                 if (isPersistent != null && Boolean.parseBoolean(isPersistent)) {
-                    persistentConnectionsMap.remove(clientId);
-                    responseMessageContextsMap.remove(clientId);
+                    cleanPersistentDataHolders(clientId);
                 }
                 if (retryInterval != null) {
                     try {
@@ -110,12 +215,12 @@ public class TCPTransportSender extends AbstractTransportSender {
                             Thread.sleep(Long.parseLong(retryInterval));
                             socket = openTCPConnection(targetEPR, timeout, retryInterval);
                             if (socket != null) {
-                                persistentConnectionsMap.put(clientId, socket);
+                                persistentConnectionInfoBeanMap.get(clientId).setPersistentConnection(socket);
                                 return;
                             } else {
                                 retries++;
                                 if (noOfRetries != -1 && noOfRetries == retries) {
-                                    break;
+                                    throw new AxisFault("Failed to connect to backend server.");
                                 }
                             }
                         }
@@ -184,8 +289,13 @@ public class TCPTransportSender extends AbstractTransportSender {
         }
     }
 
-    private void waitForReply(MessageContext msgContext, Socket socket, String contentType, String delimiterType,
-                              String delimiterLength, String clientId) throws AxisFault {
+    private void waitForReply(MessageContext msgContext, InputStream inputStream, Map<String, String> params) throws AxisFault {
+
+        String contentType = params.get(TCPConstants.CONTENT_TYPE);
+        String delimiterLength = params.get(TCPConstants.DELIMITER_LENGTH);
+        String isPersistent = params.get(TCPConstants.IS_PERSISTENT);
+        String delimiterType = params.get(TCPConstants.DELIMITER_TYPE);
+
 
         if (!(msgContext.getAxisOperation() instanceof OutInAxisOperation) &&
                 msgContext.getProperty(org.apache.axis2.Constants.PIGGYBACK_MESSAGE) == null) {
@@ -200,19 +310,15 @@ public class TCPTransportSender extends AbstractTransportSender {
             MessageContext responseMsgCtx = createResponseMessageContext(msgContext);
             SOAPEnvelope envelope;
             if (delimiterLength == null) {
-                envelope = TransportUtils.createSOAPMessage(msgContext, socket.getInputStream(), contentType);
+                envelope = TransportUtils.createSOAPMessage(msgContext, inputStream, contentType);
                 responseMsgCtx.setEnvelope(envelope);
                 AxisEngine.receive(responseMsgCtx);
             } else {
-                responseMsgCtx.setProperty(TCPConstants.BACKEND_MESSAGE_TYPE, TCPConstants.BINARY_OCTET_STREAM);
-                Queue<MessageContext> responseMessageContexts = responseMessageContextsMap.get(clientId);
-                if(responseMessageContexts == null) {
-                    responseMessageContexts = new LinkedList<>();
+                if (isPersistent == null || (isPersistent != null && !Boolean.parseBoolean(isPersistent))) {
+                    responseMsgCtx.setProperty(TCPConstants.BACKEND_MESSAGE_TYPE, TCPConstants.BINARY_OCTET_STREAM);
+                    getMessage(msgContext, inputStream,delimiterType, Integer.parseInt(delimiterLength),
+                            contentType, responseMsgCtx);
                 }
-                responseMessageContexts.add(responseMsgCtx);
-                responseMessageContextsMap.put(clientId, responseMessageContexts);
-                getMessage(msgContext, socket,delimiterType, Integer.parseInt(delimiterLength),
-                        contentType, clientId);
             }
         } catch (Exception e) {
             handleException("Error while processing response", e);
@@ -282,12 +388,11 @@ public class TCPTransportSender extends AbstractTransportSender {
         return wrapper;
     }
 
-    private void getMessage(MessageContext msgContext,Socket socket,
-                                          String delimiterType, int delimiterLength, String contentType, String clientId)
+    private void getMessage(MessageContext msgContext,InputStream inputStream,
+                                          String delimiterType, int delimiterLength, String contentType, MessageContext responseMsgCtx)
             throws AxisFault, XMLStreamException {
         try {
             int messageLength;
-            InputStream inputStream = socket.getInputStream();
 
             ExcessAndReadBytes excessAndReadBytesFromReadDelimitingLength;
             ExcessAndReadBytes excessAndReadBytesFromReadMessageLength = new ExcessAndReadBytes();
@@ -301,8 +406,6 @@ public class TCPTransportSender extends AbstractTransportSender {
 
                 excessAndReadBytesFromReadMessageLength = readUntilLength(excessAndReadBytesFromReadDelimitingLength.getExcessBytes(),
                         messageLength, inputStream);
-
-                MessageContext responseMsgCtx = responseMessageContextsMap.get(clientId).remove();
 
                 responseMsgCtx.setEnvelope(TransportUtils.createSOAPMessage(msgContext,
                         new ByteArrayInputStream(excessAndReadBytesFromReadMessageLength.getReadBytes()), contentType));
@@ -382,5 +485,13 @@ public class TCPTransportSender extends AbstractTransportSender {
            return  TCPUtils.convertAsciiBytesToInt(delimiterBytes);
         }
         return -1;
+    }
+
+    private void cleanPersistentDataHolders(String clientId) {
+        persistentConnectionInfoBeanMap.remove(clientId);
+        exceptionMapper.remove(clientId);
+        threadHolder.remove(clientId);
+        messageContextHolder.remove(clientId);
+
     }
 }
