@@ -79,9 +79,16 @@ public class TCPTransportSender extends AbstractTransportSender {
                 if ( msgContext.getProperty(TCPConstants.SOURCE_HANDSHAKE_PRESENT) == null ||
                         msgContext.getProperty(TCPConstants.SOURCE_HANDSHAKE_PRESENT) != null
                         && !msgContext.getProperty(TCPConstants.SOURCE_HANDSHAKE_PRESENT).equals(true)) {
+
                     BlockingQueue messageContexts = messageContextHolder.get(clientId);
 
+                    if (messageContexts == null) {
+                        messageContexts = new LinkedBlockingQueue();
+                        messageContextHolder.put(clientId, messageContexts);
+                    }
+
                     MessageContext responseMsgCtx = createResponseMessageContext(msgContext);
+                    responseMsgCtx.setProperty(TCPConstants.BACKEND_MESSAGE_TYPE, TCPConstants.BINARY_OCTET_STREAM);
                     MessageContextToResponseContext messageContextToResponseContext =
                             new MessageContextToResponseContext();
                     messageContextToResponseContext.setMessageContext(msgContext);
@@ -177,6 +184,7 @@ public class TCPTransportSender extends AbstractTransportSender {
                                     }
 
                                 }
+                                exceptionMapperStarted = false;
                                 throw new AxisFault("Error occurred while reading or writing to backend.");
                             }
                         } catch (InterruptedException e) {
@@ -184,12 +192,17 @@ public class TCPTransportSender extends AbstractTransportSender {
                         }
                     }
                 }
+                if (msgContext.getProperty(TCPConstants.SOURCE_HANDSHAKE_PRESENT) != null
+                        && msgContext.getProperty(TCPConstants.SOURCE_HANDSHAKE_PRESENT).equals(true)) {
+                    return;
+                }
             } else {
                 socket = openTCPConnection(targetEPR, timeout, retryInterval);
             }
             if (isPersistent != null && Boolean.parseBoolean(isPersistent)) {
                 Object terminateProperty = msgContext.getProperty(TCPConstants.CONNECTION_TERMINATE);
                 if (terminateProperty != null && (boolean) terminateProperty) {
+                    exceptionMapperStarted = false;
                     cleanPersistentDataHolders(clientId);
                     return;
                 }

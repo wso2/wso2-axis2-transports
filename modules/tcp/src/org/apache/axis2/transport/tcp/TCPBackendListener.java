@@ -21,17 +21,17 @@ public class TCPBackendListener implements Runnable {
     }
 
     Socket socket;
-    byte[] buffer = new byte[4096];
+    byte[] buffer;
     BlockingQueue<byte[]> messagesQueue;
     BlockingQueue<Exception> exceptionsQueue;
 
     @Override
     public void run() {
-        log.info("listener thread started...........!!!!!");
         while (true) {
 
             int bufferCount;
             try {
+                buffer = new byte[4096];
                 bufferCount = socket.getInputStream().read(buffer);
                 if (bufferCount == -1) {
                     throw new Exception("TCP connection broken.");
