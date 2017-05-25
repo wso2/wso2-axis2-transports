@@ -57,6 +57,8 @@ public class ServiceTaskManager {
 
 	private volatile int workerState = STATE_STOPPED;
 
+	private String contentType;
+
 	public int getServiceTaskManagerState() {
 		return serviceTaskManagerState;
 	}
@@ -119,6 +121,14 @@ public class ServiceTaskManager {
 
 	public void setWorkerPool(WorkerPool workerPool) {
 		this.workerPool = workerPool;
+	}
+
+	public String getContentType() {
+		return contentType;
+	}
+
+	public void setContentType(String contentType) {
+		this.contentType = contentType;
 	}
 
 	public synchronized void start() {

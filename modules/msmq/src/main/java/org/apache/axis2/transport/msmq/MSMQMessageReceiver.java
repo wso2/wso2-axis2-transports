@@ -79,6 +79,7 @@ public class MSMQMessageReceiver {
 		// TODO: this only support text messages, need to improve it for binay
 		// messages
 		
+		// Get the contentType from the MSMQ message
 		String contentType = message.getLabel();
 		if (log.isDebugEnabled()) {
 			log.info("Content Type of the message is : " + contentType);
@@ -89,7 +90,14 @@ public class MSMQMessageReceiver {
 		if (message.getCorrelationId() != null) {
 			msgContext.setProperty(MSMQConstants.MSMQ_CORRELATION_ID, message.getCorrelationId());
 		}
-		// TODO: get the contentType from the MSMQ message
+		
+		// Check if content type for the MSMQ messages is defined at proxy level as a parameter
+
+		if(msgContext.getParameter(MSMQConstants.PARAM_CONTENT_TYPE).getValue() != null){
+			//Overwrite the message's content type with the defined content type in the proxy
+			contentType = String.valueOf(msgContext.getParameter(MSMQConstants.PARAM_CONTENT_TYPE).getValue());
+		}
+
 		/*
 		 * ContentTypeInfo contentTypeInfo =
 		 * endpoint.getContentTypeRuleSet().getContentTypeInfo(message);
