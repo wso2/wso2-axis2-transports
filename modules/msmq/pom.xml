@@ -27,7 +27,7 @@
     <parent>
         <groupId>org.apache.axis2.transport</groupId>
         <artifactId>axis2-transports</artifactId>
-        <version>1.1.0-wso2v14-SNAPSHOT</version>
+        <version>2.0.0-wso2v3-SNAPSHOT</version>
         <relativePath>../../pom.xml</relativePath>
     </parent>
 
@@ -87,6 +87,7 @@
                         <Bundle-SymbolicName>${project.artifactId}</Bundle-SymbolicName>
                         <Export-Package>
                             org.apache.axis2.transport.msmq.*;-split-package:=merge-last,
+                            org.apache.camel.*
                         </Export-Package>
                         <Import-Package>
                             !javax.xml.namespace,

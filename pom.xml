@@ -91,6 +91,7 @@
                 <module>modules/sms</module>
                 <module>modules/testkit</module>
                 <module>modules/mqtt</module>
+                <module>modules/msmq</module>
             </modules>
         </profile>
     </profiles>
