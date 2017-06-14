@@ -103,9 +103,14 @@ public class MSMQEndpoint extends ProtocolEndpoint {
 
 		// TODO: improve MSMQ transport for two way messaging..
 		Parameter contentTypeParam = service.getParameter(MSMQConstants.PARAM_CONTENT_TYPE);
-		// TODO: deal with content type
+
 		serviceTaskManager = ServiceTaskManagerFactory.createTaskManagerForService(service, workerPool);
 		serviceTaskManager.setMsmqMessageReceiver(new MSMQMessageReceiver(listener, msmqDestinationQueueName, this));
+
+		// Deal with content type
+		if(contentTypeParam.getValue() != null && ! "".equals(String.valueOf(contentTypeParam.getValue()).trim())) {
+			serviceTaskManager.setContentType(String.valueOf(contentTypeParam.getValue()));
+		}
 
 		return true;
 	}
