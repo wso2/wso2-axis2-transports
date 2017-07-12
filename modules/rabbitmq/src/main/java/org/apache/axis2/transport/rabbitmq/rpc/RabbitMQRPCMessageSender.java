@@ -364,7 +364,9 @@ public class RabbitMQRPCMessageSender {
         builder.correlationId(message.getCorrelationId());
         builder.contentEncoding(message.getContentEncoding());
         Map<String, Object> headers = message.getHeaders();
-        headers.put(RabbitMQConstants.SOAP_ACTION, message.getSoapAction());
+        if (message.getSoapAction() != null) {
+            headers.put(RabbitMQConstants.SOAP_ACTION, message.getSoapAction());
+        }
         builder.headers(headers);
         return builder;
     }
