@@ -662,7 +662,7 @@ public class JMSUtils extends BaseUtils {
     /**
      * Get the length of the message in bytes
      * @param message
-     * @return message size (or approximation) in bytes
+     * @return message size (or approximation) in bytes, return 0 when message is null.
      * @throws JMSException
      */
     public static long getMessageSize(Message message) throws JMSException {
@@ -671,7 +671,12 @@ public class JMSUtils extends BaseUtils {
         } else if (message instanceof TextMessage) {
             // TODO: Converting the whole message to a byte array is too much overhead just to determine the message size.
             //       Anyway, the result is not accurate since we don't know what encoding the JMS provider uses.
-            return ((TextMessage) message).getText().getBytes().length;
+            String text = ((TextMessage) message).getText();
+            //The default value of getText() is null, hence should have a null check
+            if (text != null) {
+                return text.getBytes().length;
+            }
+            return 0;
         } else if (message instanceof MapMessage) {
             return JMSUtils.getBodyLength((MapMessage) message);
         } else {
