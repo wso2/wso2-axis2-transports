@@ -675,9 +675,8 @@ public class JMSUtils extends BaseUtils {
             //The default value of getText() is null, hence should have a null check
             if (text != null) {
                 return text.getBytes().length;
-            } else {
-                return 0;
             }
+            return 0;
         } else if (message instanceof MapMessage) {
             return JMSUtils.getBodyLength((MapMessage) message);
         } else {
