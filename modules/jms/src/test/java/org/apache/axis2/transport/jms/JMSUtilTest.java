@@ -52,7 +52,7 @@ public class JMSUtilTest extends TestCase {
 
         //when no security params
         Hashtable<String, String> newParamsTable = JMSUtils.maskAxis2ConfigSensitiveParameters(paramsTable);
-        Assert.assertSame("Axis2 configs masking when no security params exist", paramsTable, newParamsTable);
+        Assert.assertEquals("Axis2 configs masking when no security params exist", paramsTable, newParamsTable);
 
         paramsTable.put(JMSConstants.PARAM_JMS_PASSWORD, "password");
         paramsTable.put(JMSConstants.PARAM_NAMING_SECURITY_CREDENTIALS, "Credentials");

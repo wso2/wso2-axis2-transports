@@ -989,7 +989,7 @@ public class JMSUtils extends BaseUtils {
     public static Hashtable<String, String> maskAxis2ConfigSensitiveParameters(
             Hashtable<String, String> sensitiveParamsTable) {
 
-        Hashtable<String, String> maskedParamsTable = sensitiveParamsTable;
+        Hashtable<String, String> maskedParamsTable = new Hashtable<>(sensitiveParamsTable);
         if (maskedParamsTable.get(JMSConstants.PARAM_JMS_PASSWORD) != null) {
             maskedParamsTable.put(JMSConstants.PARAM_JMS_PASSWORD, MASKING_STRING);
         }
