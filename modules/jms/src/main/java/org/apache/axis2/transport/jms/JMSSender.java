@@ -34,6 +34,7 @@ import org.apache.axis2.transport.http.HTTPConstants;
 import org.apache.axis2.transport.jms.iowrappers.BytesMessageOutputStream;
 import org.apache.axis2.util.MessageProcessorSelector;
 import org.apache.commons.io.output.WriterOutputStream;
+import org.wso2.securevault.SecretResolver;
 
 import javax.activation.DataHandler;
 import javax.jms.*;
@@ -72,7 +73,8 @@ public class JMSSender extends AbstractTransportSender implements ManagementSupp
     @Override
     public void init(ConfigurationContext cfgCtx, TransportOutDescription transportOut) throws AxisFault {
         super.init(cfgCtx, transportOut);
-        connFacManager = new JMSConnectionFactoryManager(transportOut);
+        SecretResolver secretResolver = cfgCtx.getAxisConfiguration().getSecretResolver();
+        connFacManager = new JMSConnectionFactoryManager(transportOut, secretResolver);
         log.info("JMS Transport Sender initialized...");
     }
     
