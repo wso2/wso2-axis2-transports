@@ -390,4 +390,9 @@ public class JMSConstants {
      * Parameter for jndi security credentials in jms configs of axis2.xml
      */
     public static final String PARAM_NAMING_SECURITY_CREDENTIALS = "java.naming.security.credentials";
+
+    /**
+     * Qualified name for SecureVault aliases.
+     */
+    public static final QName ALIAS_QNAME = new QName("http://org.wso2.securevault/configuration", "secretAlias");
 }
