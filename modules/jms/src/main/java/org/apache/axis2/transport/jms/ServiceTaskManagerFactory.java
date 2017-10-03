@@ -57,6 +57,8 @@ public class ServiceTaskManagerFactory {
                 JMSConstants.PARAM_CONSUME_ERROR_PROGRESSION, svc, cf));
         stm.setMaxConsumeErrorRetryBeforeDelay(getOptionalIntProperty(
                 JMSConstants.PARAM_MAX_CONSUME_RETRY_BEFORE_DELAY, svc, cf));
+        stm.setMaxConsumerErrorRetryCount(getOptionalIntProperty(
+                JMSConstants.PARAM_MAX_CONSUME_RETRY_COUNT, svc, cf));
 
         String destName = getOptionalStringProperty(JMSConstants.PARAM_DESTINATION, svc, cf);
         if (destName == null) {

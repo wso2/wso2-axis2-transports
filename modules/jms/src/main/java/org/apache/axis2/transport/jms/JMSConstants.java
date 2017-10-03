@@ -112,7 +112,7 @@ public class JMSConstants {
 	 * Duration in milliseconds to try reconnecting when the MQ is
 	 * down(shutdown)
 	 */
-	public static final String PARAM_RECONNECT_INTERVAL = "transport.jms.ReconnectInterval";     
+	public static final String PARAM_RECONNECT_INTERVAL = "transport.jms.ReconnectInterval";
     /**
      * The Parameter indicating the expected content type for messages received by the service.
      */
@@ -176,6 +176,10 @@ public class JMSConstants {
      * Maximum retries on consume error before delay kicks in.
      */
     public static final String PARAM_MAX_CONSUME_RETRY_BEFORE_DELAY = "transport.jms.MaxConsumeErrorRetriesBeforeDelay";
+    /**
+     * Maximum retries on consumer error.
+     */
+    public static final String PARAM_MAX_CONSUME_RETRY_COUNT = "transport.jms.MaxConsumeErrorRetryCount";
     /**
      *The number of concurrent consumers to be created to poll for messages for this service
      * For Topics, this should be ONE, to prevent receipt of multiple copies of the same message
