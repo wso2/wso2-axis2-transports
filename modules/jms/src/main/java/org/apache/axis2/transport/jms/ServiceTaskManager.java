@@ -456,6 +456,8 @@ public class ServiceTaskManager {
                 workerState = STATE_PAUSED;
             }
 
+            log.info("JMS Polling task activated with state: " + workerState + " for service " + serviceName);
+
             try {
                 while (isActive() &&
                     (getMaxMessagesPerTask() < 0 || messageCount < getMaxMessagesPerTask()) &&
@@ -519,10 +521,11 @@ public class ServiceTaskManager {
                         idleExecutionCount++;
                     }
                 }
-			} catch (AxisJMSException e) {
-				log.error("Error reciving the message.");
+            } catch (AxisJMSException e) {
+                log.error("Error receiving the message.");
             } finally {
-                
+                log.info("JMS Polling server task stopped for service " + serviceName +
+                        " Service state " + workerState);
                 if (log.isTraceEnabled()) {
                     log.trace("Listener task with Thread ID : " + Thread.currentThread().getId() +
                         " is stopping after processing : " + messageCount + " messages :: " +
