@@ -38,9 +38,12 @@ public class TCPEndpoint extends ProtocolEndpoint {
     private String contentType;
     private String recordDelimiter;
     private String recordDelimiterType;
+    private Integer recordDelimiterLength;
     private Integer recordLength;
     private boolean clientResponseRequired;
     private String inputType;
+    private String clientId;
+    private boolean persistableBackendConnection;
 
     public TCPEndpoint() {
 
@@ -77,19 +80,19 @@ public class TCPEndpoint extends ProtocolEndpoint {
     }
 
     public boolean isClientResponseRequired() {
-		return clientResponseRequired;
-	}
+        return clientResponseRequired;
+    }
 
     public void setClientResponseRequired(boolean clientResponseRequired) {
         this.clientResponseRequired = clientResponseRequired;
     }
 
     public String getInputType() {
-    	return inputType;
+        return inputType;
     }
 
     public void setInputType(String inputType) {
-    	this.inputType = inputType;
+        this.inputType = inputType;
     }
 
     public String getRecordDelimiterType() {
@@ -99,6 +102,12 @@ public class TCPEndpoint extends ProtocolEndpoint {
     public void setRecordDelimiterType(String recordDelimiterType) {
         this.recordDelimiterType = recordDelimiterType;
     }
+
+    public Integer getRecordDelimiterLength() {
+        return recordDelimiterLength;
+    }
+
+    public void setRecordDelimiterLength(Integer recordDelimiterLength) { this.recordDelimiterLength = recordDelimiterLength; }
 
     public boolean loadConfiguration(ParameterInclude params) throws AxisFault {
         port = ParamUtils.getOptionalParamInt(params, TCPConstants.PARAM_PORT, -1);
@@ -110,20 +119,20 @@ public class TCPEndpoint extends ProtocolEndpoint {
         if (contentType == null || contentType.isEmpty()) {
             contentType = TCPConstants.TCP_DEFAULT_CONTENT_TYPE;
         }
-        
+
         recordDelimiter = ParamUtils.getOptionalParam(params, TCPConstants.PARAM_RECORD_DELIMITER);
         if (recordDelimiter == null) {
-        	recordDelimiter = "";
+            recordDelimiter = "";
         }
-        
+
         recordLength =  ParamUtils.getOptionalParamInt(params, TCPConstants.PARAM_RECORD_LENGTH);
         if(recordLength == null){
-        	recordLength = -1;
+            recordLength = -1;
         }
-        
+
         inputType  =  ParamUtils.getOptionalParam(params, TCPConstants.PARAM_RESPONSE_INPUT_TYPE);
         if(inputType == null || inputType.isEmpty()){
-        	inputType = TCPConstants.BINARY_INPUT_TYPE;
+            inputType = TCPConstants.BINARY_INPUT_TYPE;
         }
 
         recordDelimiterType  =  ParamUtils.getOptionalParam(params, TCPConstants.PARAM_RECORD_DELIMITER_TYPE);
@@ -131,10 +140,18 @@ public class TCPEndpoint extends ProtocolEndpoint {
             recordDelimiterType = TCPConstants.CHARACTER_DELIMITER_TYPE;
         }
 
+        recordDelimiterLength = ParamUtils.getOptionalParamInt(params, TCPConstants.PARAM_RECORD_DELIMITER_LENGTH);
+        if(recordDelimiterLength == null) {
+            recordDelimiterLength = -1;
+        }
+
         clientResponseRequired =  ParamUtils.getOptionalParamBoolean(params, TCPConstants.PARAM_RESPONSE_CLIENT, false);
+
+        persistableBackendConnection =  ParamUtils.getOptionalParamBoolean(params, TCPConstants.PERSISTABLE_BACKEND_CONNECTION, false);
 
         host = ParamUtils.getOptionalParam(params, TCPConstants.PARAM_HOST);
         backlog = ParamUtils.getOptionalParamInt(params, TCPConstants.PARAM_BACKLOG, TCPConstants.TCP_DEFAULT_BACKLOG);
+
         return true;
     }
 
@@ -161,4 +178,19 @@ public class TCPEndpoint extends ProtocolEndpoint {
         return new EndpointReference[] { new EndpointReference(url) };
     }
 
+    public String getClientId() {
+        return clientId;
+    }
+
+    public void setClientId(String clientId) {
+        this.clientId = clientId;
+    }
+
+    public boolean isPersistableBackendConnection() {
+        return persistableBackendConnection;
+    }
+
+    public void setPersistableBackendConnection(boolean persistableBackendConnection) {
+        this.persistableBackendConnection = persistableBackendConnection;
+    }
 }

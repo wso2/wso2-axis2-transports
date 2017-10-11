@@ -29,6 +29,7 @@ public class TCPOutTransportInfo implements OutTransportInfo {
 	private boolean clientResponseRequired = false;
 	private String delimiter;
 	private String delimiterType;
+	private int recordDelimiterLength;
 
 	public Socket getSocket() {
 		return socket;
@@ -68,5 +69,13 @@ public class TCPOutTransportInfo implements OutTransportInfo {
 
 	public void setDelimiterType(String delimiterType) {
 		this.delimiterType = delimiterType;
+	}
+
+	public int getRecordDelimiterLength() {
+		return recordDelimiterLength;
+	}
+
+	public void setRecordDelimiterLength(int recordDelimiterLength) {
+		this.recordDelimiterLength = recordDelimiterLength;
 	}
 }

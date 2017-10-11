@@ -49,6 +49,7 @@ public class TCPServer implements Runnable {
 
             try {
                 socket = serverSocket.accept();
+                endpoint.setClientId(socket.getRemoteSocketAddress().toString());
             } catch (java.io.InterruptedIOException ignored) {
 
             } catch (Exception e) {
