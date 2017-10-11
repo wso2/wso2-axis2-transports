@@ -88,7 +88,9 @@ public class MinConcurrencyTest extends ManagedTestCase {
                     concurrencyReachedLock.notifyAll();
                 }
                 try {
-                    shutdownAwaitLock.wait();
+                    synchronized (shutdownAwaitLock) {
+                        shutdownAwaitLock.wait();
+                    }
                 } catch (InterruptedException ex) {
                 }
             }
