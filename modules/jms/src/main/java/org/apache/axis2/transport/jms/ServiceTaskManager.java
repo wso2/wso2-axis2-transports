@@ -524,8 +524,7 @@ public class ServiceTaskManager {
             } catch (AxisJMSException e) {
                 log.error("Error receiving the message.");
             } finally {
-                log.info("JMS Polling server task stopped for service " + serviceName +
-                        " Service state " + workerState);
+                log.info("JMS Polling server task stopped for service " + serviceName + " " + this);
                 if (log.isTraceEnabled()) {
                     log.trace("Listener task with Thread ID : " + Thread.currentThread().getId() +
                         " is stopping after processing : " + messageCount + " messages :: " +
@@ -768,6 +767,7 @@ public class ServiceTaskManager {
                             Thread.sleep(retryDuration);
                             if (getConnectedTaskCount() == concurrentConsumers) {
                                 connected = true;
+                                isOnExceptionError = false;
                                 log.info("Reconnection attempt: " + r + " for service: " + serviceName +
                                         " was successful!");
                             }
@@ -1015,6 +1015,18 @@ public class ServiceTaskManager {
 				}
 				throw new AxisJMSException(msg, e);
             }
+        }
+
+        @Override
+        public String toString() {
+            return "MessageListenerTask{" +
+                    "workerState=" + workerState +
+                    ", idleExecutionCount=" + idleExecutionCount +
+                    ", idle=" + idle +
+                    ", connected=" + connected +
+                    ", listenerPaused=" + listenerPaused +
+                    ", connectionReceivedError=" + connectionReceivedError +
+                    '}';
         }
     }
 
