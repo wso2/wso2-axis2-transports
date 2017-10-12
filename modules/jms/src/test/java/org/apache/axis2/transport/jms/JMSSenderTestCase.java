@@ -21,29 +21,32 @@ import org.mockito.Mockito;
 
 import javax.jms.Destination;
 
-public class JMSSenderTestCase extends TestCase{
+public class JMSSenderTestCase extends TestCase {
 
-    public void testIsWaitForResponseOrReplyDestinationBothTrue()throws Exception {
+    private String assertErrorMessageForTrue = "waitForResponse is false and destination is null";
+    private String assertErrorMessageForFalse = "either waitForResponse is true or destination is not null";
+
+    public void testIsWaitForResponseOrReplyDestinationBothTrue() throws Exception {
         JMSSender jmsSender = new JMSSender();
         Destination destination = Mockito.mock(Destination.class);
         boolean result = jmsSender.isWaitForResponseOrReplyDestination(true, destination);
-        Assert.assertTrue(result);
+        Assert.assertTrue(assertErrorMessageForTrue, result);
     }
 
-    public void testIsWaitForResponseOrReplyDestinationWhenOneIsTrue()throws Exception {
+    public void testIsWaitForResponseOrReplyDestinationWhenOneIsTrue() throws Exception {
         JMSSender jmsSender = new JMSSender();
         boolean result1 = jmsSender.isWaitForResponseOrReplyDestination(true, null);
-        Assert.assertTrue(result1);
+        Assert.assertTrue(assertErrorMessageForTrue, result1);
 
         Destination destination = Mockito.mock(Destination.class);
         boolean result2 = jmsSender.isWaitForResponseOrReplyDestination(false, destination);
-        Assert.assertTrue(result2);
+        Assert.assertTrue(assertErrorMessageForTrue, result2);
     }
 
-    public void testIsWaitForResponseOrReplyDestinationWhenBothFalse()throws Exception {
+    public void testIsWaitForResponseOrReplyDestinationWhenBothFalse() throws Exception {
         JMSSender jmsSender = new JMSSender();
         boolean result = jmsSender.isWaitForResponseOrReplyDestination(false, null);
-        Assert.assertFalse(result);
+        Assert.assertFalse(assertErrorMessageForFalse, result);
     }
 
 }
