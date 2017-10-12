@@ -238,7 +238,7 @@ public class JMSSender extends AbstractTransportSender implements ManagementSupp
         // if this is a synchronous out-in, prepare to listen on the response destination
         String replyDestName;
 
-        if (waitForResponse) {
+        if (isWaitForResponseOrReplyDestination(waitForResponse, replyDestination)) { //check replyDestination for APIMANAGER-5892
 
             replyDestName = (String) msgCtx.getProperty(JMSConstants.JMS_REPLY_TO);
             if (replyDestName == null && jmsConnectionFactory != null) {
@@ -278,6 +278,7 @@ public class JMSSender extends AbstractTransportSender implements ManagementSupp
                 } else if ("topic".equals(replyDestinationType)) {
                     tempDestination = messageSender.getSession().createTopic(replyDestName);
                 }
+                replyDestination = tempDestination;
                 message.setJMSReplyTo(tempDestination);
 
             } catch (JMSException e) {
@@ -321,7 +322,7 @@ public class JMSSender extends AbstractTransportSender implements ManagementSupp
         }
 
         // if we are expecting a synchronous response back for the message sent out
-        if (waitForResponse) {
+        if (isWaitForResponseOrReplyDestination(waitForResponse, replyDestination)) {
             // TODO ********************************************************************************
             // TODO **** replace with asynchronous polling via a poller task to process this *******
             // information would be given. Then it should poll (until timeout) the
@@ -346,6 +347,10 @@ public class JMSSender extends AbstractTransportSender implements ManagementSupp
                 msgCtx, correlationId, contentTypeProperty);
             // TODO ********************************************************************************
         }
+    }
+
+    protected boolean isWaitForResponseOrReplyDestination(boolean waitForResponse, Destination replyDestination) {
+        return waitForResponse || replyDestination != null;
     }
 
     /**
