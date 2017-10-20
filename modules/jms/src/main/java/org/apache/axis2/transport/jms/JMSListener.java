@@ -244,10 +244,12 @@ public class JMSListener extends AbstractTransportListenerEx<JMSEndpoint> implem
     public void resume() throws AxisFault {
         if (state != BaseConstants.PAUSED) return;
         try {
+            state = BaseConstants.STARTED;
             for (JMSEndpoint endpoint : getEndpoints()) {
+                Thread.currentThread().setContextClassLoader(getClass().getClassLoader());
+                endpoint.getServiceTaskManager().scheduleNewTaskIfAppropriate();
                 endpoint.getServiceTaskManager().resume();
             }
-            state = BaseConstants.STARTED;
             log.info("Listener resumed");
         } catch (AxisJMSException e) {
             log.error("At least one service could not be resumed", e);
