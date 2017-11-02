@@ -373,6 +373,11 @@ public class JMSConstants {
 
     public static final String JMS_XA_TRANSACTION_MANAGER = "distributedTxMgr";
 
+    /**
+    * Will be used identify transactionality.
+    */
+    public static final String JMS_TRANSACTION_COMMAND = "transport.jms.TransactionCommand";
+
     public static final String JMS_SPEC_VERSION_1_1 = "1.1";
 
     public static final String JMS_SPEC_VERSION_2_0 = "2.0";
