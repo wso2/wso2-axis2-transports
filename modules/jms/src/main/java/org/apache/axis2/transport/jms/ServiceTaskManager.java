@@ -330,13 +330,10 @@ public class ServiceTaskManager {
      * Start a new MessageListenerTask if we are still active, the threshold is not reached, and w
      * e do not have any idle tasks - i.e. scale up listening
      */
-    private void scheduleNewTaskIfAppropriate() {
+    public void scheduleNewTaskIfAppropriate() {
         if (serviceTaskManagerState == STATE_STARTED &&
-            pollingTasks.size() < getMaxConcurrentConsumers() && getIdleTaskCount() == 0) {
-
-            if (jmsMessageReceiver.getJmsListener().getState() == BaseConstants.PAUSED) {
-                workerPool.execute(new MessageListenerTask(BaseConstants.PAUSED));
-            } else {
+                pollingTasks.size() < getMaxConcurrentConsumers() && getIdleTaskCount() == 0) {
+            if (jmsMessageReceiver.getJmsListener().getState() != BaseConstants.PAUSED) {
                 workerPool.execute(new MessageListenerTask(BaseConstants.STARTED));
             }
         }
