@@ -38,6 +38,35 @@ public class JMSConnectionFactoryManager {
         new HashMap<String,JMSConnectionFactory>();
 
     /**
+     * Construct a Connection factory manager for the JMS transport sender or receiver
+     *
+     * @param trpInDesc the transport description for JMS
+     */
+    @Deprecated
+    public JMSConnectionFactoryManager(ParameterInclude trpInDesc) {
+        loadConnectionFactoryDefinitions(trpInDesc);
+    }
+
+    /**
+     * Create JMSConnectionFactory instances for the definitions in the transport configuration,
+     * and add these into our collection of connectionFactories map keyed by name
+     *
+     * @param trpDesc the transport description for JMS
+     */
+    @Deprecated
+    private void loadConnectionFactoryDefinitions(ParameterInclude trpDesc) {
+
+        for (Parameter p : trpDesc.getParameters()) {
+            try {
+                JMSConnectionFactory jmsConFactory = new JMSConnectionFactory(p);
+                connectionFactories.put(jmsConFactory.getName(), jmsConFactory);
+            } catch (AxisJMSException e) {
+                log.error("Error setting up connection factory : " + p.getName(), e);
+            }
+        }
+    }
+
+    /**
      * Construct a Connection factory manager for the JMS transport sender or receiver.
      *
      * @param trpInDesc the transport description for JMS

@@ -79,6 +79,47 @@ public class JMSConnectionFactory {
     /**
      * Digest a JMS CF definition from an axis2.xml 'Parameter' and construct.
      * @param parameter the axis2.xml 'Parameter' that defined the JMS CF
+     */
+    @Deprecated
+    public JMSConnectionFactory(Parameter parameter) {
+
+        this.name = parameter.getName();
+        ParameterIncludeImpl pi = new ParameterIncludeImpl();
+
+        try {
+            pi.deserializeParameters((OMElement) parameter.getValue());
+        } catch (AxisFault axisFault) {
+            handleException("Error reading parameters for JMS connection factory" + name, axisFault);
+        }
+
+        for (Object o : pi.getParameters()) {
+            Parameter p = (Parameter) o;
+            parameters.put(p.getName(), (String) p.getValue());
+        }
+
+        digestCacheLevel();
+        try {
+            context = new InitialContext(parameters);
+            conFactory = JMSUtils.lookup(context, ConnectionFactory.class,
+                    parameters.get(JMSConstants.PARAM_CONFAC_JNDI_NAME));
+            if (parameters.get(JMSConstants.PARAM_DESTINATION) != null) {
+                sharedDestination = JMSUtils.lookup(context, Destination.class,
+                        parameters.get(JMSConstants.PARAM_DESTINATION));
+            }
+            log.info("JMS ConnectionFactory : " + name + " initialized");
+
+        } catch (NamingException e) {
+            throw new AxisJMSException("Cannot acquire JNDI context, JMS Connection factory : " +
+                    parameters.get(JMSConstants.PARAM_CONFAC_JNDI_NAME) + " or default destination : " +
+                    parameters.get(JMSConstants.PARAM_DESTINATION) +
+                    " for JMS CF : " + name + " using : " + JMSUtils.maskAxis2ConfigSensitiveParameters(parameters), e);
+        }
+        setMaxSharedJMSConnectionsCount();
+    }
+
+    /**
+     * Digest a JMS CF definition from an axis2.xml 'Parameter' and construct.
+     * @param parameter the axis2.xml 'Parameter' that defined the JMS CF
      * @param secretResolver the SecretResolver to use to resolve secrets such as passwords
      */
     public JMSConnectionFactory(Parameter parameter, SecretResolver secretResolver) {
