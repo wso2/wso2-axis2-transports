@@ -71,6 +71,30 @@ public class RabbitMQConnectionFactory {
     private Address[] addresses;
 
     /**
+     * Digest a AMQP CF definition from an axis2.xml 'Parameter' and construct.
+     *
+     * @param parameter the axis2.xml 'Parameter' that defined the AMQP CF
+     */
+    @Deprecated
+    public RabbitMQConnectionFactory(Parameter parameter) {
+        this.name = parameter.getName();
+        ParameterIncludeImpl pi = new ParameterIncludeImpl();
+
+        try {
+            pi.deserializeParameters((OMElement) parameter.getValue());
+        } catch (AxisFault axisFault) {
+            handleException("Error reading parameters for RabbitMQ connection factory" + name, axisFault);
+        }
+
+        for (Object o : pi.getParameters()) {
+            Parameter p = (Parameter) o;
+            parameters.put(p.getName(), (String) p.getValue());
+        }
+        initConnectionFactory();
+        log.info("RabbitMQ ConnectionFactory : " + name + " initialized");
+    }
+
+    /**
      * Digest a AMQP CF definition from an axis2.xml 'Parameter' and construct
      *
      * @param parameter the axis2.xml 'Parameter' that defined the AMQP CF
