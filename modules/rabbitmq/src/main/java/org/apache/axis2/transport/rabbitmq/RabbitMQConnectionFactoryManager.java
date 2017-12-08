@@ -36,6 +36,16 @@ public class RabbitMQConnectionFactoryManager {
             new HashMap<String, RabbitMQConnectionFactory>();
 
     /**
+     * Construct a Connection factory manager for the RabbitMQ transport sender or receiver.
+     *
+     * @param description the transport description for RabbitMQ
+     */
+    @Deprecated
+    public RabbitMQConnectionFactoryManager(ParameterInclude description) {
+        loadConnectionFactoryDefinitions(description);
+    }
+
+    /**
      * Construct a Connection factory manager for the RabbitMQ transport sender or receiver
      *
      * @param description
@@ -108,6 +118,20 @@ public class RabbitMQConnectionFactoryManager {
      */
     public RabbitMQConnectionFactory getConnectionFactory(String connectionFactoryName) {
         return connectionFactories.get(connectionFactoryName);
+    }
+
+    /**
+     * Create ConnectionFactory instances for the definitions in the transport configuration,
+     * and add these into our collection of connectionFactories map keyed by name.
+     *
+     * @param trpDesc the transport description for RabbitMQ AMQP
+     */
+    @Deprecated
+    private void loadConnectionFactoryDefinitions(ParameterInclude trpDesc) {
+        for (Parameter parameter : trpDesc.getParameters()) {
+            RabbitMQConnectionFactory amqpConFactory = new RabbitMQConnectionFactory(parameter);
+            connectionFactories.put(amqpConFactory.getName(), amqpConFactory);
+        }
     }
 
     /**
