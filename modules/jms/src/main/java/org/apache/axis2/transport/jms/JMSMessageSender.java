@@ -140,7 +140,7 @@ public class JMSMessageSender {
 
         Boolean jtaCommit    = getBooleanProperty(msgCtx, BaseConstants.JTA_COMMIT_AFTER_SEND);
         Boolean rollbackOnly = getBooleanProperty(msgCtx, BaseConstants.SET_ROLLBACK_ONLY);
-        Boolean persistent   = getBooleanProperty(msgCtx, JMSConstants.JMS_DELIVERY_MODE);
+        String deliveryMode = getStringProperty(msgCtx, JMSConstants.JMS_DELIVERY_MODE);
         Integer priority     = getIntegerProperty(msgCtx, JMSConstants.JMS_PRIORITY);
         Integer timeToLive   = getIntegerProperty(msgCtx, JMSConstants.JMS_TIME_TO_LIVE);
         Integer messageDelay = getIntegerProperty(msgCtx, JMSConstants.JMS_MESSAGE_DELAY);
@@ -150,9 +150,16 @@ public class JMSMessageSender {
             jtaCommit = Boolean.FALSE;
         }
 
-        if (persistent != null) {
+        if (deliveryMode != null) {
             try {
-                producer.setDeliveryMode(DeliveryMode.PERSISTENT);
+                if (JMSConstants.JMS_PERSISTENT_DELIVERY_MODE.equalsIgnoreCase(deliveryMode)) {
+                    producer.setDeliveryMode(DeliveryMode.PERSISTENT);
+                } else if (JMSConstants.JMS_NON_PERSISTENT_DELIVERY_MODE.equalsIgnoreCase(deliveryMode)) {
+                    producer.setDeliveryMode(DeliveryMode.NON_PERSISTENT);
+                } else {
+                    //Warn user since unknown value for JMS_DELIVERY_MODE property
+                    log.warn("Unknown JMS Delivery mode: " + deliveryMode + " defined as JMS_DELIVERY_MODE property");
+                }
             } catch (JMSException e) {
                 handleException("Error setting JMS Producer for PERSISTENT delivery", e);
             }
@@ -342,6 +349,14 @@ public class JMSMessageSender {
             } else if (o instanceof String) {
                 return Boolean.valueOf((String) o);
             }
+        }
+        return null;
+    }
+
+    private String getStringProperty(MessageContext msgCtx, String name) {
+        Object propObject = msgCtx.getProperty(name);
+        if (propObject != null && propObject instanceof String) {
+            return (String) propObject;
         }
         return null;
     }

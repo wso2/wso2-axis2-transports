@@ -254,6 +254,14 @@ public class JMSConstants {
      * Value 2 - javax.jms.DeliveryMode.PERSISTENT
      */
     public static final String JMS_DELIVERY_MODE = "JMS_DELIVERY_MODE";
+
+    /**
+     * Acceptable String values (PERSISTENT and NON_PERSISTENT) for JMS_DELIVERY_MODE in axis2 scope
+     */
+    public static final String JMS_PERSISTENT_DELIVERY_MODE = "PERSISTENT";
+    public static final String JMS_NON_PERSISTENT_DELIVERY_MODE = "NON_PERSISTENT";
+
+
     /**
      * A MessageContext property or client Option indicating the JMS destination to use on a Send
      */
