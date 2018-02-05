@@ -562,20 +562,48 @@ public class JMSUtils extends BaseUtils {
 
     /**
      * Create a MessageConsumer for the given Destination
-     * @param session JMS Session to use
-     * @param dest Destination for which the Consumer is to be created
+     *
+     * @param session         JMS Session to use
+     * @param dest            Destination for which the Consumer is to be created
      * @param messageSelector the message selector to be used if any
      * @return a MessageConsumer for the specified Destination
      * @throws JMSException
      */
     public static MessageConsumer createConsumer(Session session, Destination dest, String messageSelector)
-        throws JMSException {
+            throws JMSException {
+        return (dest instanceof Queue ?
+                createQueueConsumer(session, (Queue) dest, messageSelector) :
+                createTopicConsumer(session, (Topic) dest, messageSelector));
+    }
 
-        if (dest instanceof Queue) {
-            return ((QueueSession) session).createReceiver((Queue) dest, messageSelector);
-        } else {
-            return ((TopicSession) session).createSubscriber((Topic) dest, messageSelector, false);
-        }
+    /**
+     * createQueueConsumer method according to https://issues.apache.org/jira/browse/AXIS2-5825.
+     * @param session         session JMS Session to use.
+     * @param queue           Destination queue for which receiver is to be created.
+     * @param messageSelector the message selector to be used if any.
+     * @return a MessageConsumer for the specified Destination.
+     * @throws JMSException
+     */
+    public static MessageConsumer createQueueConsumer(Session session, Queue queue, String messageSelector)
+            throws JMSException {
+        return (session instanceof QueueSession) ?
+                ((QueueSession) session).createReceiver(queue, messageSelector) :
+                session.createConsumer(queue, messageSelector);
+    }
+
+    /**
+     * createTopicConsumer method according to https://issues.apache.org/jira/browse/AXIS2-5825.
+     * @param session         session JMS Session to use.
+     * @param topic           Destination topic for which subscriber is to be created.
+     * @param messageSelector the message selector to be used if any.
+     * @return a MessageConsumer for the specified Destination.
+     * @throws JMSException
+     */
+    public static MessageConsumer createTopicConsumer(Session session, Topic topic, String messageSelector)
+            throws JMSException {
+        return (session instanceof TopicSession) ?
+                ((TopicSession) session).createSubscriber(topic, messageSelector, false) :
+                session.createConsumer(topic, messageSelector);
     }
 
     /**
