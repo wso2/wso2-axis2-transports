@@ -27,9 +27,9 @@
         <relativePath>../../pom.xml</relativePath>
     </parent>
 
-    <artifactId>axis2-transport-jms</artifactId>
-    <name>Apache Axis2 - Transport - JMS</name>
-    <description>Apache Axis2 - JMS Transport</description>
+    <artifactId>axis2-transport-oracleaq</artifactId>
+    <name>Apache Axis2 - Transport - Oracle AQ</name>
+    <description>Apache Axis2 - Oracle AQ Transport</description>
     <packaging>bundle</packaging>
 
     <!--scm>
@@ -106,7 +106,34 @@
             <groupId>org.apache.axis2</groupId>
             <artifactId>axis2-transport-base</artifactId>
         </dependency>
-
+        <dependency>
+            <groupId>ojdbc6</groupId>
+            <artifactId>ojdbc6</artifactId>
+            <version>1.0</version>
+            <scope>system</scope>
+            <systemPath>${project.basedir}/libs/ojdbc6.jar</systemPath>
+        </dependency>
+        <dependency>
+            <groupId>aqapi</groupId>
+            <artifactId>aqapi</artifactId>
+            <version>1.0</version>
+            <scope>system</scope>
+            <systemPath>${project.basedir}/libs/aqapi.jar</systemPath>
+        </dependency>
+        <dependency>
+            <groupId>xdb</groupId>
+            <artifactId>xdb</artifactId>
+            <version>1.0</version>
+            <scope>system</scope>
+            <systemPath>${project.basedir}/libs/xdb6.jar</systemPath>
+        </dependency>
+        <dependency>
+            <groupId>xmlparserv2</groupId>
+            <artifactId>xmlparserv2</artifactId>
+            <version>1.0</version>
+            <scope>system</scope>
+            <systemPath>${project.basedir}/libs/xmlparserv2.jar</systemPath>
+        </dependency>
         <dependency>
             <groupId>org.apache.axis2.transport</groupId>
             <artifactId>axis2-transport-testkit</artifactId>

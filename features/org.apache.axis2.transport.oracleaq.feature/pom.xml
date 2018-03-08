@@ -25,15 +25,16 @@
     </parent>
 
     <modelVersion>4.0.0</modelVersion>
-    <artifactId>org.apache.axis2.transport.jms.feature</artifactId>
+    <artifactId>org.apache.axis2.transport.oracleaq.feature</artifactId>
     <packaging>pom</packaging>
-    <name>Apache Axis2 - JMS Transport Feature</name>
+    <name>Apache Axis2 - Oracle AQ Transport Feature</name>
     <url>http://wso2.org</url>
 
     <dependencies>
         <dependency>
             <groupId>org.apache.axis2.transport</groupId>
-            <artifactId>axis2-transport-jms</artifactId>
+            <artifactId>axis2-transport-oracleaq</artifactId>
+            <version>${axis2.transports.version}</version>
         </dependency>
     </dependencies>
 
@@ -59,7 +60,7 @@
                                 </properties>
                             </adviceFile>
                             <bundles>
-                                <bundleDef>org.apache.axis2.transport:axis2-transport-jms</bundleDef>
+                                <bundleDef>org.apache.axis2.transport:axis2-transport-oracleaq</bundleDef>
                             </bundles>
                             <importFeatures>
                                 <importFeatureDef>org.wso2.carbon.core.common:compatible:${carbon.kernel.version}</importFeatureDef>
