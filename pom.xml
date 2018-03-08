@@ -580,15 +580,15 @@
     <properties>
         <axis2.transports.version>2.0.0-wso2v15-SNAPSHOT</axis2.transports.version>
         <axis2.version>1.6.1-wso2v23</axis2.version>
-        <carbon.kernel.version>4.4.23</carbon.kernel.version>
-        <imp.pkg.version.axis2>[1.6.1.wso2v11, 1.7.0)</imp.pkg.version.axis2>
+        <carbon.kernel.version>4.4.24</carbon.kernel.version>
+        <imp.pkg.version.axis2>[1.6.1.wso2v23, 1.7.0)</imp.pkg.version.axis2>
         <imp.pkg.version.axiom>[1.2.11, 1.3.0)</imp.pkg.version.axiom>
         <imp.pkg.version.xmlschema>[1.4.7.wso2v3, 1.5.0)</imp.pkg.version.xmlschema>
         <imp.pkg.version.commons.logging>[1.2, 1.3)</imp.pkg.version.commons.logging>
         <project.scm.id>wso2-scm-server</project.scm.id>
         <carbon.p2.plugin.version>1.5.3</carbon.p2.plugin.version>
         <maven.javadoc.plugin.version>2.1</maven.javadoc.plugin.version>
-        <wagon.ssh.version>2.1</wagon.ssh.version>
+        <wagon.ssh.version>2.12</wagon.ssh.version>
         <maven.surefire.plugin.version>2.4</maven.surefire.plugin.version>
         <maven.bundle.plugin.version>1.4.0</maven.bundle.plugin.version>
         <maven.dependency.plugin.version>2.0</maven.dependency.plugin.version>
@@ -599,8 +599,8 @@
         <jta-spec.version>1.0</jta-spec.version>
         <rabbitmq.orbit.version>3.6.6.wso2v1</rabbitmq.orbit.version>
         <jsmpp-version>2.0.1</jsmpp-version>
-        <slf4j-version>1.4.3</slf4j-version>
-        <paho.version>1.0.2</paho.version>
+        <slf4j-version>1.7.25</slf4j-version>
+        <paho.version>1.2.0</paho.version>
         <mockito.version>1.9.5</mockito.version>
         <powermock.version>1.7.1</powermock.version>
         <junit.version>4.8.2</junit.version>
