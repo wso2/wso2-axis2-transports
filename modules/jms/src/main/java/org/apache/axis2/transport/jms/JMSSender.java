@@ -370,9 +370,8 @@ public class JMSSender extends AbstractTransportSender implements ManagementSupp
     private void waitForResponseAndProcess(Session session, Destination replyDestination,
             MessageContext msgCtx, String correlationId,
             String contentTypeProperty) throws AxisFault {
-
+        MessageConsumer consumer = null;
         try {
-            MessageConsumer consumer;
             consumer = JMSUtils.createConsumer(session, replyDestination,
                 "JMSCorrelationID = '" + correlationId + "'");
 
@@ -422,6 +421,15 @@ public class JMSSender extends AbstractTransportSender implements ManagementSupp
             handleException("Error creating a consumer, or receiving a synchronous reply " +
                 "for outgoing MessageContext ID : " + msgCtx.getMessageID() +
                 " and reply Destination : " + replyDestination, e);
+        } finally {
+            try {
+                if (consumer != null) {
+                    consumer.close();
+                }
+            } catch (JMSException e) {
+                handleException(
+                        "Unable to close consumer for reply destination: " + replyDestination, e);
+            }
         }
     }
 
