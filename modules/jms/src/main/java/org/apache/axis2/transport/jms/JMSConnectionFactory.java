@@ -467,7 +467,14 @@ public class JMSConnectionFactory {
                 session, destination, isQueue(), jmsSpecVersion());
 
         } catch (JMSException e) {
-            handleException("Error creating JMS producer from JMS CF : " + name,e);
+            try {
+                clearSharedConnections();
+                clearSharedSession();
+                log.info("Detected a stale session. Hence refreshing the connection cache map and cached session.");
+                return  JMSUtils.createProducer(getSession(getConnection()), destination, isQueue(), jmsSpecVersion());
+            } catch (JMSException e1) {
+                handleException("Error creating JMS producer from JMS CF : " + name, e);
+            }
         }
         return null;
     }
@@ -565,5 +572,23 @@ public class JMSConnectionFactory {
     private synchronized void clearSharedConnections() {
         sharedConnectionMap.clear();
         lastReturnedConnectionIndex = 0;
+    }
+
+    private synchronized void clearSharedSession() {
+        sharedSession = null;
+    }
+
+    private synchronized void clearSharedProducer() {
+        sharedProducer = null;
+    }
+
+    /**
+     * Function to clear cached producers, sessions and connections
+     */
+    public void clearCache() {
+        clearSharedProducer();
+        clearSharedSession();
+        clearSharedConnections();
+        log.info("Clear cache of JMSConnectionFactory: " + name);
     }
 }
