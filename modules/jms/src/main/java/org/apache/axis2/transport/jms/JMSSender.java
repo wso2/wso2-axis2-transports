@@ -233,10 +233,9 @@ public class JMSSender extends AbstractTransportSender implements ManagementSupp
                 handleException("Error occurred during obtaining  transaction", e1);
             }
 
-            if (e instanceof IllegalStateException) {
-                //This can happen due to the session trying to connect already closed
-                jmsConnectionFactory.clearCache();
-            }
+            //This can happen due to the session trying to connect already closed
+            jmsConnectionFactory.clearCache();
+
             handleException("Error creating a JMS message from the message context", e);
         }
 
