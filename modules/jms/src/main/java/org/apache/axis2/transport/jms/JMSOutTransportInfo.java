@@ -418,6 +418,16 @@ public class JMSOutTransportInfo implements OutTransportInfo {
             } catch (XAException e) {
                 handleException("Error Occurred during starting XA resource.", e);
             }
+
+            if (jmsConnectionFactory != null && jmsConnectionFactory.jmsSpecVersion() != null) {
+                jmsSpecVersion = jmsConnectionFactory.jmsSpecVersion();
+            } else if (jmsSpecVersion == null) {
+                if (log.isDebugEnabled()) {
+                    log.debug("Setting default JMS version :: " + JMSConstants.JMS_SPEC_VERSION_1_0);
+                }
+                jmsSpecVersion = JMSConstants.JMS_SPEC_VERSION_1_0;
+            }
+
             return new JMSMessageSender(
                     connection,
                     session,
@@ -466,6 +476,16 @@ public class JMSOutTransportInfo implements OutTransportInfo {
                     producer = ((TopicSession) session).createPublisher((Topic) destination);
                 }
             }
+
+            if (jmsConnectionFactory != null && jmsConnectionFactory.jmsSpecVersion() != null) {
+                jmsSpecVersion = jmsConnectionFactory.jmsSpecVersion();
+            } else if (jmsSpecVersion == null) {
+                if (log.isDebugEnabled()) {
+                    log.debug("Setting default JMS version :: " + JMSConstants.JMS_SPEC_VERSION_1_0);
+                }
+                jmsSpecVersion = JMSConstants.JMS_SPEC_VERSION_1_0;
+            }
+
             return new JMSMessageSender(
                     connection,
                     session,
