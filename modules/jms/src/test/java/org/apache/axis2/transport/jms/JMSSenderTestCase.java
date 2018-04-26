@@ -88,12 +88,13 @@ public class JMSSenderTestCase extends TestCase {
         JMSOutTransportInfo jmsOutTransportInfo = Mockito.mock(JMSOutTransportInfo.class);
         JMSMessageSender jmsMessageSender = Mockito.mock(JMSMessageSender.class);
         Session session = Mockito.mock(Session.class);
+        Destination destination = Mockito.mock(Destination.class);
 
         Mockito.doReturn(session).when(jmsMessageSender).getSession();
         PowerMockito.whenNew(JMSOutTransportInfo.class).withArguments(any(String.class))
                 .thenReturn(jmsOutTransportInfo);
         Mockito.doReturn(jmsMessageSender).when(jmsOutTransportInfo).createJMSSender(any(MessageContext.class));
-        PowerMockito.doNothing()
+        PowerMockito.doReturn(destination)
                 .when(jmsSender, "sendOverJMS", ArgumentMatchers.any(), ArgumentMatchers.any(), ArgumentMatchers.any(),
                         ArgumentMatchers.any(), ArgumentMatchers.any());
 

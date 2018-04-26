@@ -201,12 +201,23 @@ public class JMSSender extends AbstractTransportSender implements ManagementSupp
         msgCtx.setProperty(JMSConstants.PARAM_JMS_HYPHEN_MODE, hyphenSupport);
 
         // need to synchronize as Sessions are not thread safe
+        Destination replyDestination = null;
         synchronized (messageSender.getSession()) {
             try {
-                sendOverJMS(msgCtx, messageSender, contentTypeProperty, jmsConnectionFactory, jmsOut);
+                replyDestination = sendOverJMS(msgCtx, messageSender, contentTypeProperty, jmsConnectionFactory, jmsOut);
             } finally {
                 if (msgCtx.getProperty(JMSConstants.JMS_XA_TRANSACTION_MANAGER) == null) {
                     messageSender.close();
+                    if (replyDestination instanceof TemporaryQueue) {
+                        String temporaryQueueName = "";
+                        TemporaryQueue temporaryQueue = (TemporaryQueue) replyDestination;
+                        try {
+                            temporaryQueueName = temporaryQueue.getQueueName();
+                            temporaryQueue.delete();
+                        } catch (JMSException e) {
+                            log.error("Error while deleting the temporary queue " + temporaryQueueName, e);
+                        }
+                    }
                 }
             }
         }
@@ -215,10 +226,10 @@ public class JMSSender extends AbstractTransportSender implements ManagementSupp
     /**
      * Perform actual sending of the JMS message
      */
-    private void sendOverJMS(MessageContext msgCtx, JMSMessageSender messageSender,
+    private Destination sendOverJMS(MessageContext msgCtx, JMSMessageSender messageSender,
         String contentTypeProperty, JMSConnectionFactory jmsConnectionFactory,
         JMSOutTransportInfo jmsOut) throws AxisFault {
-        
+
         // convert the axis message context into a JMS Message that we can send over JMS
         Message message = null;
         String correlationId = null;
@@ -355,6 +366,7 @@ public class JMSSender extends AbstractTransportSender implements ManagementSupp
                 msgCtx, correlationId, contentTypeProperty);
             // TODO ********************************************************************************
         }
+        return replyDestination;
     }
 
     protected boolean isWaitForResponseOrReplyDestination(boolean waitForResponse, Destination replyDestination) {
