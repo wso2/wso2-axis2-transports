@@ -1,4 +1,6 @@
-<?xml version="1.0" encoding="UTF-8"?><!--
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
   ~ Licensed to the Apache Software Foundation (ASF) under one
   ~ or more contributor license agreements. See the NOTICE file
   ~ distributed with this work for additional information
@@ -15,7 +17,9 @@
   ~ KIND, either express or implied. See the License for the
   ~ specific language governing permissions and limitations
   ~ under the License.
-  --><project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+  -->
+
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <parent>
         <groupId>org.wso2</groupId>
@@ -29,12 +33,14 @@
     <name>Apache Axis2 Transport</name>
     <inceptionYear>2004</inceptionYear>
     <url>http://axis.apache.org/axis2/java/core/</url>
+
     <scm>
         <connection>scm:git:https://github.com/wso2/wso2-axis2-transports.git</connection>
         <developerConnection>scm:git:https://github.com/wso2/wso2-axis2-transports.git</developerConnection>
         <url>https://github.com/wso2/wso2-axis2-transports.git</url>
         <tag>HEAD</tag>
     </scm>
+
     <profiles>
         <profile>
             <id>default</id>
@@ -57,6 +63,7 @@
                 <module>modules/sms</module>
                 <module>modules/msmq</module>
                 <module>modules/testkit</module>
+
                 <module>features/org.apache.axis2.transport.jms.feature</module>
                 <module>features/org.apache.axis2.transport.mail.feature</module>
                 <module>features/org.apache.axis2.transport.tcp.feature</module>
@@ -89,6 +96,8 @@
             </modules>
         </profile>
     </profiles>
+
+
     <dependencyManagement>
         <dependencies>
             <dependency>
@@ -101,6 +110,7 @@
                 <artifactId>org.wso2.carbon.core.common</artifactId>
                 <version>${carbon.kernel.version}</version>
             </dependency>
+
             <dependency>
                 <groupId>org.apache.axis2.transport</groupId>
                 <artifactId>axis2-transport-jms</artifactId>
@@ -151,6 +161,7 @@
                 <artifactId>axis2-transport-sms</artifactId>
                 <version>${axis2.transports.version}</version>
             </dependency>
+
             <dependency>
                 <groupId>javax.servlet</groupId>
                 <artifactId>servlet-api</artifactId>
@@ -226,6 +237,7 @@
                 <artifactId>org.eclipse.paho.client.mqttv3</artifactId>
                 <version>${paho.version}</version>
             </dependency>
+
             <!-- Smack Jabber client libraries to be included -->
             <dependency>
                 <groupId>jivesoftware</groupId>
@@ -289,6 +301,8 @@
                 <artifactId>jetty</artifactId>
                 <version>5.1.10</version>
             </dependency>
+
+
             <!-- Dependencies used in the unit tests -->
             <dependency>
                 <groupId>junit</groupId>
@@ -330,12 +344,14 @@
             </dependency>
         </dependencies>
     </dependencyManagement>
+
     <dependencies>
         <dependency>
             <groupId>org.apache.axis2</groupId>
             <artifactId>axis2-kernel</artifactId>
         </dependency>
     </dependencies>
+
     <repositories>
         <repository>
             <id>wso2-maven2-repository</id>
@@ -393,6 +409,7 @@
             </releases>
         </repository>
     </repositories>
+
     <pluginRepositories>
         <pluginRepository>
             <id>snapshot</id>
@@ -455,23 +472,27 @@
             </releases>
         </pluginRepository>
     </pluginRepositories>
+
     <distributionManagement>
         <!--repository>
             <id>wso2-maven2-repository</id>
             <name>WSO2 Maven2 Repository</name>
             <url>scp://dist.wso2.org/home/httpd/dist.wso2.org/maven2/</url>
         </repository-->
+
         <repository>
             <id>nexus-releases</id>
             <name>WSO2 Release Distribution Repository</name>
             <url>http://maven.wso2.org/nexus/service/local/staging/deploy/maven2/</url>
         </repository>
+
         <snapshotRepository>
             <id>wso2.snapshots</id>
             <name>Apache Snapshot Repository</name>
             <url>http://maven.wso2.org/nexus/content/repositories/snapshots/</url>
         </snapshotRepository>
     </distributionManagement>
+
     <build>
         <extensions>
             <extension>
@@ -551,58 +572,11 @@
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-deploy-plugin</artifactId>
                 </plugin>
-                <plugin>
-                    <groupId>org.jacoco</groupId>
-                    <artifactId>jacoco-maven-plugin</artifactId>
-                    <version>0.8.0</version>
-                    <executions>
-                        <execution>
-                            <id>default-prepare-agent-by-coverage-enforcer</id>
-                            <goals>
-                                <goal>prepare-agent</goal>
-                            </goals>
-                            <configuration>
-                                <propertyName>argLine</propertyName>
-                                <destFile>${project.build.directory}/jacoco.exec</destFile>
-                            </configuration>
-                        </execution>
-                        <execution>
-                            <id>default-report-by-coverage-enforcer</id>
-                            <goals>
-                                <goal>report</goal>
-                            </goals>
-                            <configuration>
-                                <dataFile>${project.build.directory}/jacoco.exec</dataFile>
-                            </configuration>
-                        </execution>
-                        <execution>
-                            <id>default-check-by-coverage-enforcer</id>
-                            <goals>
-                                <goal>check</goal>
-                            </goals>
-                            <configuration>
-                                <dataFile>${project.build.directory}/jacoco.exec</dataFile>
-                                <rules>
-                                    <!-- implementation is needed only for Maven 2 -->
-                                    <rule implementation="org.jacoco.maven.RuleConfiguration">
-                                        <element>BUNDLE</element>
-                                        <limits>
-                                            <!-- implementation is needed only for Maven 2 -->
-                                            <limit implementation="org.jacoco.report.check.Limit">
-                                                <counter>LINE</counter>
-                                                <value>COVEREDRATIO</value>
-                                                <minimum>0.0</minimum>
-                                            </limit>
-                                        </limits>
-                                    </rule>
-                                </rules>
-                            </configuration>
-                        </execution>
-                    </executions>
-                </plugin>
             </plugins>
         </pluginManagement>
+
     </build>
+
     <properties>
         <axis2.transports.version>2.0.0-wso2v18-SNAPSHOT</axis2.transports.version>
         <axis2.version>1.6.1-wso2v23</axis2.version>
@@ -631,4 +605,5 @@
         <powermock.version>1.7.1</powermock.version>
         <junit.version>4.8.2</junit.version>
     </properties>
+
 </project>
