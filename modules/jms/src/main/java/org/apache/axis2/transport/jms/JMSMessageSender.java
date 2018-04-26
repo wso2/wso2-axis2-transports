@@ -119,10 +119,12 @@ public class JMSMessageSender {
             this.connection = jmsConnectionFactory.getConnection();
             this.session = jmsConnectionFactory.getSession(connection);
             boolean isQueue = jmsConnectionFactory.isQueue() == null ? true : jmsConnectionFactory.isQueue();
-            this.destination = JMSUtils.getDestination(targetAddress) == null ?
-                            jmsConnectionFactory.getSharedDestination() :
+            this.destination =
+                    jmsConnectionFactory.getSharedDestination() == null ?
                             jmsConnectionFactory.getDestination(JMSUtils.getDestination(targetAddress),
-                                    isQueue ? JMSConstants.DESTINATION_TYPE_QUEUE : JMSConstants.DESTINATION_TYPE_TOPIC);
+                                    isQueue ? JMSConstants.DESTINATION_TYPE_QUEUE : JMSConstants.DESTINATION_TYPE_TOPIC) :
+                            jmsConnectionFactory.getSharedDestination();
+            this.producer = jmsConnectionFactory.getMessageProducer(connection, session, destination);
         } catch (Exception e) {
             handleException("Error while creating message sender", e);
         }

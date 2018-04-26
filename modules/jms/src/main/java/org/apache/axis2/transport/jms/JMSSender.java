@@ -43,7 +43,6 @@ import javax.transaction.Transaction;
 import javax.transaction.TransactionManager;
 import javax.transaction.xa.XAException;
 import javax.transaction.xa.XAResource;
-import javax.jms.IllegalStateException;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.StringWriter;
@@ -243,10 +242,6 @@ public class JMSSender extends AbstractTransportSender implements ManagementSupp
             } catch (SystemException e1) {
                 handleException("Error occurred during obtaining  transaction", e1);
             }
-
-            //This can happen due to the session trying to connect already closed
-            jmsConnectionFactory.clearCache();
-
             handleException("Error creating a JMS message from the message context", e);
         }
 
