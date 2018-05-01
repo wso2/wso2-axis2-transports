@@ -151,17 +151,7 @@ public class JMSSender extends AbstractTransportSender implements ManagementSupp
                     }
 
                 } catch (JMSException e) {
-                    Transaction transaction = null;
-                    try {
-                        if (msgCtx.getProperty(JMSConstants.JMS_XA_TRANSACTION_MANAGER) != null) {
-                            transaction =
-                                    ((TransactionManager) msgCtx.getProperty(JMSConstants.JMS_XA_TRANSACTION_MANAGER))
-                                            .getTransaction();
-                            rollbackXATransaction(transaction);
-                        }
-                    } catch (SystemException e1) {
-                        handleException("Error occurred during obtaining  transaction", e1);
-                    }
+                    rollbackIfXATransaction(msgCtx);
                     handleException("Unable to create a JMSMessageSender for : " + outTransportInfo, e);
                 }
             }
@@ -223,6 +213,24 @@ public class JMSSender extends AbstractTransportSender implements ManagementSupp
     }
 
     /**
+     * Trying to rollback if type is XA transaction.
+     * @param msgCtx MessageContext.
+     * @throws AxisFault
+     */
+    private void rollbackIfXATransaction(MessageContext msgCtx) throws AxisFault {
+        Transaction transaction = null;
+        try {
+            if (msgCtx.getProperty(JMSConstants.JMS_XA_TRANSACTION_MANAGER) != null) {
+                transaction = ((TransactionManager) msgCtx.getProperty(JMSConstants
+                        .JMS_XA_TRANSACTION_MANAGER)).getTransaction();
+                rollbackXATransaction(transaction);
+            }
+        } catch (SystemException e1) {
+            handleException("Error occurred during obtaining  transaction", e1);
+        }
+    }
+
+    /**
      * Perform actual sending of the JMS message
      */
     private Destination sendOverJMS(MessageContext msgCtx, JMSMessageSender messageSender,
@@ -235,13 +243,7 @@ public class JMSSender extends AbstractTransportSender implements ManagementSupp
         try {
             message = createJMSMessage(msgCtx, messageSender.getSession(), contentTypeProperty);
         } catch (JMSException e) {
-            Transaction transaction = null;
-            try {
-                transaction = ((TransactionManager) msgCtx.getProperty(JMSConstants.JMS_XA_TRANSACTION_MANAGER)).getTransaction();
-                rollbackXATransaction(transaction);
-            } catch (SystemException e1) {
-                handleException("Error occurred during obtaining  transaction", e1);
-            }
+            rollbackIfXATransaction(msgCtx);
             handleException("Error creating a JMS message from the message context", e);
         }
 
@@ -296,13 +298,7 @@ public class JMSSender extends AbstractTransportSender implements ManagementSupp
                 message.setJMSReplyTo(tempDestination);
 
             } catch (JMSException e) {
-                Transaction transaction = null;
-                try {
-                    transaction = ((TransactionManager) msgCtx.getProperty(JMSConstants.JMS_XA_TRANSACTION_MANAGER)).getTransaction();
-                    rollbackXATransaction(transaction);
-                } catch (SystemException e1) {
-                    handleException("Error occurred during obtaining  transaction", e1);
-                }
+                rollbackIfXATransaction(msgCtx);
                 handleException("Error setting the JMSReplyTo Header", e);
             }
         }
@@ -319,13 +315,7 @@ public class JMSSender extends AbstractTransportSender implements ManagementSupp
 
         } catch (AxisJMSException e) {
             metrics.incrementFaultsSending();
-            Transaction transaction = null;
-            try {
-                transaction = ((TransactionManager) msgCtx.getProperty(JMSConstants.JMS_XA_TRANSACTION_MANAGER)).getTransaction();
-                rollbackXATransaction(transaction);
-            } catch (SystemException e1) {
-                handleException("Error occurred during obtaining  transaction", e1);
-            }
+            rollbackIfXATransaction(msgCtx);
             handleException("Error sending JMS message", e);
         }
 
