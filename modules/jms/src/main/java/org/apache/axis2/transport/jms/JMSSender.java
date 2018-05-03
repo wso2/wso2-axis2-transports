@@ -176,6 +176,10 @@ public class JMSSender extends AbstractTransportSender implements ManagementSupp
         if (contentTypeProperty == null) {
             contentTypeProperty = jmsOut.getContentTypeProperty();
         }
+        
+        if (contentTypeProperty == null && jmsConnectionFactory != null) {
+            contentTypeProperty = jmsConnectionFactory.getParameters().get(JMSConstants.CONTENT_TYPE_PROPERTY_PARAM);
+        }
 
         // Fix for ESBJAVA-3687, retrieve JMS transport property transport.jms.MessagePropertyHyphens and set this
         // into the msgCtx
