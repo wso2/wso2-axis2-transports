@@ -169,13 +169,9 @@ public class JMSSender extends AbstractTransportSender implements ManagementSupp
         // The message property to be used to send the content type is determined by
         // the out transport info, i.e. either from the EPR if we are sending a request,
         // or, if we are sending a response, from the configuration of the service that
-        // received the request). The property name can be overridden by a message
-        // context property.
-        String contentTypeProperty =
-            (String) msgCtx.getProperty(JMSConstants.CONTENT_TYPE_PROPERTY_PARAM);
-        if (contentTypeProperty == null) {
-            contentTypeProperty = jmsOut.getContentTypeProperty();
-        }
+        // received the request). The property can be defined globally in axis2.xml JMSSender section as well. 
+        // The property name can be overridden by a message context property.
+        String contentTypeProperty = getContentTypeProperty(msgCtx, jmsOut, jmsConnectionFactory);
 
         // Fix for ESBJAVA-3687, retrieve JMS transport property transport.jms.MessagePropertyHyphens and set this
         // into the msgCtx
@@ -228,6 +224,29 @@ public class JMSSender extends AbstractTransportSender implements ManagementSupp
         } catch (SystemException e1) {
             handleException("Error occurred during obtaining  transaction", e1);
         }
+    }
+
+    /**
+     * Retrieves the contentType property looking at the message context, jms outbound transport information 
+     * and connection factory parameters
+     * 
+     * @param msgCtx current message context
+     * @param jmsOut JMS outbound transport information 
+     * @param jmsConnectionFactory JMS connection factory
+     * @return the content type property name
+     */
+    protected String getContentTypeProperty(MessageContext msgCtx, JMSOutTransportInfo jmsOut,
+            JMSConnectionFactory jmsConnectionFactory) {
+
+        String contentTypeProperty =
+                (String) msgCtx.getProperty(JMSConstants.CONTENT_TYPE_PROPERTY_PARAM);
+        if (contentTypeProperty == null) {
+            contentTypeProperty = jmsOut.getContentTypeProperty();
+        }
+        if (contentTypeProperty == null && jmsConnectionFactory != null) {
+            contentTypeProperty = jmsConnectionFactory.getParameters().get(JMSConstants.CONTENT_TYPE_PROPERTY_PARAM);
+        }
+        return contentTypeProperty;
     }
 
     /**

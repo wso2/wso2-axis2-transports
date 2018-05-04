@@ -563,6 +563,15 @@ public class JMSConnectionFactory {
      * Clear the shared connection map due to stale connections
      */
     private synchronized void clearSharedConnections() {
+        for (Map.Entry<Integer, Connection> connectionMap : sharedConnectionMap.entrySet()) {
+            try {
+                if (connectionMap.getValue() != null) {
+                    connectionMap.getValue().close();
+                }
+            } catch (JMSException e) {
+                log.warn("Error while shutting down the connection : ", e);
+            }
+        }
         sharedConnectionMap.clear();
         lastReturnedConnectionIndex = 0;
     }
