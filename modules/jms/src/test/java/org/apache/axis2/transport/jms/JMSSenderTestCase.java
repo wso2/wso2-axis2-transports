@@ -31,6 +31,7 @@ import org.powermock.modules.junit4.PowerMockRunner;
 import org.powermock.reflect.Whitebox;
 
 import java.util.ArrayList;
+import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
 import javax.jms.Destination;
@@ -114,6 +115,22 @@ public class JMSSenderTestCase extends TestCase {
         List senderList = jmsMessageSenderMap.get(transaction);
         Assert.assertNotNull("List is null", senderList );
         Assert.assertEquals("List is empty", 1, senderList.size());
+    }
+
+    public void testGetContentTypePropertyNameFromFactory() {
+        final String contentTypeProperty = "contentType";
+        JMSSender jmsSender = new JMSSender();
+        MessageContext ctx = new MessageContext();
+
+        //setting up factory with content type property
+        JMSConnectionFactory factory = Mockito.mock(JMSConnectionFactory.class);
+        Hashtable<String, String> paramTable = new Hashtable<>();
+        paramTable.put(JMSConstants.CONTENT_TYPE_PROPERTY_PARAM, contentTypeProperty);
+        Mockito.when(factory.getParameters()).thenReturn(paramTable);
+
+        JMSOutTransportInfo jmsOutTransportInfo = new JMSOutTransportInfo(factory, null, null);
+        String contentTypePropertyResult = jmsSender.getContentTypeProperty(ctx, jmsOutTransportInfo, factory);
+        Assert.assertEquals(contentTypeProperty, contentTypePropertyResult);
     }
 
     /**
