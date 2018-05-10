@@ -33,6 +33,11 @@ public class RabbitMQMessage {
     private String replyTo;
     private String messageId;
     private String soapAction;
+    private String expiration;
+    private String timestamp;
+    private String user_id;
+    private String app_id;
+    private String cluster_id;
     private Map<String, Object> headers;
     private byte body[];
     private long deliveryTag;
@@ -55,6 +60,11 @@ public class RabbitMQMessage {
             msgCtx.setProperty(RabbitMQConstants.CORRELATION_ID, correlationId);
         }
         this.contentType = (String) msgCtx.getProperty("messageType");
+        this.setExpiration((String) msgCtx.getProperty(RabbitMQConstants.EXPIRATION));
+        this.setTimestamp((String) msgCtx.getProperty(RabbitMQConstants.TIME_STAMP));
+        this.setUser_id((String) msgCtx.getProperty(RabbitMQConstants.USER_ID));
+        this.setApp_id((String) msgCtx.getProperty(RabbitMQConstants.APP_ID));
+        this.setCluster_id((String) msgCtx.getProperty(RabbitMQConstants.CLUSTER_ID));
         this.contentEncoding = (String) msgCtx.getProperty("CHARACTER_SET_ENCODING");
         this.headers = (Map<String, Object>) msgCtx.getProperty(MessageContext.TRANSPORT_HEADERS);
     }
@@ -220,4 +230,45 @@ public class RabbitMQMessage {
     public long getDeliveryTag() {
         return deliveryTag;
     }
+
+    public String getExpiration() {
+        return expiration;
+    }
+
+    public void setExpiration(String expiration) {
+        this.expiration = expiration;
+    }
+
+    public String getTimestamp() {
+        return timestamp;
+    }
+
+    public void setTimestamp(String timestamp) {
+        this.timestamp = timestamp;
+    }
+
+    public String getUser_id() {
+        return user_id;
+    }
+
+    public void setUser_id(String user_id) {
+        this.user_id = user_id;
+    }
+
+    public String getApp_id() {
+        return app_id;
+    }
+
+    public void setApp_id(String app_id) {
+        this.app_id = app_id;
+    }
+
+    public String getCluster_id() {
+        return cluster_id;
+    }
+
+    public void setCluster_id(String cluster_id) {
+        this.cluster_id = cluster_id;
+    }
+
 }
