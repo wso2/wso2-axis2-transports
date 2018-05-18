@@ -72,7 +72,7 @@ public class TCPServer implements Runnable {
             }
         }
         started = true;
-        endpoint.getListener().getConfigurationContext().getThreadPool().execute(this);
+        new Thread(this).start();
         log.info("TCP server started on port : " + endpoint.getPort());
     }
 
