@@ -137,6 +137,15 @@ public class JMSMessageSender {
      * @param msgCtx the Axis2 MessageContext
      */
     public void send(Message message, MessageContext msgCtx) {
+        // When we send a message to the reply queue, we need to remove the replyTo parameter from the message.
+        // Since the parameter is already used and no longer needed.
+        try {
+            if (message.getJMSReplyTo() == this.destination) {
+                message.setJMSReplyTo(null);
+            }
+        } catch (JMSException e) {
+            handleException("Error getting ReplyTo queue from message", e);
+        }
 
         Boolean jtaCommit    = getBooleanProperty(msgCtx, BaseConstants.JTA_COMMIT_AFTER_SEND);
         Boolean rollbackOnly = getBooleanProperty(msgCtx, BaseConstants.SET_ROLLBACK_ONLY);
