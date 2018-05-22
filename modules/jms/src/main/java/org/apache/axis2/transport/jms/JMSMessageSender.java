@@ -452,4 +452,8 @@ public class JMSMessageSender {
     public void setJmsTransaction(Transaction jmsTransaction) {
         this.jmsTransaction = jmsTransaction;
     }
+
+    public Destination getDestination() {
+        return destination;
+    }
 }

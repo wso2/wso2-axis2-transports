@@ -314,8 +314,7 @@ public class JMSSender extends AbstractTransportSender implements ManagementSupp
                     tempDestination = messageSender.getSession().createTopic(replyDestName);
                 }
                 replyDestination = tempDestination;
-                message.setJMSReplyTo(tempDestination);
-
+                JMSUtils.setReplyDestination(replyDestination, messageSender.getDestination(), message);
             } catch (JMSException e) {
                 rollbackIfXATransaction(msgCtx);
                 handleException("Error setting the JMSReplyTo Header", e);
