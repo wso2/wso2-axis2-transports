@@ -299,6 +299,26 @@ public class JMSUtils extends BaseUtils {
     }
 
     /**
+     * Set ReplyTo parameter of the message, only if we are not sending the message to the same destination.
+     *
+     * @param replyDestination   ReplyTo destination for the message.
+     * @param sendingDestination Actual destination of JMS message.
+     * @param message            JMS message.
+     */
+    public static void setReplyDestination(Destination replyDestination, Destination sendingDestination,
+                                           Message message) {
+        if (replyDestination != sendingDestination) {
+            try {
+                message.setJMSReplyTo(replyDestination);
+            } catch (JMSException e) {
+                if (log.isDebugEnabled()) {
+                    log.debug("Error when setting replyTo destination of the message", e);
+                }
+            }
+        }
+    }
+
+    /**
      * Set transport headers from the axis message context, into the JMS message
      *
      * @param msgContext the axis message context
