@@ -35,6 +35,8 @@ import org.apache.commons.logging.LogFactory;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.UnsupportedCharsetException;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.Hashtable;
 import java.util.Map;
 import java.util.UUID;
@@ -281,6 +283,27 @@ public class RabbitMQMessageSender {
      */
     private AMQP.BasicProperties.Builder buildBasicProperties(RabbitMQMessage message) {
         AMQP.BasicProperties.Builder builder = new AMQP.BasicProperties().builder();
+        if (message.getTimestamp() != null) {
+
+            try {
+                builder.timestamp(new SimpleDateFormat("dd/MM/yyyy").parse(message.getTimestamp()));
+            } catch (ParseException e) {
+                log.warn(message.getTimestamp() + " Can not be parsed as a Date");
+            }
+        }
+        if (message.getExpiration() != null) {
+            builder.expiration(message.getExpiration());
+        }
+        if (message.getUser_id() != null) {
+            builder.userId(message.getUser_id());
+        }
+        if (message.getApp_id() != null) {
+            builder.appId(message.getApp_id());
+        }
+        if (message.getCluster_id() != null) {
+            builder.clusterId(message.getCluster_id());
+        }
+
         builder.messageId(message.getMessageId());
         builder.contentType(message.getContentType());
         builder.replyTo(message.getReplyTo());
