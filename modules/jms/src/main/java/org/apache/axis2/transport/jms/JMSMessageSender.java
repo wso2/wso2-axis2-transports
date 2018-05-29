@@ -65,6 +65,14 @@ public class JMSMessageSender {
     /** Are we sending to a Queue ? */
     private Boolean isQueue = null;
 
+    /**
+     +     * Boolean to track if producer caching will be honoured.
+     +     * True if producer caching is enabled and this {@link JMSMessageSender} is created specifying a
+     +     * {@link JMSConnectionFactory} and target EPR, via
+     +     * {@link JMSMessageSender#JMSMessageSender(JMSConnectionFactory, String)}.
+     +     */
+    private Boolean isProducerCachingHonoured = false;
+
     private Xid jmsXAXid;
     private XAResource jmsXaResource;
     private Transaction jmsTransaction;
@@ -127,15 +135,19 @@ public class JMSMessageSender {
 
         try {
             this.cacheLevel = jmsConnectionFactory.getCacheLevel();
+            this.isProducerCachingHonoured = cacheLevel > JMSConstants.CACHE_SESSION;
             this.jmsSpecVersion = jmsConnectionFactory.jmsSpecVersion();
             this.connection = jmsConnectionFactory.getConnection();
             this.session = jmsConnectionFactory.getSession(connection);
             boolean isQueue = jmsConnectionFactory.isQueue() == null ? true : jmsConnectionFactory.isQueue();
-            this.destination =
-                    jmsConnectionFactory.getSharedDestination() == null ?
-                            jmsConnectionFactory.getDestination(JMSUtils.getDestination(targetAddress),
-                                    isQueue ? JMSConstants.DESTINATION_TYPE_QUEUE : JMSConstants.DESTINATION_TYPE_TOPIC) :
-                            jmsConnectionFactory.getSharedDestination();
+            String destinationFromAddress = JMSUtils.getDestination(targetAddress);
+            //precedence is given to the destination specified by targetAddress
+            if(destinationFromAddress != null && !destinationFromAddress.isEmpty()) {
+                this.destination = jmsConnectionFactory.getDestination(JMSUtils.getDestination(targetAddress),
+                        isQueue ? JMSConstants.DESTINATION_TYPE_QUEUE : JMSConstants.DESTINATION_TYPE_TOPIC);
+            } else {
+                this.destination = jmsConnectionFactory.getSharedDestination();
+            }
             this.producer = jmsConnectionFactory.getMessageProducer(connection, session, destination);
         } catch (Exception e) {
             handleException("Error while creating message sender", e);
@@ -205,23 +217,58 @@ public class JMSMessageSender {
         // perform actual message sending
         try {
             if ("1.1".equals(jmsSpecVersion) || "2.0".equals(jmsSpecVersion) || isQueue == null) {
-                producer.send(message);
+                if (isProducerCachingHonoured) {
+                    producer.send(destination, message);
+                } else {
+                    producer.send(message);
+                }
+                if(session.getTransacted()) {
+                    session.commit();
+                }
             } else {
                 if (isQueue) {
                     try {
-                        producer.send(message);
+                        if (isProducerCachingHonoured) {
+                            (producer).send(destination, message);
+                        } else {
+                            (producer).send(message);
+                        }
+                        if(session.getTransacted()) {
+                            session.commit();
+                        }
                     } catch (JMSException e) {
                         log.error(("Error sending message with MessageContext ID : " + msgCtx.getMessageID()
                                 + " to destination : " + destination + " Hence creating a temporary subscriber" + e));
                         createTempQueueConsumer();
-                        producer.send(message);
+                        if (isProducerCachingHonoured) {
+                            producer.send(destination, message);
+                        } else {
+                            producer.send(message);
+                        }
+                        if(session.getTransacted()) {
+                            session.commit();
+                        }
                     }
                 } else {
                     try {
-                        ((TopicPublisher) producer).publish(message);
+                        if (isProducerCachingHonoured) {
+                            ((TopicPublisher) producer).publish((Topic) destination, message);
+                        } else {
+                            ((TopicPublisher) producer).publish(message);
+                        }
+                        if(session.getTransacted()) {
+                            session.commit();
+                        }
                     } catch (JMSException e) {
                         createTempTopicSubscriber();
-                        ((TopicPublisher) producer).publish(message);
+                        if (isProducerCachingHonoured) {
+                            ((TopicPublisher) producer).publish((Topic) destination, message);
+                        } else {
+                            ((TopicPublisher) producer).publish(message);
+                        }
+                        if(session.getTransacted()) {
+                            session.commit();
+                        }
                     }
                 }
             }
@@ -240,7 +287,7 @@ public class JMSMessageSender {
             if (log.isDebugEnabled()) {
                 log.debug("Sent Message Context ID : " + msgCtx.getMessageID() +
                     " with JMS Message ID : " + msgId +
-                    " to destination : " + producer.getDestination());
+                    " to destination : " + destination);
             }
 
         } catch (JMSException e) {
