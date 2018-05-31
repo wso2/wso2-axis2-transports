@@ -62,6 +62,9 @@ public class JMSRequestResponseChannel extends JMSChannel implements RequestResp
 
     @Override
     public void setupService(AxisService service, boolean isClientSide) throws Exception {
+        if (service.getOperations() != null && service.getOperations().next() != null) {
+            service.getOperations().next().setMessageExchangePattern("http://www.w3.org/ns/wsdl/out-only");
+        }
         super.setupService(service, isClientSide);
         service.addParameter(JMSConstants.PARAM_REPLY_DEST_TYPE, replyDestinationType);
         service.addParameter(JMSConstants.PARAM_REPLY_DESTINATION, replyJndiName);
