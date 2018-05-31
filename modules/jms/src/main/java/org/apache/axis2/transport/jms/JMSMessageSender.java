@@ -24,8 +24,20 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.axis2.context.MessageContext;
 import org.apache.axis2.transport.base.BaseConstants;
 
-import javax.jms.*;
+import javax.jms.Connection;
+import javax.jms.DeliveryMode;
+import javax.jms.Destination;
+import javax.jms.JMSException;
+import javax.jms.Message;
+import javax.jms.MessageConsumer;
+import javax.jms.MessageProducer;
+import javax.jms.Session;
+import javax.jms.Topic;
+import javax.jms.TopicPublisher;
+import javax.jms.TopicSession;
+import javax.jms.TopicSubscriber;
 import javax.transaction.Transaction;
+import javax.transaction.UserTransaction;
 import javax.transaction.xa.XAResource;
 import javax.transaction.xa.Xid;
 
@@ -194,37 +206,22 @@ public class JMSMessageSender {
         try {
             if ("1.1".equals(jmsSpecVersion) || "2.0".equals(jmsSpecVersion) || isQueue == null) {
                 producer.send(message);
-                if(session.getTransacted()) {
-                    session.commit();
-                }
             } else {
                 if (isQueue) {
                     try {
                         producer.send(message);
-                        if(session.getTransacted()) {
-                            session.commit();
-                        }
                     } catch (JMSException e) {
                         log.error(("Error sending message with MessageContext ID : " + msgCtx.getMessageID()
                                 + " to destination : " + destination + " Hence creating a temporary subscriber" + e));
                         createTempQueueConsumer();
                         producer.send(message);
-                        if(session.getTransacted()) {
-                            session.commit();
-                        }
                     }
                 } else {
                     try {
                         ((TopicPublisher) producer).publish(message);
-                        if(session.getTransacted()) {
-                            session.commit();
-                        }
                     } catch (JMSException e) {
                         createTempTopicSubscriber();
                         ((TopicPublisher) producer).publish(message);
-                        if(session.getTransacted()) {
-                            session.commit();
-                        }
                     }
                 }
             }
@@ -250,8 +247,51 @@ public class JMSMessageSender {
             handleException("Error sending message with MessageContext ID : " +
                     msgCtx.getMessageID() + " to destination : " + destination, e);
 
+        } finally {
+
+            if (jtaCommit != null) {
+                UserTransaction ut = (UserTransaction) msgCtx.getProperty(BaseConstants.USER_TRANSACTION);
+                if (ut != null) {
+                    try {
+                        if (sendingSuccessful && jtaCommit) {
+                            ut.commit();
+                        } else {
+                            ut.rollback();
+                        }
+                        msgCtx.removeProperty(BaseConstants.USER_TRANSACTION);
+
+                        if (log.isDebugEnabled()) {
+                            log.debug((sendingSuccessful ? "Committed" : "Rolled back") +
+                                    " JTA Transaction");
+                        }
+                    } catch (Exception e) {
+                        handleException("Error committing/rolling back JTA transaction after " +
+                                "sending of message with MessageContext ID : " + msgCtx.getMessageID() +
+                                " to destination : " + destination, e);
+                    }
+                }
+            } else {
+                try {
+                    if (session.getTransacted()) {
+                        if (sendingSuccessful && (rollbackOnly == null || !rollbackOnly)) {
+                            session.commit();
+                        } else {
+                            session.rollback();
+                        }
+                    }
+                    if (log.isDebugEnabled()) {
+                        log.debug((sendingSuccessful ? "Committed" : "Rolled back") +
+                                " local (JMS Session) Transaction");
+                    }
+                } catch (JMSException e) {
+                    handleException("Error committing/rolling back local (i.e. session) " +
+                            "transaction after sending of message with MessageContext ID : " +
+                            msgCtx.getMessageID() + " to destination : " + destination, e);
+                }
+            }
         }
     }
+
     /**
      * Creating a temporary  Queue Consumer; The objective of this is to make
      * a binding for this destination in the message broker. If there is no
@@ -306,15 +346,7 @@ public class JMSMessageSender {
 
     private void handleException(String message, Exception e) {
         log.error(message, e);
-        try {
-            if(session.getTransacted()) {
-                session.rollback();
-                message = message + "Rollbacked transacted session.";
-            }
-        } catch (JMSException ex) {
-            log.error("Error while rollback transaction session = "
-                    + session + " destination = " + destination, ex);
-        }
+
         // Cleanup connections on error. See ESBJAVA-4713
         if (!isTransacted()) { // else transaction rollback will call closeOnException() due to exception thrown below
             if (log.isDebugEnabled()) {
