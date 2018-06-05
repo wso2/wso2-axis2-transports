@@ -24,7 +24,7 @@
     </parent>
     <groupId>org.apache.axis2.transport</groupId>
     <artifactId>axis2-transports</artifactId>
-    <version>2.0.0-wso2v22</version>
+    <version>2.0.0-wso2v23-SNAPSHOT</version>
     <packaging>pom</packaging>
     <name>Apache Axis2 Transport</name>
     <inceptionYear>2004</inceptionYear>
@@ -33,7 +33,7 @@
         <connection>scm:git:https://github.com/wso2/wso2-axis2-transports.git</connection>
         <developerConnection>scm:git:https://github.com/wso2/wso2-axis2-transports.git</developerConnection>
         <url>https://github.com/wso2/wso2-axis2-transports.git</url>
-        <tag>v2.0.0-wso2v22</tag>
+        <tag>HEAD</tag>
     </scm>
     <profiles>
         <profile>
@@ -604,7 +604,7 @@
         </pluginManagement>
     </build>
     <properties>
-        <axis2.transports.version>2.0.0-wso2v22</axis2.transports.version>
+        <axis2.transports.version>2.0.0-wso2v23-SNAPSHOT</axis2.transports.version>
         <axis2.version>1.6.1-wso2v26</axis2.version>
         <carbon.kernel.version>4.4.31</carbon.kernel.version>
         <imp.pkg.version.axis2>[1.6.1, 1.7.0)</imp.pkg.version.axis2>
