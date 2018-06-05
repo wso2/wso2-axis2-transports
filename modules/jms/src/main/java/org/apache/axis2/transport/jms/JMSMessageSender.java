@@ -19,10 +19,10 @@
 
 package org.apache.axis2.transport.jms;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.axis2.context.MessageContext;
 import org.apache.axis2.transport.base.BaseConstants;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 
 import javax.jms.Connection;
 import javax.jms.DeliveryMode;
@@ -142,7 +142,7 @@ public class JMSMessageSender {
             boolean isQueue = jmsConnectionFactory.isQueue() == null ? true : jmsConnectionFactory.isQueue();
             String destinationFromAddress = JMSUtils.getDestination(targetAddress);
             //precedence is given to the destination specified by targetAddress
-            if(destinationFromAddress != null && !destinationFromAddress.isEmpty()) {
+            if (destinationFromAddress != null && !destinationFromAddress.isEmpty()) {
                 this.destination = jmsConnectionFactory.getDestination(JMSUtils.getDestination(targetAddress),
                         isQueue ? JMSConstants.DESTINATION_TYPE_QUEUE : JMSConstants.DESTINATION_TYPE_TOPIC);
             } else {
@@ -222,7 +222,7 @@ public class JMSMessageSender {
                 } else {
                     producer.send(message);
                 }
-                if(session.getTransacted()) {
+                if (session.getTransacted()) {
                     session.commit();
                 }
             } else {
@@ -233,7 +233,7 @@ public class JMSMessageSender {
                         } else {
                             (producer).send(message);
                         }
-                        if(session.getTransacted()) {
+                        if (session.getTransacted()) {
                             session.commit();
                         }
                     } catch (JMSException e) {
@@ -245,7 +245,7 @@ public class JMSMessageSender {
                         } else {
                             producer.send(message);
                         }
-                        if(session.getTransacted()) {
+                        if (session.getTransacted()) {
                             session.commit();
                         }
                     }
@@ -256,7 +256,7 @@ public class JMSMessageSender {
                         } else {
                             ((TopicPublisher) producer).publish(message);
                         }
-                        if(session.getTransacted()) {
+                        if (session.getTransacted()) {
                             session.commit();
                         }
                     } catch (JMSException e) {
@@ -266,7 +266,7 @@ public class JMSMessageSender {
                         } else {
                             ((TopicPublisher) producer).publish(message);
                         }
-                        if(session.getTransacted()) {
+                        if (session.getTransacted()) {
                             session.commit();
                         }
                     }
@@ -286,8 +286,8 @@ public class JMSMessageSender {
 
             if (log.isDebugEnabled()) {
                 log.debug("Sent Message Context ID : " + msgCtx.getMessageID() +
-                    " with JMS Message ID : " + msgId +
-                    " to destination : " + destination);
+                    " with JMS Message ID : " + msgId
+                        + " to destination : " + destination);
             }
 
         } catch (JMSException e) {

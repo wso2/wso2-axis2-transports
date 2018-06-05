@@ -25,9 +25,6 @@ import org.apache.commons.logging.LogFactory;
 import org.wso2.securevault.SecretResolver;
 import org.wso2.securevault.SecureVaultException;
 
-import java.util.Hashtable;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import javax.jms.Connection;
 import javax.jms.ConnectionFactory;
 import javax.jms.Destination;
@@ -37,7 +34,9 @@ import javax.jms.Session;
 import javax.naming.Context;
 import javax.naming.InitialContext;
 import javax.naming.NamingException;
-import javax.xml.namespace.QName;
+import java.util.Hashtable;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Encapsulate a JMS Connection factory definition within an Axis2.xml
@@ -523,8 +522,8 @@ public class JMSConnectionFactory {
         if (sharedProducer == null) {
             sharedProducer = createProducer(getSharedSession(), null);
             if (log.isDebugEnabled()) {
-                log.debug("Created shared JMS MessageConsumer with no destination specified, for JMS CF : " + name +
-                        " , with producer caching enabled");
+                log.debug("Created shared JMS MessageConsumer with no destination specified, for JMS CF : " + name
+                        + " , with producer caching enabled");
             }
         }
         return sharedProducer;
