@@ -222,9 +222,6 @@ public class JMSMessageSender {
                 } else {
                     producer.send(message);
                 }
-                if (session.getTransacted()) {
-                    session.commit();
-                }
             } else {
                 if (isQueue) {
                     try {
@@ -232,9 +229,6 @@ public class JMSMessageSender {
                             (producer).send(destination, message);
                         } else {
                             (producer).send(message);
-                        }
-                        if (session.getTransacted()) {
-                            session.commit();
                         }
                     } catch (JMSException e) {
                         log.error(("Error sending message with MessageContext ID : " + msgCtx.getMessageID()
@@ -245,9 +239,6 @@ public class JMSMessageSender {
                         } else {
                             producer.send(message);
                         }
-                        if (session.getTransacted()) {
-                            session.commit();
-                        }
                     }
                 } else {
                     try {
@@ -256,18 +247,12 @@ public class JMSMessageSender {
                         } else {
                             ((TopicPublisher) producer).publish(message);
                         }
-                        if (session.getTransacted()) {
-                            session.commit();
-                        }
                     } catch (JMSException e) {
                         createTempTopicSubscriber();
                         if (isProducerCachingHonoured) {
                             ((TopicPublisher) producer).publish((Topic) destination, message);
                         } else {
                             ((TopicPublisher) producer).publish(message);
-                        }
-                        if (session.getTransacted()) {
-                            session.commit();
                         }
                     }
                 }
