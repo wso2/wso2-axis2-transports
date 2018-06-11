@@ -115,14 +115,13 @@ public class RabbitMQMessageReceiver {
                     RabbitMQUtils.getTransportHeaders(message),
                     soapAction,
                     contentType);
-            Object o = msgContext.getProperty(BaseConstants.SET_ROLLBACK_ONLY);
-            if (o != null) {
-                if ((o instanceof Boolean && ((Boolean) o)) ||
-                        (o instanceof String && Boolean.valueOf((String) o))) {
+            Object rollbackProperty = msgContext.getProperty(BaseConstants.SET_ROLLBACK_ONLY);
+            if (rollbackProperty != null) {
+                if ((rollbackProperty instanceof Boolean && ((Boolean) rollbackProperty)) ||
+                        (rollbackProperty instanceof String && Boolean.valueOf((String) rollbackProperty))) {
                             return false;
                 }
             }
-            
         } catch (AxisFault axisFault) {
             log.error("Error when trying to read incoming message ...", axisFault);
             return false;
