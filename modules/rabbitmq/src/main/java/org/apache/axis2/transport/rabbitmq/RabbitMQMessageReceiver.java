@@ -21,6 +21,7 @@ package org.apache.axis2.transport.rabbitmq;
 import org.apache.axis2.AxisFault;
 import org.apache.axis2.Constants;
 import org.apache.axis2.context.MessageContext;
+import org.apache.axis2.transport.base.BaseConstants;
 import org.apache.axis2.transport.rabbitmq.utils.RabbitMQConstants;
 import org.apache.axis2.transport.rabbitmq.utils.RabbitMQUtils;
 import org.apache.commons.logging.Log;
@@ -114,6 +115,14 @@ public class RabbitMQMessageReceiver {
                     RabbitMQUtils.getTransportHeaders(message),
                     soapAction,
                     contentType);
+            Object o = msgContext.getProperty(BaseConstants.SET_ROLLBACK_ONLY);
+            if (o != null) {
+                if ((o instanceof Boolean && ((Boolean) o)) ||
+                        (o instanceof String && Boolean.valueOf((String) o))) {
+                            return false;
+                }
+            }
+            
         } catch (AxisFault axisFault) {
             log.error("Error when trying to read incoming message ...", axisFault);
             return false;
