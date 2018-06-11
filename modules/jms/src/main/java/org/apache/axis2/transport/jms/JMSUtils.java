@@ -71,6 +71,7 @@ import javax.naming.InitialContext;
 import javax.naming.NameNotFoundException;
 import javax.naming.NamingException;
 import javax.naming.Reference;
+import java.util.Hashtable;
 
 /**
  * Miscallaneous methods used for the JMS transport
@@ -1046,5 +1047,128 @@ public class JMSUtils extends BaseUtils {
         }
 
         return maskedParamsTable;
+    }
+
+
+    /**
+     * Should the JMS 1.1 API be used? - defaults to yes
+     *
+     * @param parameters Connection factory parameters
+     * @return true, if JMS 1.1 api should  be used
+     */
+    private static boolean isJmsSpec11(Hashtable<String, String> parameters) {
+        return parameters.get(JMSConstants.PARAM_JMS_SPEC_VER) == null ||
+                JMSConstants.JMS_SPEC_VERSION_1_1.equals(parameters.get(JMSConstants.PARAM_JMS_SPEC_VER));
+    }
+
+    /**
+     * Should JMS 2.0 spec be used - default is false
+     * Added with JMS 2.0 update
+     *
+     * @param parameters Connection factory parameters
+     */
+    private static boolean isJmsSpec20(Hashtable<String, String> parameters) {
+        return JMSConstants.JMS_SPEC_VERSION_2_0.equals(parameters.get(JMSConstants.PARAM_JMS_SPEC_VER));
+    }
+
+    /**
+     * JMS Spec. Version. This will be used in Transport Sender
+     * Added with JMS 2.0 update
+     *
+     * @param parameters Connection factory parameters
+     */
+    public static String jmsSpecVersion(Hashtable<String, String> parameters) {
+        if (isJmsSpec11(parameters)) {
+            return JMSConstants.JMS_SPEC_VERSION_1_1;
+        } else if (isJmsSpec20(parameters)) {
+            return JMSConstants.JMS_SPEC_VERSION_2_0;
+        } else {
+            return JMSConstants.JMS_SPEC_VERSION_1_0;
+        }
+    }
+
+    /**
+     * Return the type of the JMS CF Destination
+     *
+     * @param parameters Connection factory parameters
+     * @return TRUE if a Queue, FALSE for a Topic and NULL for a JMS 1.1 Generic Destination
+     */
+    public static Boolean isQueue(Hashtable<String, String> parameters, String connectionFactoryName) {
+        if (parameters.get(JMSConstants.PARAM_CONFAC_TYPE) == null &&
+                parameters.get(JMSConstants.PARAM_DEST_TYPE) == null) {
+            return null;
+        }
+
+        if (parameters.get(JMSConstants.PARAM_CONFAC_TYPE) != null) {
+            if ("queue".equalsIgnoreCase(parameters.get(JMSConstants.PARAM_CONFAC_TYPE))) {
+                return true;
+            } else if ("topic".equalsIgnoreCase(parameters.get(JMSConstants.PARAM_CONFAC_TYPE))) {
+                return false;
+            } else {
+                throw new AxisJMSException("Invalid " + JMSConstants.PARAM_CONFAC_TYPE + " : " +
+                        parameters.get(JMSConstants.PARAM_CONFAC_TYPE) + " for JMS CF : " + connectionFactoryName);
+            }
+        } else {
+            if ("queue".equalsIgnoreCase(parameters.get(JMSConstants.PARAM_DEST_TYPE))) {
+                return true;
+            } else if ("topic".equalsIgnoreCase(parameters.get(JMSConstants.PARAM_DEST_TYPE))) {
+                return false;
+            } else {
+                throw new AxisJMSException("Invalid " + JMSConstants.PARAM_DEST_TYPE + " : " +
+                        parameters.get(JMSConstants.PARAM_DEST_TYPE) + " for JMS CF : " + connectionFactoryName);
+            }
+        }
+    }
+
+    /**
+     * Is a session transaction requested from users of this JMS CF?
+     *
+     * @param parameters Connection factory parameters
+     * @return session transaction required by the clients of this?
+     */
+    public static boolean isSessionTransacted(Hashtable<String, String> parameters) {
+        return parameters.get(JMSConstants.PARAM_SESSION_TRANSACTED) != null &&
+                Boolean.valueOf(parameters.get(JMSConstants.PARAM_SESSION_TRANSACTED));
+    }
+
+    /**
+     * @param parameters Connection factory parameters
+     * @return true if the JMS subscription is durable.
+     */
+    public static boolean isDurable(Hashtable<String, String> parameters) {
+        if (parameters.get(JMSConstants.PARAM_SUB_DURABLE) != null) {
+            return Boolean.valueOf(parameters.get(JMSConstants.PARAM_SUB_DURABLE));
+        }
+        return false;
+    }
+
+    /**
+     * @param parameters Connection factory parameters
+     * @return true if the subscription is shared using the same subscription ID for multiple subscribers.
+     */
+    public static boolean isSharedSubscription(Hashtable<String, String> parameters) {
+        if (parameters.get(JMSConstants.PARAM_IS_SHARED_SUBSCRIPTION) != null) {
+            return Boolean.valueOf(parameters.get(JMSConstants.PARAM_IS_SHARED_SUBSCRIPTION));
+        }
+        return false;
+    }
+
+    /**
+     * @param parameters Connection factory parameters
+     * @return Client ID of the JMS subscription.
+     */
+    public static String getClientId(Hashtable<String, String> parameters) {
+        return parameters.get(JMSConstants.PARAM_DURABLE_SUB_CLIENT_ID);
+    }
+
+    /**
+     * Common method to wrap and propagate JMS related exceptions.
+     *
+     * @param msg error message
+     * @param e   exception
+     */
+    public static void handleException(String msg, Exception e) {
+        log.error(msg, e);
+        throw new AxisJMSException(msg, e);
     }
 }

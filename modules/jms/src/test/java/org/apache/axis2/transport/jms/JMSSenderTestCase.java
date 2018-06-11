@@ -104,7 +104,9 @@ public class JMSSenderTestCase extends TestCase {
         //append the transport.jms.TransactionCommand
         String targetAddress = "jms:/SimpleStockQuoteService?transport.jms.ConnectionFactoryJNDIName="
                 + "QueueConnectionFactory&transport.jms.TransactionCommand=begin"
-                + "&java.naming.factory.initial=org.apache.activemq.jndi.ActiveMQInitialContextFactory";
+                + "&java.naming.factory.initial=org.apache.activemq.jndi.ActiveMQInitialContextFactory"
+                + "&transport.jms.DestinationType=queue";
+        PowerMockito.doReturn(targetAddress).when(jmsOutTransportInfo).getTargetEPR();
         Transaction transaction = new TestJMSTransaction();
         messageContext.setProperty(JMSConstants.JMS_XA_TRANSACTION, transaction);
 
