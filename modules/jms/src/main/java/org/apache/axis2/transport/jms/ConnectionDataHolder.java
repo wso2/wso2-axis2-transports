@@ -143,7 +143,7 @@ class ConnectionDataHolder {
             if (null == messageProducer) {
                 synchronized (this) {
                     if (null == messageProducer) {
-                        messageProducer = createProducer(destination);
+                        messageProducer = createProducer(null);
                     }
                 }
             }
