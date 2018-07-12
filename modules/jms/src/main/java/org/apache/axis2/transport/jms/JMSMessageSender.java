@@ -50,6 +50,11 @@ public class JMSMessageSender {
 
     private static final Log log = LogFactory.getLog(JMSMessageSender.class);
 
+    /**
+     * The encapsulated connection, session and producer objects which can be cached.
+     */
+    private ConnectionDataHolder connectionDataHolder = null;
+
     /** The Connection to be used to send out */
     private Connection connection = null;
     /** The Session to be used to send out */
@@ -88,8 +93,10 @@ public class JMSMessageSender {
      * @param isQueue posting to a Queue?
      */
     public JMSMessageSender(Connection connection, Session session, MessageProducer producer,
-        Destination destination, int cacheLevel, String jmsSpecVersion, Boolean isQueue) {
+                            Destination destination, int cacheLevel, String jmsSpecVersion, Boolean isQueue,
+                            ConnectionDataHolder connectionDataHolder) {
 
+        this.connectionDataHolder = connectionDataHolder;
         this.connection = connection;
         this.session = session;
         this.producer = producer;
@@ -137,8 +144,9 @@ public class JMSMessageSender {
             this.cacheLevel = jmsConnectionFactory.getCacheLevel();
             this.isProducerCachingHonoured = cacheLevel > JMSConstants.CACHE_SESSION;
             this.jmsSpecVersion = jmsConnectionFactory.jmsSpecVersion();
-            this.connection = jmsConnectionFactory.getConnection();
-            this.session = jmsConnectionFactory.getSession(connection);
+            this.connectionDataHolder = jmsConnectionFactory.getConnectionContainer();
+            this.connection = connectionDataHolder.getConnection();
+            this.session = connectionDataHolder.getSession();
             boolean isQueue = jmsConnectionFactory.isQueue() == null ? true : jmsConnectionFactory.isQueue();
             String destinationFromAddress = JMSUtils.getDestination(targetAddress);
             //precedence is given to the destination specified by targetAddress
@@ -148,7 +156,7 @@ public class JMSMessageSender {
             } else {
                 this.destination = jmsConnectionFactory.getSharedDestination();
             }
-            this.producer = jmsConnectionFactory.getMessageProducer(connection, session, destination);
+            this.producer = connectionDataHolder.getMessageProducer(destination);
         } catch (Exception e) {
             handleException("Error while creating message sender", e);
         }
@@ -345,7 +353,7 @@ public class JMSMessageSender {
      * Close non-shared producer, session and connection if any
      */
     public void close() {
-        if (producer != null && cacheLevel < JMSConstants.CACHE_PRODUCER) {
+        if (producer != null && cacheLevel < JMSConstants.CACHE_CONSUMER) {
             try {
                 producer.close();
             } catch (JMSException e) {
@@ -423,6 +431,14 @@ public class JMSMessageSender {
                 connection = null;
             }
         }
+
+        if (null != connectionDataHolder) {
+            connectionDataHolder.close();
+        }
+    }
+
+    public void setConnectionDataHolder(ConnectionDataHolder connectionDataHolder) {
+        this.connectionDataHolder = connectionDataHolder;
     }
 
     private boolean isTransacted() {
