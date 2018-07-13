@@ -20,6 +20,7 @@ import org.apache.axiom.om.OMElement;
 import org.apache.axis2.AxisFault;
 import org.apache.axis2.description.Parameter;
 import org.apache.axis2.description.ParameterIncludeImpl;
+import org.apache.axis2.transport.base.BaseUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.wso2.securevault.SecretResolver;
@@ -150,6 +151,28 @@ public class JMSConnectionFactory {
             parameters.put(param.getName(), propertyValue);
         }
         digestCacheLevel();
+        initJMSConnectionFactory();
+        setMaxSharedJMSConnectionsCount();
+    }
+
+    /**
+     * Create a JMS CF definition from target endpoint reference
+     *
+     * @param targetEndpoint the JMS target address contains transport definitions
+     */
+    public JMSConnectionFactory(String targetEndpoint) {
+        this.name = targetEndpoint;
+        parameters.put(JMSConstants.PARAM_DESTINATION, JMSUtils.getDestination(targetEndpoint));
+        parameters.putAll(BaseUtils.getEPRProperties(targetEndpoint));
+        digestCacheLevel();
+        initJMSConnectionFactory();
+        setMaxSharedJMSConnectionsCount();
+    }
+
+    /**
+     * Initialize JMS connection factory based on transport parameters
+     */
+    private void initJMSConnectionFactory() {
         try {
             context = new InitialContext(parameters);
             conFactory = JMSUtils.lookup(context, ConnectionFactory.class,
@@ -166,7 +189,6 @@ public class JMSConnectionFactory {
                 parameters.get(JMSConstants.PARAM_DESTINATION) +
                 " for JMS CF : " + name + " using : " + JMSUtils.maskAxis2ConfigSensitiveParameters(parameters), e);
         }
-        setMaxSharedJMSConnectionsCount();
     }
 
     /**

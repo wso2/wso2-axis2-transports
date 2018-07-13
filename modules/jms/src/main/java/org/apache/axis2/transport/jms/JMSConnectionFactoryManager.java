@@ -95,6 +95,24 @@ public class JMSConnectionFactoryManager {
     }
 
     /**
+     * Create JMSConnectionFactory instance from the definitions in the target address,
+     * and add into connectionFactories map keyed by the target address
+     *
+     * @param targetEndpoint the JMS target address contains transport definitions
+     */
+    public JMSConnectionFactory getConnectionFactoryFromTargetEndpoint(String targetEndpoint) {
+        try {
+            if (!connectionFactories.containsKey(targetEndpoint)) {
+                JMSConnectionFactory jmsConnectionFactory = new JMSConnectionFactory(targetEndpoint);
+                connectionFactories.put(jmsConnectionFactory.getName(), jmsConnectionFactory);
+            }
+        } catch (AxisJMSException e) {
+            log.error("Error setting up connection factory : " + targetEndpoint, e);
+        }
+        return connectionFactories.get(targetEndpoint);
+    }
+
+    /**
      * Get the JMS connection factory with the given name.
      *
      * @param name the name of the JMS connection factory
@@ -126,6 +144,12 @@ public class JMSConnectionFactoryManager {
                 &&
                 equals(props.get(Context.PROVIDER_URL),
                     cfProperties.get(Context.PROVIDER_URL))
+                &&
+                equals(props.get(JMSConstants.PARAM_CACHE_LEVEL),
+                    cfProperties.get(JMSConstants.PARAM_CACHE_LEVEL))
+                &&
+                equals(props.get(JMSConstants.PARAM_SESSION_TRANSACTED),
+                    cfProperties.get(JMSConstants.PARAM_SESSION_TRANSACTED))
                 &&
                 equals(props.get(Context.SECURITY_PRINCIPAL),
                     cfProperties.get(Context.SECURITY_PRINCIPAL))

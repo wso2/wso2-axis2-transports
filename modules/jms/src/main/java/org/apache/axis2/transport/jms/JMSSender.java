@@ -128,35 +128,34 @@ public class JMSSender extends AbstractTransportSender implements ManagementSupp
             jmsOut = new JMSOutTransportInfo(targetAddress);
             // do we have a definition for a connection factory to use for this address?
             jmsConnectionFactory = getJMSConnectionFactory(jmsOut);
-            
-            if (jmsConnectionFactory != null) {
-                messageSender = new JMSMessageSender(jmsConnectionFactory, targetAddress);
 
-            } else {
+            if (jmsConnectionFactory == null) {
+                jmsConnectionFactory = connFacManager.getConnectionFactoryFromTargetEndpoint(targetAddress);
+            }
+            // MessageSender only needed to add if the scenario involved with XA transaction.
+            // It can be identified by looking at target url's transport.jms.TransactionCommand parameter.
+            if ((targetAddress.contains(JMSConstants.JMS_TRANSACTION_COMMAND))) {
                 try {
                     messageSender = jmsOut.createJMSSender(msgCtx);
-                    // MessageSender only needed to add if the scenario involved with XA transaction.
-                    // It can be identified by looking at target url's transport.jms.TransactionCommand parameter.
-                    if ((targetAddress.contains(JMSConstants.JMS_TRANSACTION_COMMAND))) {
-                        Transaction transaction = (Transaction) msgCtx.getProperty(JMSConstants.JMS_XA_TRANSACTION);
-                        if (jmsMessageSenderMap.get(transaction) == null) {
-                            ArrayList list = new ArrayList();
-                            list.add(messageSender);
-                            jmsMessageSenderMap.put(transaction, list);
-                        } else {
-                            ArrayList list = jmsMessageSenderMap.get(transaction);
-                            list.add(messageSender);
-                            jmsMessageSenderMap.put(transaction, list);
-                        }
+                    Transaction transaction = (Transaction) msgCtx.getProperty(JMSConstants.JMS_XA_TRANSACTION);
+                    if (jmsMessageSenderMap.get(transaction) == null) {
+                        ArrayList list = new ArrayList();
+                        list.add(messageSender);
+                        jmsMessageSenderMap.put(transaction, list);
+                    } else {
+                        ArrayList list = jmsMessageSenderMap.get(transaction);
+                        list.add(messageSender);
+                        jmsMessageSenderMap.put(transaction, list);
                     }
-
                 } catch (JMSException e) {
                     rollbackIfXATransaction(msgCtx);
                     handleException("Unable to create a JMSMessageSender for : " + outTransportInfo, e);
                 }
+            } else {
+                messageSender = new JMSMessageSender(jmsConnectionFactory, targetAddress);
             }
 
-        } else if (outTransportInfo != null && outTransportInfo instanceof JMSOutTransportInfo) {
+        } else if (outTransportInfo instanceof JMSOutTransportInfo) {
 
             jmsOut = (JMSOutTransportInfo) outTransportInfo;
             try {
