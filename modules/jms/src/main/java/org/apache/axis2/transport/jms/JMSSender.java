@@ -263,6 +263,7 @@ public class JMSSender extends AbstractTransportSender implements ManagementSupp
             message = createJMSMessage(msgCtx, messageSender.getSession(), contentTypeProperty);
         } catch (JMSException e) {
             rollbackIfXATransaction(msgCtx);
+            jmsConnectionFactory.clearCache();
             handleException("Error creating a JMS message from the message context", e);
         }
 
@@ -317,6 +318,7 @@ public class JMSSender extends AbstractTransportSender implements ManagementSupp
                 JMSUtils.setReplyDestination(replyDestination, messageSender.getDestination(), message);
             } catch (JMSException e) {
                 rollbackIfXATransaction(msgCtx);
+                jmsConnectionFactory.clearCache();
                 handleException("Error setting the JMSReplyTo Header", e);
             }
         }
@@ -334,6 +336,7 @@ public class JMSSender extends AbstractTransportSender implements ManagementSupp
         } catch (AxisJMSException e) {
             metrics.incrementFaultsSending();
             rollbackIfXATransaction(msgCtx);
+            jmsConnectionFactory.clearCache();
             handleException("Error sending JMS message", e);
         }
 
@@ -515,13 +518,7 @@ public class JMSSender extends AbstractTransportSender implements ManagementSupp
                 messageFormatter.writeTo(msgContext, format, out, true);
                 out.close();
             } catch (IOException e) {
-                Transaction transaction = null;
-                try {
-                    transaction = ((TransactionManager) msgContext.getProperty(JMSConstants.JMS_XA_TRANSACTION_MANAGER)).getTransaction();
-                    rollbackXATransaction(transaction);
-                } catch (SystemException e1) {
-                    handleException("Error occurred during obtaining  transaction", e1);
-                }
+                rollbackIfXATransaction(msgContext);
                 handleException("IO Error while creating BytesMessage", e);
             }
 
@@ -547,13 +544,7 @@ public class JMSSender extends AbstractTransportSender implements ManagementSupp
                     try {
                         ((DataHandler) dh).writeTo(new BytesMessageOutputStream(bytesMsg));
                     } catch (IOException e) {
-                        Transaction transaction = null;
-                        try {
-                            transaction = ((TransactionManager) msgContext.getProperty(JMSConstants.JMS_XA_TRANSACTION_MANAGER)).getTransaction();
-                            rollbackXATransaction(transaction);
-                        } catch (SystemException e1) {
-                            handleException("Error occurred during obtaining  transaction", e1);
-                        }
+                        rollbackIfXATransaction(msgContext);
                         handleException("Error serializing binary content of element : " +
                             BaseConstants.DEFAULT_BINARY_WRAPPER, e);
                     }

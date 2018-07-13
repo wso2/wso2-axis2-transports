@@ -592,4 +592,27 @@ public class JMSConnectionFactory {
         sharedConnectionMap.clear();
         lastReturnedConnectionIndex = 0;
     }
+
+    /**
+     * Clear cached session
+     */
+    private synchronized void clearSharedSession() {
+        sharedSession = null;
+    }
+
+    /**
+     * Clear cached producer
+     */
+    private synchronized void clearSharedProducer() {
+        sharedProducer = null;
+    }
+
+    /**
+     * Clear all JMS cached objects upon {@link JMSException} or {@link AxisJMSException}
+     */
+    public void clearCache() {
+        clearSharedProducer();
+        clearSharedSession();
+        clearSharedConnections();
+    }
 }
