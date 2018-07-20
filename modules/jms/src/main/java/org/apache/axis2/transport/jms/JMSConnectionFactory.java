@@ -162,7 +162,6 @@ public class JMSConnectionFactory {
      */
     public JMSConnectionFactory(String targetEndpoint) {
         this.name = targetEndpoint;
-        parameters.put(JMSConstants.PARAM_DESTINATION, JMSUtils.getDestination(targetEndpoint));
         parameters.putAll(BaseUtils.getEPRProperties(targetEndpoint));
         digestCacheLevel();
         initJMSConnectionFactory();
