@@ -633,6 +633,7 @@ public class JMSSender extends AbstractTransportSender implements ManagementSupp
 
         String contentType = contentTypeProperty == null ? null
                 : JMSUtils.getProperty(message, contentTypeProperty);
+        responseMsgCtx.setProperty(Constants.Configuration.CONTENT_TYPE, contentType);
 
         try {
             JMSUtils.setSOAPEnvelope(message, responseMsgCtx, contentType);
