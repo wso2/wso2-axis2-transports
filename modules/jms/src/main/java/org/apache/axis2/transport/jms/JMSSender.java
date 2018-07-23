@@ -58,6 +58,9 @@ public class JMSSender extends AbstractTransportSender implements ManagementSupp
 
     public static final String TRANSPORT_NAME = Constants.TRANSPORT_JMS;
 
+    // HTTP Transport Property
+    private static final String NO_ENTITY_BODY = "NO_ENTITY_BODY";
+
     private static Map<Transaction, ArrayList<JMSMessageSender>> jmsMessageSenderMap = new HashMap<>();
     /** The JMS connection factory manager to be used when sending messages out */
     private JMSConnectionFactoryManager connFacManager;
@@ -634,6 +637,10 @@ public class JMSSender extends AbstractTransportSender implements ManagementSupp
         String contentType = contentTypeProperty == null ? null
                 : JMSUtils.getProperty(message, contentTypeProperty);
         responseMsgCtx.setProperty(Constants.Configuration.CONTENT_TYPE, contentType);
+
+        if (contentType != null) {
+            responseMsgCtx.removeProperty(NO_ENTITY_BODY);
+        }
 
         try {
             JMSUtils.setSOAPEnvelope(message, responseMsgCtx, contentType);
