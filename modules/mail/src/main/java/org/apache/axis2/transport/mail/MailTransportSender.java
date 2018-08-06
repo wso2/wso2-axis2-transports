@@ -279,14 +279,14 @@ public class MailTransportSender extends AbstractTransportSender
                         " from transport headers");
             }
             message.setFrom(from);
-            message.setReplyTo(new Address[] { from });
+            message.setReplyTo(new Address[]{from});
         } else if (outInfo.getTargetAddresses() != null && outInfo.getFromAddress() != null) {
             if (log.isDebugEnabled()) {
                 log.debug("Setting From header to " + outInfo.getFromAddress().getAddress() +
                         " from OutTransportInfo");
             }
             message.setFrom(outInfo.getFromAddress());
-            message.setReplyTo((new Address []{outInfo.getFromAddress()}));
+            message.setReplyTo((new Address[]{outInfo.getFromAddress()}));
         } else {
             if (smtpFromAddress != null) {
                 if (log.isDebugEnabled()) {
