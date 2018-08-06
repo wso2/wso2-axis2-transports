@@ -113,7 +113,7 @@ public class MailTransportSender extends AbstractTransportSender
         if (smtpUsername != null && smtpPassword != null) {
             session = Session.getInstance(props, new Authenticator() {
                 public PasswordAuthentication getPasswordAuthentication() {
-                    return new PasswordAuthentication(smtpUsername, smtpPassword);    
+                    return new PasswordAuthentication(smtpUsername, smtpPassword);
                 }
             });
         } else {
@@ -272,22 +272,21 @@ public class MailTransportSender extends AbstractTransportSender
         // set From address - first check if this is a reply, then use from address from the
         // transport out, else if any custom transport headers set on this message, or default
         // to the transport senders default From address        
-        if (outInfo.getTargetAddresses() != null && outInfo.getFromAddress() != null) {
-            if (log.isDebugEnabled()) {
-                log.debug("Setting From header to " + outInfo.getFromAddress().getAddress() +
-                        " from OutTransportInfo");
-            }
-            message.setFrom(outInfo.getFromAddress());
-            message.setReplyTo((new Address []{outInfo.getFromAddress()}));
-        } else if (trpHeaders != null && trpHeaders.containsKey(MailConstants.MAIL_HEADER_FROM)) {
-            InternetAddress from =
-                new InternetAddress((String) trpHeaders.get(MailConstants.MAIL_HEADER_FROM));
+        if (trpHeaders != null && trpHeaders.containsKey(MailConstants.MAIL_HEADER_FROM)) {
+            InternetAddress from = new InternetAddress((String) trpHeaders.get(MailConstants.MAIL_HEADER_FROM));
             if (log.isDebugEnabled()) {
                 log.debug("Setting From header to " + from.getAddress() +
                         " from transport headers");
             }
             message.setFrom(from);
             message.setReplyTo(new Address[] { from });
+        } else if (outInfo.getTargetAddresses() != null && outInfo.getFromAddress() != null) {
+            if (log.isDebugEnabled()) {
+                log.debug("Setting From header to " + outInfo.getFromAddress().getAddress() +
+                        " from OutTransportInfo");
+            }
+            message.setFrom(outInfo.getFromAddress());
+            message.setReplyTo((new Address []{outInfo.getFromAddress()}));
         } else {
             if (smtpFromAddress != null) {
                 if (log.isDebugEnabled()) {
