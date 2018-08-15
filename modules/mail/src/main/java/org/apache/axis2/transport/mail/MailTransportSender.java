@@ -257,14 +257,34 @@ public class MailTransportSender extends AbstractTransportSender
         }
 
         WSMimeMessage message = null;
-        if (outInfo.getFromAddress() != null) {
+        Map trpHeaders = (Map) msgContext.getProperty(MessageContext.TRANSPORT_HEADERS);
+        if (trpHeaders != null
+                && trpHeaders.containsKey(MailConstants.MAIL_HEADER_FROM)
+                && trpHeaders.containsKey(MailConstants.MAIL_SMTP_PASSWORD)
+                && trpHeaders.containsKey(MailConstants.MAIL_SMTP_USERNAME)) {
+            Properties prop = (Properties) session.getProperties().clone();
+            final String from = (String) trpHeaders.get(MailConstants.MAIL_HEADER_FROM);
+            final String password = (String) trpHeaders.get(MailConstants.MAIL_SMTP_PASSWORD);
+            final String userName = (String) trpHeaders.get(MailConstants.MAIL_SMTP_USERNAME);
+            prop.setProperty(MailConstants.MAIL_HEADER_FROM, from);
+            prop.setProperty(MailConstants.MAIL_SMTP_USERNAME, userName);
+            prop.setProperty(MailConstants.MAIL_SMTP_PASSWORD, password);
+
+            Session sessionCurrent = Session.getInstance(prop, new Authenticator() {
+                public PasswordAuthentication getPasswordAuthentication() {
+
+                    return new PasswordAuthentication(userName, password);
+                }
+            });
+
+            message = new WSMimeMessage(sessionCurrent, (String) trpHeaders.get(MailConstants.MAIL_HEADER_FROM));
+        } else if (outInfo.getFromAddress() != null) {
             message = new WSMimeMessage(session, outInfo.getFromAddress().getAddress());
         } else {
             message = new WSMimeMessage(session, "");
         }
 
 
-        Map trpHeaders = (Map) msgContext.getProperty(MessageContext.TRANSPORT_HEADERS);
         if (log.isDebugEnabled() && trpHeaders != null) {
             log.debug("Using transport headers: " + trpHeaders);
         }
