@@ -31,13 +31,19 @@ import org.apache.axis2.transport.base.BaseConstants;
 import org.apache.axis2.transport.base.BaseUtils;
 import org.apache.axis2.transport.base.ManagementSupport;
 import org.apache.axis2.transport.http.HTTPConstants;
+import org.apache.axis2.transport.jms.dualchannel.JMSReplyContainer;
+import org.apache.axis2.transport.jms.dualchannel.JMSReplyHandler;
+import org.apache.axis2.transport.jms.dualchannel.JMSReplySubscription;
 import org.apache.axis2.transport.jms.iowrappers.BytesMessageOutputStream;
 import org.apache.axis2.util.MessageProcessorSelector;
 import org.apache.commons.io.output.WriterOutputStream;
+import org.apache.commons.lang.StringUtils;
 import org.wso2.securevault.SecretResolver;
 
 import javax.activation.DataHandler;
 import javax.jms.*;
+import javax.naming.InitialContext;
+import javax.naming.NamingException;
 import javax.transaction.SystemException;
 import javax.transaction.Transaction;
 import javax.transaction.TransactionManager;
@@ -49,12 +55,22 @@ import java.io.StringWriter;
 import java.nio.charset.UnsupportedCharsetException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Hashtable;
 import java.util.Map;
+import java.util.Properties;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 /**
  * The TransportSender for JMS
  */
 public class JMSSender extends AbstractTransportSender implements ManagementSupport {
+
+    /**
+     * Needed to read the service url from the message context properties.
+     * Sample value e.g. - "/services/SMSSenderProxy"
+     */
+    public static final String SERVICE_PREFIX = "SERVICE_PREFIX";
 
     public static final String TRANSPORT_NAME = Constants.TRANSPORT_JMS;
 
@@ -192,16 +208,6 @@ public class JMSSender extends AbstractTransportSender implements ManagementSupp
             } finally {
                 if (msgCtx.getProperty(JMSConstants.JMS_XA_TRANSACTION_MANAGER) == null) {
                     messageSender.close();
-                    if (replyDestination instanceof TemporaryQueue) {
-                        String temporaryQueueName = "";
-                        TemporaryQueue temporaryQueue = (TemporaryQueue) replyDestination;
-                        try {
-                            temporaryQueueName = temporaryQueue.getQueueName();
-                            temporaryQueue.delete();
-                        } catch (JMSException e) {
-                            log.error("Error while deleting the temporary queue " + temporaryQueueName, e);
-                        }
-                    }
                 }
             }
         }
@@ -258,6 +264,13 @@ public class JMSSender extends AbstractTransportSender implements ManagementSupp
         // convert the axis message context into a JMS Message that we can send over JMS
         Message message = null;
         String correlationId = null;
+
+        // These variables are evaluated before sending the message, and are required after, to start a consumer for
+        // the response (for Dual channel scenario).
+        String identifier = null;
+        String connectionFactoryName = null;
+        InitialContext initialContextForReplySubscription = null;
+
         try {
             message = createJMSMessage(msgCtx, messageSender.getSession(), contentTypeProperty);
         } catch (JMSException e) {
@@ -268,38 +281,126 @@ public class JMSSender extends AbstractTransportSender implements ManagementSupp
 
         // should we wait for a synchronous response on this same thread?
         boolean waitForResponse = waitForSynchronousResponse(msgCtx);
+        boolean usingCachedQueue = false;
+        boolean usingGeneratedReplyQueues = false;
+        JMSReplySubscription jmsReplySubscription = null;
+        CountDownLatch replyLatch = null;
+        JMSReplyContainer jmsReplyContainer = null;
+        String replyDestName = null;
         Destination replyDestination = jmsOut.getReplyDestination();
 
         // if this is a synchronous out-in, prepare to listen on the response destination
-        String replyDestName;
-
         if (isWaitForResponseOrReplyDestination(waitForResponse, replyDestination)) { //check replyDestination for APIMANAGER-5892
 
-            replyDestName = (String) msgCtx.getProperty(JMSConstants.JMS_REPLY_TO);
-            if (replyDestName == null && jmsConnectionFactory != null) {
-                if (jmsOut != null && jmsOut.getReplyDestinationName() != null) {
-                    replyDestName = jmsOut.getReplyDestinationName();
+            try {
+                Hashtable<String, String> jndiProperties;
+
+                if (!StringUtils.isBlank(jmsOut.getTargetEPR()) && BaseUtils.getEPRProperties(jmsOut.getTargetEPR())
+                        .containsKey(JMSConstants.PARAM_DEST_TYPE)) {
+                    // Endpoint is configured to use a sender connection factory from jndi.properties file
+                    // based on inline URL.
+                    // We give priority to the inline URL over any cached JMS connection factories.
+                    jndiProperties = BaseUtils.getEPRProperties(jmsOut.getTargetEPR());
+
+                    //Merge JMS parameters from JMS connection factory to the jmsTransportOut object
+                    if (null != jmsConnectionFactory) {
+                        for (String jmsParameter : jmsConnectionFactory.getParameters().keySet()) {
+                            if (!jndiProperties.containsKey(jmsParameter)) {
+                                jndiProperties.put(jmsParameter, jmsConnectionFactory.getParameters().get(jmsParameter));
+                            }
+                        }
+                    }
+                } else if (null != jmsConnectionFactory) {
+                    // Endpoint is configured to use an explicitly configured sender connection factory from axis2.xml.
+                    jndiProperties = jmsConnectionFactory.getParameters();
                 } else {
-                    replyDestName = jmsConnectionFactory.getReplyToDestination();
+                    throw new JMSException("Unable to locate JMS connection parameters from endpoint at service. ");
                 }
-            }
 
-            String replyDestType = (String) msgCtx.getProperty(JMSConstants.JMS_REPLY_TO_TYPE);
-            if (replyDestType == null && jmsConnectionFactory != null) {
-                replyDestType = jmsConnectionFactory.getReplyDestinationType();
-            }
+                // Initialize JNDI Context
+                initialContextForReplySubscription = createContextForReplySubscription(jndiProperties);
 
-            if (replyDestName != null) {
-                if (jmsConnectionFactory != null) {
-                    replyDestination = jmsConnectionFactory.getDestination(
+                // Set identifier to the proxy local to the node.
+
+                String proxyServicePath;
+                String servicePrefix;
+
+                if (msgCtx.getProperty(Constants.Configuration.TRANSPORT_IN_URL) != null) {
+                    proxyServicePath = msgCtx.getProperty(Constants.Configuration.TRANSPORT_IN_URL).toString();
+                    servicePrefix = msgCtx.getProperty(SERVICE_PREFIX).toString();
+                } else {
+                    // Unit tests execute the JMS flow using plain Axis services, in which case this path should run.
+                    proxyServicePath = "/services/" + msgCtx.getAxisService().getName();
+                    servicePrefix = "";
+                }
+
+                identifier = JMSReplyHandler.generateSubscriptionIdentifier(proxyServicePath,
+                        servicePrefix);
+
+                if (jndiProperties.containsKey(JMSConstants.PARAM_REPLY_DESTINATION)) {
+                    // Execute normal path.
+                    replyDestName = jndiProperties.get(JMSConstants.PARAM_REPLY_DESTINATION);
+
+                    String replyDestType = (String) msgCtx.getProperty(JMSConstants.JMS_REPLY_TO_TYPE);
+                    if (replyDestType == null && jmsConnectionFactory != null) {
+                        replyDestType = jmsConnectionFactory.getReplyDestinationType();
+                    }
+
+                    replyDestination = JMSUtils.lookupDestination(initialContextForReplySubscription,
                             replyDestName, replyDestType);
+
+                    message.setJMSReplyTo(replyDestination);
+
+                } else if (Boolean.parseBoolean(jndiProperties.get(JMSConstants.PARAM_CACHED_REPLY_QUEUE))) {
+                    usingCachedQueue = true;
+                    // Use a re-usable subscription on a temporary queue
+
+                    connectionFactoryName = jndiProperties.get(JMSConstants.PARAM_CONFAC_JNDI_NAME);
+
+                    jmsReplySubscription = JMSReplyHandler.getInstance().getReplySubscription
+                            (identifier, initialContextForReplySubscription, connectionFactoryName);
+
+                    replyDestination = jmsReplySubscription.getTemporaryQueue();
+
+                    message.setJMSReplyTo(jmsReplySubscription.getTemporaryQueue());
                 } else {
-                    replyDestination = jmsOut.getReplyDestination(replyDestName);
+                    usingGeneratedReplyQueues = true;
+                    replyDestination = JMSUtils.createTemporaryDestination(messageSender.getSession());
+
+                    message.setJMSReplyTo(replyDestination);
+                }
+
+                String jmsCorrelationID = message.getJMSCorrelationID();
+                if (jmsCorrelationID != null && jmsCorrelationID.length() > 0) {
+                    correlationId = jmsCorrelationID;
+                } else {
+                    correlationId = msgCtx.getMessageID();
+                    if (usingCachedQueue) {
+                        message.setJMSCorrelationID(correlationId);
+                    }
+                }
+
+                if (usingCachedQueue) {
+                    replyLatch = new CountDownLatch(1);
+                    // Create an object to pass to the actual JMS subscription expecting a notification
+                    // when the matching message arrives. We should create the container before send message
+                    jmsReplyContainer = new JMSReplyContainer(replyLatch);
+                    jmsReplySubscription.registerListener(correlationId, jmsReplyContainer);
                 }
             }
-            replyDestination = JMSUtils.setReplyDestination(
-                replyDestination, messageSender.getSession(), message);
-
+            catch (NamingException | JMSException e) {
+                metrics.incrementFaultsSending();
+                Transaction transaction;
+                if (msgCtx.getProperty(JMSConstants.JMS_XA_TRANSACTION_MANAGER) != null) {
+                    try {
+                        transaction = ((TransactionManager) msgCtx.getProperty(JMSConstants.JMS_XA_TRANSACTION_MANAGER)).getTransaction();
+                        rollbackXATransaction(transaction);
+                    } catch (SystemException e1) {
+                        handleException("Error occurred during obtaining  transaction", e1);
+                    }
+                }
+                handleException("Error sending JMS message", e);
+            }
             //If the JMS_REPLY_TO property is set, the property value is set as a JMS header
         } else if ((replyDestName = (String) msgCtx.getProperty(JMSConstants.JMS_REPLY_TO)) != null) {
 
@@ -323,6 +424,15 @@ public class JMSSender extends AbstractTransportSender implements ManagementSupp
         }
 
         try {
+            if (null == message.getJMSReplyTo()) {
+                Object outTransportInfo = msgCtx.getProperty(Constants.OUT_TRANSPORT_INFO);
+                if (null != outTransportInfo && outTransportInfo instanceof JMSOutTransportInfo) {
+                    JMSOutTransportInfo jmsOutTransportInfo = (JMSOutTransportInfo) outTransportInfo;
+                    if (null != jmsOutTransportInfo.getDestination()) {
+                        message.setJMSReplyTo(jmsOutTransportInfo.getDestination());
+                    }
+                }
+            }
             messageSender.send(message, msgCtx);
             Transaction transaction = (Transaction) msgCtx.getProperty(JMSConstants.JMS_XA_TRANSACTION);
             if (msgCtx.getTo().toString().contains("transport.jms.TransactionCommand=end")) {
@@ -332,7 +442,7 @@ public class JMSSender extends AbstractTransportSender implements ManagementSupp
             }
             metrics.incrementMessagesSent(msgCtx);
 
-        } catch (AxisJMSException e) {
+        } catch (AxisJMSException | JMSException e) {
             metrics.incrementFaultsSending();
             rollbackIfXATransaction(msgCtx);
             jmsConnectionFactory.clearCache();
@@ -353,10 +463,6 @@ public class JMSSender extends AbstractTransportSender implements ManagementSupp
             // requested destination for the response message and inject it from a
             // asynchronous worker thread
             try {
-                messageSender.getConnection().start();  // multiple calls are safely ignored
-            } catch (JMSException ignore) {}
-
-            try {
                 String jmsCorrelationID = message.getJMSCorrelationID();
                 if (jmsCorrelationID != null && jmsCorrelationID.length() > 0) {
                     correlationId = jmsCorrelationID;
@@ -365,17 +471,163 @@ public class JMSSender extends AbstractTransportSender implements ManagementSupp
                 }
             } catch(JMSException ignore) {}
 
-            // We assume here that the response uses the same message property to
-            // specify the content type of the message.
-            waitForResponseAndProcess(messageSender.getSession(), replyDestination,
-                msgCtx, correlationId, contentTypeProperty);
-            // TODO ********************************************************************************
+            // how long are we willing to wait for the sync response
+            long timeout = JMSConstants.DEFAULT_JMS_TIMEOUT;
+            String waitReply = (String) msgCtx.getProperty(JMSConstants.JMS_WAIT_REPLY);
+            if (waitReply != null) {
+                timeout = Long.valueOf(waitReply);
+            }
+
+            if (log.isDebugEnabled()) {
+                log.debug("Waiting for a maximum of " + timeout + "ms for a response message to serviceId : "
+                        + identifier + " with JMS correlation ID : " + correlationId);
+            }
+
+            // We assume here that the response uses the same message property to specify the content type of the
+            // message.
+            if (usingCachedQueue) {
+                waitForResponseFromCachedDestination(replyLatch, jmsReplyContainer, jmsReplySubscription, msgCtx,
+                        correlationId, contentTypeProperty,
+                        initialContextForReplySubscription, identifier,
+                        connectionFactoryName, timeout);
+            } else {
+                try {
+                    messageSender.getConnection().start();  // multiple calls are safely ignored
+                } catch (JMSException ignore) {
+                }
+
+                if (usingGeneratedReplyQueues) {
+                    waitForResponseFromDefinedDestination(messageSender.getSession(), replyDestination, msgCtx,
+                            correlationId, contentTypeProperty, identifier, timeout, "");
+
+                    String temporaryQueueName = "";
+                    TemporaryQueue temporaryQueue = (TemporaryQueue) replyDestination;
+                    try {
+                        temporaryQueueName = temporaryQueue.getQueueName();
+                        temporaryQueue.delete();
+                    } catch (JMSException e) {
+                        log.error("Error while deleting the temporary queue " + temporaryQueueName, e);
+                    }
+                } else {
+                    waitForResponseFromDefinedDestination(messageSender.getSession(), replyDestination, msgCtx,
+                            correlationId, contentTypeProperty, identifier, timeout, "JMSCorrelationID = '"
+                                    + correlationId + "'");
+                }
+            }
         }
         return replyDestination;
     }
 
     protected boolean isWaitForResponseOrReplyDestination(boolean waitForResponse, Destination replyDestination) {
         return waitForResponse || replyDestination != null;
+    }
+
+    /**
+     * Create a listener for already created subscription on the temporary queue and wait for the response JMS message
+     * synchronously. If a message arrives within the specified time interval, process it through Axis2 engine.
+     * @param msgCtx the outgoing message for which we are expecting the response
+     * @param contentTypeProperty the message property used to determine the content type
+     *                            of the response message
+     * @param correlationId Correlation ID used to relate the message to its original request.
+     * @param initialContext JNDI context required to initialize a consumer.
+     * @param identifier Unique key to be distinct across multiple ESB nodes serving the
+     *                             same reply destination.
+     * @param connectionFactoryName Name of connection factory used to send the initial message.
+     * @param timeout wait time to receive the response.
+     * @throws AxisFault on error
+     */
+    private void waitForResponseFromCachedDestination(CountDownLatch replyLatch, JMSReplyContainer jmsReplyContainer,
+                                                      JMSReplySubscription jmsReplySubscription,
+                                                      MessageContext msgCtx, String correlationId,
+                                                      String contentTypeProperty, InitialContext initialContext,
+                                                      String identifier, String connectionFactoryName,
+                                                      long timeout) throws AxisFault {
+
+        try {
+            replyLatch.await(timeout, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException e) {
+            log.error("Thread interrupted while waiting for message with correlation ID : " + correlationId);
+            Thread.currentThread().interrupt();
+        }
+
+        Message responseMessage = jmsReplyContainer.getMessage();
+        jmsReplySubscription.unregisterListener(correlationId);
+
+        proceedMessageFlow(responseMessage, msgCtx, contentTypeProperty, identifier, correlationId, timeout);
+    }
+
+    /**
+     * Create a Consumer for the reply destination and wait for the response JMS message
+     * synchronously. If a message arrives within the specified time interval, process it through Axis2 Engine.
+     * @param session the session to use to listen for the response
+     * @param replyDestination the JMS reply Destination
+     * @param msgCtx the outgoing message for which we are expecting the response
+     * @param contentTypeProperty the message property used to determine the content type
+     *                            of the response message
+     * @param correlationId Correlation ID used to relate the message to its original request.
+     * @param identifier Unique string denoting the proxy and ESB node from which this message is published.
+     * @param timeout wait time to receive the response.
+     * @throws AxisFault on error
+     */
+    private void waitForResponseFromDefinedDestination(Session session, Destination replyDestination,
+                                                       MessageContext msgCtx, String correlationId,
+                                                       String contentTypeProperty, String identifier, long timeout,
+                                                       String messageSelector) throws AxisFault {
+
+        try {
+            MessageConsumer consumer = JMSUtils.createConsumer(session, replyDestination, messageSelector);
+
+            Message responseMessage = consumer.receive(timeout);
+
+            consumer.close();
+
+            proceedMessageFlow(responseMessage, msgCtx, contentTypeProperty, identifier, correlationId, timeout);
+
+        } catch (JMSException e) {
+            metrics.incrementFaultsReceiving();
+            handleException("Error creating a consumer, or receiving a synchronous reply " +
+                    "for outgoing MessageContext ID : " + msgCtx.getMessageID() +
+                    " and reply Destination : " + replyDestination, e);
+        }
+    }
+
+    /**
+     * Common logic to handle the response message once its received. (Send through axis2 engine)
+     * @param msgCtx the outgoing message for which we are expecting the response
+     * @param contentTypeProperty the message property used to determine the content type
+     *                            of the response message
+     * @param correlationId Correlation ID used to relate the message to its original request.
+     * @param identifier Unique key to be distinct across multiple ESB nodes serving the
+     *                             same reply destination.
+     * @param timeout wait time to receive the response.
+     * @throws AxisFault on Error.
+     */
+    private void proceedMessageFlow(Message responseMessage, MessageContext msgCtx, String contentTypeProperty,
+                                    String identifier, String correlationId, long timeout) throws AxisFault {
+
+        if (null != responseMessage) {
+            // update transport level metrics
+            metrics.incrementMessagesReceived();
+            try {
+                metrics.incrementBytesReceived(JMSUtils.getMessageSize(responseMessage));
+            } catch (JMSException e) {
+                log.warn("Error reading JMS message size to update transport metrics", e);
+            }
+
+            try {
+                processSyncResponse(msgCtx, responseMessage, contentTypeProperty);
+                metrics.incrementMessagesReceived();
+            } catch (AxisFault e) {
+                metrics.incrementFaultsReceiving();
+                throw e;
+            }
+
+        } else {
+            metrics.incrementFaultsReceiving();
+            handleException("Did not receive a JMS response within " + timeout +
+                    " ms to destination : " + identifier +
+                    " with JMS correlation ID : " + correlationId);
+        }
     }
 
     /**
@@ -690,5 +942,23 @@ public class JMSSender extends AbstractTransportSender implements ManagementSupp
             }
             jmsMessageSenderMap.remove(transaction);
         }
+    }
+
+    /**
+     * Create a Mock JNDI Initial Context in order to generate a Destination object for the JMS Reply To Header of a
+     * message.
+     * @param jndiProperties JMS configurations needed to initialize a context.
+     * @return @{@link InitialContext}
+     * @throws NamingException if an issue occurs while creating the context.
+     */
+    private InitialContext createContextForReplySubscription(Hashtable<String, String> jndiProperties) throws NamingException {
+
+        Properties jmsProperties = new Properties();
+
+        for (Map.Entry<String, String> param : jndiProperties.entrySet()) {
+            jmsProperties.put(param.getKey(), param.getValue());
+        }
+
+        return new InitialContext(jmsProperties);
     }
 }

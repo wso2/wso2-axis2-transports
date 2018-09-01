@@ -412,4 +412,8 @@ public class JMSConstants {
      * Qualified name for SecureVault aliases.
      */
     public static final QName ALIAS_QNAME = new QName("http://org.wso2.securevault/configuration", "secretAlias");
+    /**
+     * The Service level Parameter name indicating the temporary response destination of a service
+     */
+    public static final String PARAM_CACHED_REPLY_QUEUE = "transport.jms.CachedResponseQueue";
 }
