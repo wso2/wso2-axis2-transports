@@ -123,7 +123,7 @@ public class RabbitMQUtils {
         Map<String, Object> headers = message.getHeaders();
         if (headers != null && !headers.isEmpty()) {
             for (String headerName : headers.keySet()) {
-                String value = new String(((LongString)(headers.get(headerName))).getBytes());
+                String value = headers.get(headerName).toString();
                 map.put(headerName, value);
             }
         }
