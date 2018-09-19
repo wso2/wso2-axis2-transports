@@ -17,8 +17,10 @@ package org.apache.axis2.transport.jms;
 
 import junit.framework.Assert;
 import junit.framework.TestCase;
+import org.apache.axis2.addressing.EndpointReference;
 import org.apache.axis2.context.ConfigurationContext;
 import org.apache.axis2.context.MessageContext;
+import org.apache.axis2.description.AxisService;
 import org.apache.axis2.description.TransportOutDescription;
 import org.apache.axis2.engine.AxisConfiguration;
 import org.junit.runner.RunWith;
@@ -35,6 +37,7 @@ import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
 import javax.jms.Destination;
+import javax.jms.Message;
 import javax.jms.Session;
 import javax.transaction.HeuristicMixedException;
 import javax.transaction.HeuristicRollbackException;
@@ -131,6 +134,56 @@ public class JMSSenderTestCase extends TestCase {
         JMSOutTransportInfo jmsOutTransportInfo = new JMSOutTransportInfo(factory, null, null);
         String contentTypePropertyResult = jmsSender.getContentTypeProperty(ctx, jmsOutTransportInfo, factory);
         Assert.assertEquals(contentTypeProperty, contentTypePropertyResult);
+    }
+
+    /**
+     * This will verify the fixes for generating queues per request when reply to queue is not mentioned in the jms url
+     * @throws Exception
+     */
+    public void testTempQueueCreationForResponse() throws Exception {
+
+        JMSSender jmsSender = PowerMockito.spy(new JMSSender());
+        JMSOutTransportInfo jmsOutTransportInfo = Mockito.mock(JMSOutTransportInfo.class);
+        JMSMessageSender jmsMessageSender = Mockito.mock(JMSMessageSender.class);
+        Session session = Mockito.mock(Session.class);
+        Destination destination = Mockito.mock(Destination.class);
+        Message message = Mockito.mock(Message.class);
+        PowerMockito.doReturn(message)
+                .when(jmsSender, "createJMSMessage", ArgumentMatchers.any(), ArgumentMatchers.any(),
+                        ArgumentMatchers.any());
+        PowerMockito.doNothing()
+                .when(jmsSender, "commitXATransaction", ArgumentMatchers.any());
+        Mockito.doReturn(destination).when(jmsOutTransportInfo).getReplyDestination();
+        Mockito.doReturn(session).when(jmsMessageSender).getSession();
+        PowerMockito.whenNew(JMSOutTransportInfo.class).withArguments(any(String.class))
+                .thenReturn(jmsOutTransportInfo);
+        Mockito.doReturn(jmsMessageSender).when(jmsOutTransportInfo).createJMSSender(any(MessageContext.class));
+        jmsSender.init(new ConfigurationContext(new AxisConfiguration()), new TransportOutDescription("jms"));
+        MessageContext messageContext = new MessageContext();
+        AxisService axisService = Mockito.mock(AxisService.class);
+        Mockito.doReturn("name").when(axisService).getName();
+        messageContext.setAxisService(axisService);
+        EndpointReference endpointReference = Mockito.mock(EndpointReference.class);
+        Mockito.doReturn("transport.jms.TransactionCommand=end").when(endpointReference).toString();
+        messageContext.setTo(endpointReference);
+
+
+        //append the transport.jms.TransactionCommand
+        String targetAddress = "jms:/SMSStore?transport.jms.ConnectionFactoryJNDIName=" +
+                "QueueConnectionFactory&transport.jms.ConnectionFactory=QueueConnectionFactoryAPIM" +
+                "&java.naming.factory.initial=org.apache.activemq.jndi.ActiveMQInitialContextFactory" +
+                "&transport.jms.TransactionCommand=begin" +
+                "&transport.jms.DestinationType=queue";
+        Transaction transaction = new TestJMSTransaction();
+        messageContext.setProperty(JMSConstants.JMS_XA_TRANSACTION, transaction);
+
+        jmsSender.sendMessage(messageContext, targetAddress, null);
+        Map<Transaction, ArrayList<JMSMessageSender>> jmsMessageSenderMap = Whitebox
+                .getInternalState(JMSSender.class, "jmsMessageSenderMap");
+        Assert.assertEquals("Transaction not added to map", 2, jmsMessageSenderMap.size());
+        List senderList = jmsMessageSenderMap.get(transaction);
+        Assert.assertNotNull("List is null", senderList );
+        Assert.assertEquals("List is empty", 1, senderList.size());
     }
 
     /**
