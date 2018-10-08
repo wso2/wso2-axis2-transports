@@ -164,6 +164,7 @@ public class JMSUtils extends BaseUtils {
         if (contentType == null) {
             if (message instanceof TextMessage) {
                 contentType = "text/plain";
+                msgContext.setProperty(org.apache.axis2.Constants.Configuration.CONTENT_TYPE, "text/plain");
             } else {
                 contentType = "application/octet-stream";
             }
