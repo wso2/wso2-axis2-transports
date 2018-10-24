@@ -622,7 +622,7 @@ public class JMSSender extends AbstractTransportSender implements ManagementSupp
         // load any transport headers from received message
         JMSUtils.loadTransportHeaders(message, responseMsgCtx);
 
-        String contentType = contentTypeProperty == null ? null
+        String contentType = contentTypeProperty == outMsgCtx.getProperty(JMSConstants.CONTENT_TYPE) ? null
                 : JMSUtils.getProperty(message, contentTypeProperty);
 
         try {
