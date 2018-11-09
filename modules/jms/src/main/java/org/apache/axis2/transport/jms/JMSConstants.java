@@ -336,7 +336,7 @@ public class JMSConstants {
     /**
      *  The content type of a receiving payload
      */
-    public static final String CONTENT_TYPE = "ContentType";
+    public static final String MESSAGE_TYPE = "messageType";
 
      /**
       * Andes Naming Factory
