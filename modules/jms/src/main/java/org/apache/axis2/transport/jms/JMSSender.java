@@ -175,7 +175,9 @@ public class JMSSender extends AbstractTransportSender implements ManagementSupp
         // Fix for ESBJAVA-3687, retrieve JMS transport property transport.jms.MessagePropertyHyphens and set this
         // into the msgCtx
         String hyphenSupport = JMSConstants.DEFAULT_HYPHEN_SUPPORT;
-        if (jmsOut.getProperties() != null && jmsOut.getProperties().get(JMSConstants.PARAM_JMS_HYPHEN_MODE) != null) {
+        if (jmsConnectionFactory != null && jmsConnectionFactory.getParameters().get(JMSConstants.PARAM_JMS_HYPHEN_MODE) != null){
+            hyphenSupport = jmsConnectionFactory.getParameters().get(JMSConstants.PARAM_JMS_HYPHEN_MODE);
+        } else if (jmsOut.getProperties() != null && jmsOut.getProperties().get(JMSConstants.PARAM_JMS_HYPHEN_MODE) != null) {
             if (jmsOut.getProperties().get(JMSConstants.PARAM_JMS_HYPHEN_MODE).equals(JMSConstants.HYPHEN_MODE_REPLACE)) {
                 hyphenSupport = JMSConstants.HYPHEN_MODE_REPLACE;
             } else if (jmsOut.getProperties().get(JMSConstants.PARAM_JMS_HYPHEN_MODE).equals(JMSConstants.HYPHEN_MODE_DELETE)) {
