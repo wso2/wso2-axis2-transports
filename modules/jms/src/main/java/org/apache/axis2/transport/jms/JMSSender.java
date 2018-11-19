@@ -36,13 +36,6 @@ import org.apache.axis2.util.MessageProcessorSelector;
 import org.apache.commons.io.output.WriterOutputStream;
 import org.wso2.securevault.SecretResolver;
 
-import javax.activation.DataHandler;
-import javax.jms.*;
-import javax.transaction.SystemException;
-import javax.transaction.Transaction;
-import javax.transaction.TransactionManager;
-import javax.transaction.xa.XAException;
-import javax.transaction.xa.XAResource;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.StringWriter;
@@ -50,6 +43,21 @@ import java.nio.charset.UnsupportedCharsetException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
+import javax.activation.DataHandler;
+import javax.jms.BytesMessage;
+import javax.jms.Destination;
+import javax.jms.JMSException;
+import javax.jms.MapMessage;
+import javax.jms.Message;
+import javax.jms.MessageConsumer;
+import javax.jms.Session;
+import javax.jms.TemporaryQueue;
+import javax.jms.TextMessage;
+import javax.transaction.SystemException;
+import javax.transaction.Transaction;
+import javax.transaction.TransactionManager;
+import javax.transaction.xa.XAException;
+import javax.transaction.xa.XAResource;
 
 /**
  * The TransportSender for JMS
@@ -175,7 +183,9 @@ public class JMSSender extends AbstractTransportSender implements ManagementSupp
         // Fix for ESBJAVA-3687, retrieve JMS transport property transport.jms.MessagePropertyHyphens and set this
         // into the msgCtx
         String hyphenSupport = JMSConstants.DEFAULT_HYPHEN_SUPPORT;
-        if (jmsOut.getProperties() != null && jmsOut.getProperties().get(JMSConstants.PARAM_JMS_HYPHEN_MODE) != null) {
+        if (jmsConnectionFactory != null && jmsConnectionFactory.getParameters().get(JMSConstants.PARAM_JMS_HYPHEN_MODE) != null) {
+            hyphenSupport = jmsConnectionFactory.getParameters().get(JMSConstants.PARAM_JMS_HYPHEN_MODE);
+        } else if (jmsOut.getProperties() != null && jmsOut.getProperties().get(JMSConstants.PARAM_JMS_HYPHEN_MODE) != null) {
             if (jmsOut.getProperties().get(JMSConstants.PARAM_JMS_HYPHEN_MODE).equals(JMSConstants.HYPHEN_MODE_REPLACE)) {
                 hyphenSupport = JMSConstants.HYPHEN_MODE_REPLACE;
             } else if (jmsOut.getProperties().get(JMSConstants.PARAM_JMS_HYPHEN_MODE).equals(JMSConstants.HYPHEN_MODE_DELETE)) {
