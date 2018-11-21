@@ -134,6 +134,44 @@ public class JMSSenderTestCase extends TestCase {
     }
 
     /**
+     * Test case for EI-2776.
+     * Test whether the transport.jms.MessagePropertyHyphens parameter is set to the message context.
+     * @throws Exception
+     */
+    public void testGettingHyphenModeFromJMSConnectionFactory() throws Exception {
+        JMSSender jmsSender = PowerMockito.spy(new JMSSender());
+        JMSOutTransportInfo jmsOutTransportInfo = Mockito.mock(JMSOutTransportInfo.class);
+        JMSMessageSender jmsMessageSender = Mockito.mock(JMSMessageSender.class);
+        Session session = Mockito.mock(Session.class);
+        Destination destination = Mockito.mock(Destination.class);
+
+        final String hyphenMode = "replace";
+        JMSConnectionFactory jmsConnectionFactory = Mockito.mock(JMSConnectionFactory.class);
+        Hashtable<String, String> paramTable = new Hashtable<>();
+        paramTable.put(JMSConstants.PARAM_JMS_HYPHEN_MODE, hyphenMode);
+        Mockito.when(jmsConnectionFactory.getParameters()).thenReturn(paramTable);
+
+        PowerMockito.whenNew(JMSMessageSender.class).withArguments(any(JMSConnectionFactory.class), any(String.class))
+                .thenReturn(jmsMessageSender);
+        Mockito.doReturn(session).when(jmsMessageSender).getSession();
+        PowerMockito.whenNew(JMSOutTransportInfo.class).withArguments(any(String.class))
+                    .thenReturn(jmsOutTransportInfo);
+        Mockito.doReturn(jmsMessageSender).when(jmsOutTransportInfo).createJMSSender(any(MessageContext.class));
+        PowerMockito.doReturn(jmsConnectionFactory).when(jmsSender, "getJMSConnectionFactory", ArgumentMatchers.any());
+        PowerMockito.doReturn(destination)
+                    .when(jmsSender, "sendOverJMS", ArgumentMatchers.any(), ArgumentMatchers.any(),
+                          ArgumentMatchers.any(), ArgumentMatchers.any(), ArgumentMatchers.any());
+
+        jmsSender.init(new ConfigurationContext(new AxisConfiguration()), new TransportOutDescription("jms"));
+        MessageContext messageContext = new MessageContext();
+        jmsSender.sendMessage(messageContext, "jms:/SimpleStockQuoteService", null);
+
+        Assert.assertEquals("Hyphen mode provided by the JMSConnectionFactory has not been set " +
+                            "to the message context", hyphenMode,
+                            messageContext.getProperty(JMSConstants.PARAM_JMS_HYPHEN_MODE));
+    }
+
+    /**
      * Test class which implement javax.Transaction for test transport.jms.TransactionCommand.
      */
     private class TestJMSTransaction implements Transaction {
