@@ -340,6 +340,11 @@
             <groupId>org.apache.axis2</groupId>
             <artifactId>axis2-kernel</artifactId>
         </dependency>
+        <dependency>
+            <groupId>org.wso2.orbit.javax.activation</groupId>
+            <artifactId>activation</artifactId>
+            <version>${version.org.wso2.orbit.javax.activation}</version>
+        </dependency>
     </dependencies>
     <repositories>
         <repository>
@@ -635,5 +640,6 @@
         <mockito.version>1.9.5</mockito.version>
         <powermock.version>1.7.1</powermock.version>
         <junit.version>4.8.2</junit.version>
+        <version.org.wso2.orbit.javax.activation>1.1.1.wso2v2</version.org.wso2.orbit.javax.activation>
     </properties>
 </project>
