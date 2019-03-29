@@ -616,7 +616,7 @@
         <maven.javadoc.plugin.version>2.1</maven.javadoc.plugin.version>
         <wagon.ssh.version>2.12</wagon.ssh.version>
         <maven.surefire.plugin.version>2.4</maven.surefire.plugin.version>
-        <maven.bundle.plugin.version>1.4.0</maven.bundle.plugin.version>
+        <maven.bundle.plugin.version>4.1.0</maven.bundle.plugin.version>
         <maven.dependency.plugin.version>2.0</maven.dependency.plugin.version>
         <maven.compiler.plugin.version>2.3.1</maven.compiler.plugin.version>
         <maven.surefire.plugin.version>2.3</maven.surefire.plugin.version>
