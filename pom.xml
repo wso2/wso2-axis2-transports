@@ -24,7 +24,7 @@
     </parent>
     <groupId>org.apache.axis2.transport</groupId>
     <artifactId>axis2-transports</artifactId>
-    <version>2.0.0-wso2v32-SNAPSHOT</version>
+    <version>2.0.0-wso2v34-SNAPSHOT</version>
     <packaging>pom</packaging>
     <name>Apache Axis2 Transport</name>
     <inceptionYear>2004</inceptionYear>
@@ -609,7 +609,7 @@
         </pluginManagement>
     </build>
     <properties>
-        <axis2.transports.version>2.0.0-wso2v32-SNAPSHOT</axis2.transports.version>
+        <axis2.transports.version>2.0.0-wso2v34-SNAPSHOT</axis2.transports.version>
         <axis2.version>1.6.1-wso2v31</axis2.version>
         <carbon.kernel.version>4.4.37</carbon.kernel.version>
         <imp.pkg.version.axis2>[1.6.1, 1.7.0)</imp.pkg.version.axis2>
