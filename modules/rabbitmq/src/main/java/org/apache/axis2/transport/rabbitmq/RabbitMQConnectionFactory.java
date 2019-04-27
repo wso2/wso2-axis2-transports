@@ -36,6 +36,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.wso2.securevault.SecretResolver;
 import org.wso2.securevault.SecureVaultException;
+import org.wso2.securevault.commons.MiscellaneousUtil;
 
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
@@ -113,17 +114,11 @@ public class RabbitMQConnectionFactory {
             OMElement paramElement = p.getParameterElement();
             String propertyValue = p.getValue().toString();
             if (paramElement != null) {
-                OMAttribute attribute = paramElement.getAttribute(
-                        new QName(RabbitMQConstants.SECURE_VAULT_NAMESPACE, RabbitMQConstants.SECRET_ALIAS_ATTRIBUTE));
-                if (attribute != null && attribute.getAttributeValue() != null
-                    && !attribute.getAttributeValue().isEmpty()) {
-                    if (secretResolver == null) {
-                        throw new SecureVaultException("Axis2 Secret Resolver is null. Cannot resolve encrypted entry for " + p.getName());
-                    }
-                    if (secretResolver.isTokenProtected(attribute.getAttributeValue())) {
-                        propertyValue = secretResolver.resolve(attribute.getAttributeValue());
-                    }
+                if (secretResolver == null) {
+                    throw new SecureVaultException("Axis2 Secret Resolver is null. Cannot resolve encrypted entry for " + p.getName());
                 }
+                propertyValue = MiscellaneousUtil.resolve(paramElement, secretResolver);
+
             }
             parameters.put(p.getName(), propertyValue);
         }
