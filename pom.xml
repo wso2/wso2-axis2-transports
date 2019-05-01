@@ -626,7 +626,7 @@
         <rabbitmq.orbit.version>3.6.6.wso2v1</rabbitmq.orbit.version>
         <jsmpp-version>2.0.1</jsmpp-version>
         <slf4j-version>1.7.25</slf4j-version>
-        <paho.version>1.2.0</paho.version>
+        <paho.version>1.2.1</paho.version>
         <mockito.version>1.9.5</mockito.version>
         <powermock.version>1.7.1</powermock.version>
         <junit.version>4.8.2</junit.version>
