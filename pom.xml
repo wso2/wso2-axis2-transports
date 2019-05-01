@@ -20,7 +20,7 @@
     <parent>
         <groupId>org.wso2</groupId>
         <artifactId>wso2</artifactId>
-        <version>1</version>
+        <version>5</version>
     </parent>
     <groupId>org.apache.axis2.transport</groupId>
     <artifactId>axis2-transports</artifactId>
