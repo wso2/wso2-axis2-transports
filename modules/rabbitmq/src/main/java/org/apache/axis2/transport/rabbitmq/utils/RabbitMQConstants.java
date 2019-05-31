@@ -52,6 +52,7 @@ public class RabbitMQConstants {
     public static final String USER_ID = "rabbitmq.message.user.id";
     public static final String APP_ID = "rabbitmq.message.app.id";
     public static final String CLUSTER_ID = "rabbitmq.message.cluster.id";
+    public static final String MSG_PRIORITY = "rabbitmq.message.priority";
 
     public static final String REPLY_TO_NAME = "rabbitmq.replyto.name";
     public static final String REPLY_TO_TIMEOUT = "rabbitmq.replyto.timeout";
@@ -82,6 +83,7 @@ public class RabbitMQConstants {
     public static final String QUEUE_AUTO_ACK = "rabbitmq.queue.auto.ack";
     public static final String QUEUE_ROUTING_KEY = "rabbitmq.queue.routing.key";
     public static final String QUEUE_DELIVERY_MODE = "rabbitmq.queue.delivery.mode"; // 1=NonPersistent , 2=Persistent
+    public static final String QUEUE_OPTIONAL_ARG_PREFIX = "rabbitmq.queue.optional.";
 
     public static final String CONSUMER_QOS = "rabbitmq.channel.consumer.qos";
     public static final String CONSUMER_TAG = "rabbitmq.consumer.tag";

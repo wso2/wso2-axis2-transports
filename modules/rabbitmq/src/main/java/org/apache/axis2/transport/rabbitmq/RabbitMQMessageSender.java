@@ -303,6 +303,9 @@ public class RabbitMQMessageSender {
         if (message.getCluster_id() != null) {
             builder.clusterId(message.getCluster_id());
         }
+        if (message.getPriority() != null) {
+            builder.priority(message.getPriority());
+        }
 
         builder.messageId(message.getMessageId());
         builder.contentType(message.getContentType());
