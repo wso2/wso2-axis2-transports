@@ -135,7 +135,7 @@ public class JMSConnectionFactoryManager {
     public JMSConnectionFactory getJMSConnectionFactory(Map<String,String> props) {
         for (JMSConnectionFactory cf : connectionFactories.values()) {
             Map<String,String> cfProperties = cf.getParameters();
-
+            
             if (equals(props.get(JMSConstants.PARAM_CONFAC_JNDI_NAME),
                 cfProperties.get(JMSConstants.PARAM_CONFAC_JNDI_NAME))
                 &&
@@ -155,7 +155,13 @@ public class JMSConnectionFactoryManager {
                     cfProperties.get(Context.SECURITY_PRINCIPAL))
                 &&
                 equals(props.get(Context.SECURITY_CREDENTIALS),
-                    cfProperties.get(Context.SECURITY_CREDENTIALS))) {
+                    cfProperties.get(Context.SECURITY_CREDENTIALS))
+                &&
+                equals(props.get(JMSConstants.PARAM_JMS_USERNAME),
+                    cfProperties.get(JMSConstants.PARAM_JMS_USERNAME))
+                &&
+                equals(props.get(JMSConstants.PARAM_JMS_PASSWORD),
+                    cfProperties.get(JMSConstants.PARAM_JMS_PASSWORD))) {
                 return cf;
             }
         }
