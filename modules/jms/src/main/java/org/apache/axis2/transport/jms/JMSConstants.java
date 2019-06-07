@@ -333,6 +333,11 @@ public class JMSConstants {
       * */
      public static final String QUEUE_PREFIX = "queue.";
 
+    /**
+     *  The content type of a receiving payload
+     */
+     public static final String CONTENT_TYPE = "ContentType";
+
      /**
       * Andes Naming Factory
       * */
