@@ -25,6 +25,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.wso2.securevault.SecretResolver;
 import org.wso2.securevault.SecureVaultException;
+import org.wso2.securevault.commons.MiscellaneousUtil;
 
 import javax.jms.Connection;
 import javax.jms.ConnectionFactory;
@@ -136,17 +137,11 @@ public class JMSConnectionFactory {
             OMElement paramElement = param.getParameterElement();
             String propertyValue = param.getValue().toString();
             if (paramElement != null) {
-                OMAttribute attribute = paramElement.getAttribute(JMSConstants.ALIAS_QNAME);
-                if (attribute != null && attribute.getAttributeValue() != null
-                        && !attribute.getAttributeValue().isEmpty()) {
-                    if (secretResolver == null) {
-                        throw new SecureVaultException("Axis2 Secret Resolver is null. "
-                                + "Cannot resolve encrypted entry for " + param.getName());
-                    }
-                    if (secretResolver.isTokenProtected(attribute.getAttributeValue())) {
-                        propertyValue = secretResolver.resolve(attribute.getAttributeValue());
-                    }
+                if (secretResolver == null) {
+                    throw new SecureVaultException("Cannot resolve secret password because axis2 secret resolver " +
+                                                   "is null");
                 }
+                propertyValue = MiscellaneousUtil.resolve(paramElement, secretResolver);
             }
             parameters.put(param.getName(), propertyValue);
         }
