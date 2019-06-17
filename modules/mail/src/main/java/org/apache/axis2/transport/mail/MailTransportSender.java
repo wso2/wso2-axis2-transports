@@ -256,6 +256,7 @@ public class MailTransportSender extends AbstractTransportSender
                     messageFormatter.getClass().getSimpleName());
         }
 
+        Thread.currentThread().setContextClassLoader(javax.mail.Message.class.getClassLoader());
         WSMimeMessage message = null;
         Map trpHeaders = (Map) msgContext.getProperty(MessageContext.TRANSPORT_HEADERS);
         if (trpHeaders != null
@@ -276,7 +277,6 @@ public class MailTransportSender extends AbstractTransportSender
                     return new PasswordAuthentication(userName, password);
                 }
             });
-
             message = new WSMimeMessage(sessionCurrent, (String) trpHeaders.get(MailConstants.MAIL_HEADER_FROM));
         } else if (outInfo.getFromAddress() != null) {
             message = new WSMimeMessage(session, outInfo.getFromAddress().getAddress());
