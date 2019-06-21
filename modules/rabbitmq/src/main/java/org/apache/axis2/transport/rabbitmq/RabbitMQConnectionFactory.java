@@ -419,6 +419,15 @@ public class RabbitMQConnectionFactory {
         return retryCount;
     }
 
+    public DualChannelPool getDualChannelPool() {
+        return dualChannelPool;
+    }
+
+    public void resetDualChannelPool() {
+        dualChannelPool.clear();
+        dualChannelPool = null;
+    }
+
     /**
      * Stop all the connections in this connection factory
      * Stop the executor service

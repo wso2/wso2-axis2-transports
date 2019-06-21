@@ -274,7 +274,11 @@ public class RabbitMQRPCMessageSender {
 
         if (queueAutoDeclare && !RabbitMQUtils.isQueueAvailable(dualChannel.getChannel(), replyToQueue)) {
             log.info("Reply-to queue : " + replyToQueue + " not available, hence creating a new one");
-            RabbitMQUtils.declareQueue(dualChannel, replyToQueue, epProperties);
+            DualChannelPool dualChannelPool = connectionFactory.getDualChannelPool();
+            if (dualChannelPool != null) {
+                connectionFactory.resetDualChannelPool();
+                throw new AxisRabbitMQException("Connection pool is expired.");
+            }
         }
 
         int timeout = RabbitMQConstants.DEFAULT_REPLY_TO_TIMEOUT;
