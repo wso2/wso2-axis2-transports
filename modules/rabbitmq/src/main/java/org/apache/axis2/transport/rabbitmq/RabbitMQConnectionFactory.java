@@ -19,8 +19,10 @@
 package org.apache.axis2.transport.rabbitmq;
 
 import com.rabbitmq.client.Address;
+import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
+import com.rabbitmq.client.QueueingConsumer;
 import org.apache.axiom.om.OMAttribute;
 import org.apache.axiom.om.OMElement;
 import org.apache.axis2.AxisFault;
@@ -384,19 +386,24 @@ public class RabbitMQConnectionFactory {
     }
 
     public void initializeConnectionPool(boolean isDual) {
-        if (isDual) {
-            if (dualChannelPool == null) {
-                log.info("Initializing dual channel pool of " + connectionPoolSize);
-                dualChannelPool = new DualChannelPool(this, connectionPoolSize);
-            }
-        } else if (rmqChannelPool == null) {
+
+        if (!isDual && rmqChannelPool == null) {
             log.info("Initializing channel pool of " + connectionPoolSize);
             rmqChannelPool = new RMQChannelPool(this, connectionPoolSize);
         }
     }
 
     public DualChannel getRPCChannel() throws InterruptedException {
-        return dualChannelPool.take();
+        try {
+            //creating a dual channel for each message
+            Connection connection = this.createConnection();
+            Channel channel = connection.createChannel();
+            QueueingConsumer consumer = new QueueingConsumer(channel);
+            String replyQueueName = channel.queueDeclare().getQueue();
+            return new DualChannel(connection, channel, consumer, replyQueueName);
+        } catch (IOException e) {
+            throw new InterruptedException("Error creating dual channel: " + e.getLocalizedMessage());
+        }
     }
 
     public void pushRPCChannel(DualChannel dualChannel) throws InterruptedException {
@@ -417,15 +424,6 @@ public class RabbitMQConnectionFactory {
 
     public int getRetryCount() {
         return retryCount;
-    }
-
-    public DualChannelPool getDualChannelPool() {
-        return dualChannelPool;
-    }
-
-    public void resetDualChannelPool() {
-        dualChannelPool.clear();
-        dualChannelPool = null;
     }
 
     /**

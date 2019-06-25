@@ -68,7 +68,6 @@ public class RabbitMQRPCMessageSender {
 
         this.targetEPR = targetEPR;
         this.connectionFactory = connectionFactory;
-
         try {
             dualChannel = connectionFactory.getRPCChannel();
         } catch (InterruptedException e) {
@@ -87,13 +86,8 @@ public class RabbitMQRPCMessageSender {
 
         publish(message, msgContext);
         RabbitMQMessage responseMessage = processResponse(message.getCorrelationId());
-
-        //release the dual channel to the pool
-        try {
-            connectionFactory.pushRPCChannel(dualChannel);
-        } catch (InterruptedException e) {
-            handleException(e.getMessage());
-        }
+        //removing the temporary queue after consuming the message
+        dualChannel.getChannel().queueDelete(dualChannel.getReplyToQueue());
 
         return responseMessage;
     }
@@ -274,10 +268,12 @@ public class RabbitMQRPCMessageSender {
 
         if (queueAutoDeclare && !RabbitMQUtils.isQueueAvailable(dualChannel.getChannel(), replyToQueue)) {
             log.info("Reply-to queue : " + replyToQueue + " not available, hence creating a new one");
-            DualChannelPool dualChannelPool = connectionFactory.getDualChannelPool();
-            if (dualChannelPool != null) {
-                connectionFactory.resetDualChannelPool();
-                throw new AxisRabbitMQException("Connection pool is expired.");
+            try {
+                dualChannel = connectionFactory.getRPCChannel();
+                consumer = dualChannel.getConsumer();
+                replyToQueue = dualChannel.getReplyToQueue();
+            } catch (InterruptedException e) {
+                handleException("Error while getting RPC channel", e);
             }
         }
 
