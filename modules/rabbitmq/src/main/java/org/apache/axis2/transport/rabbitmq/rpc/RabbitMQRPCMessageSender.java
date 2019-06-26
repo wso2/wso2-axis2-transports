@@ -88,6 +88,8 @@ public class RabbitMQRPCMessageSender {
         RabbitMQMessage responseMessage = processResponse(message.getCorrelationId());
         //removing the temporary queue after consuming the message
         dualChannel.getChannel().queueDelete(dualChannel.getReplyToQueue());
+        //closing the channel and connection
+        dualChannel.closeConnection();
 
         return responseMessage;
     }
