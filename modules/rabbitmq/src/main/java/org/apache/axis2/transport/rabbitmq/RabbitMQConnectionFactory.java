@@ -395,7 +395,7 @@ public class RabbitMQConnectionFactory {
 
     public DualChannel getRPCChannel() throws InterruptedException {
         try {
-            //creating a dual channel for each message
+            //creating a new connection for each message
             Connection connection = this.createConnection();
             Channel channel = connection.createChannel();
             QueueingConsumer consumer = new QueueingConsumer(channel);
