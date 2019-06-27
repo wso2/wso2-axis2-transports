@@ -159,6 +159,35 @@ public class RabbitMQUtils {
         }
     }
 
+    /**
+     * Sets optional arguments that can be defined at the queue creation
+     *
+     * @param properties amqp properties defined in the connection string
+     * @return map of optional arguments
+     */
+    private static Map<String, Object> setOptionalArguments(Hashtable<String, String> properties) {
+        Map<String, Object> optionalArgs = new HashMap<>();
+        for (Map.Entry<String, String> entry : properties.entrySet()) {
+            String propertyKey = entry.getKey();
+            if (propertyKey.startsWith(RabbitMQConstants.QUEUE_OPTIONAL_ARG_PREFIX)) {
+                String optionalArgName = propertyKey.substring(RabbitMQConstants.QUEUE_OPTIONAL_ARG_PREFIX.length());
+                String optionalArgValue = entry.getValue();
+                //check whether a boolean argument
+                if ("true".equals(optionalArgValue) || "false".equals(optionalArgValue)) {
+                    optionalArgs.put(optionalArgName, Boolean.parseBoolean(optionalArgValue));
+                } else {
+                    try {
+                        //check whether a integer argument
+                        optionalArgs.put(optionalArgName, Integer.parseInt(optionalArgValue));
+                    } catch (NumberFormatException e) {
+                        optionalArgs.put(optionalArgName, optionalArgValue);
+                    }
+                }
+            }
+        }
+        return optionalArgs.size() == 0 ? null : optionalArgs;
+    }
+
     public static void declareQueue(RMQChannel rmqChannel, String queueName, boolean isDurable,
                                     boolean isExclusive, boolean isAutoDelete) throws IOException {
 
@@ -186,8 +215,9 @@ public class RabbitMQUtils {
 
         if (!queueAvailable) {
             try {
-                rmqChannel.getChannel().queueDeclare(queueName, isDurableQueue(properties),
-                        isExclusiveQueue(properties), isAutoDeleteQueue(properties), null);
+                rmqChannel.getChannel()
+                        .queueDeclare(queueName, isDurableQueue(properties), isExclusiveQueue(properties),
+                                isAutoDeleteQueue(properties), setOptionalArguments(properties));
 
             } catch (IOException e) {
                 handleException("Error while creating queue: " + queueName, e);
@@ -210,8 +240,8 @@ public class RabbitMQUtils {
 
         if (!queueAvailable) {
             try {
-                channel.queueDeclare(queueName, isDurableQueue(properties),
-                                                     isExclusiveQueue(properties), isAutoDeleteQueue(properties), null);
+                channel.queueDeclare(queueName, isDurableQueue(properties), isExclusiveQueue(properties),
+                        isAutoDeleteQueue(properties), setOptionalArguments(properties));
 
             } catch (IOException e) {
                 handleException("Error while creating queue: " + queueName, e);

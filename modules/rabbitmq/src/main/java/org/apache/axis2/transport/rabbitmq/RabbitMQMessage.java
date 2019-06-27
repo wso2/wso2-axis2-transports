@@ -41,6 +41,7 @@ public class RabbitMQMessage {
     private Map<String, Object> headers;
     private byte body[];
     private long deliveryTag;
+    private Integer priority;
 
     public RabbitMQMessage() {
 
@@ -67,6 +68,7 @@ public class RabbitMQMessage {
         this.setCluster_id((String) msgCtx.getProperty(RabbitMQConstants.CLUSTER_ID));
         this.contentEncoding = (String) msgCtx.getProperty("CHARACTER_SET_ENCODING");
         this.headers = (Map<String, Object>) msgCtx.getProperty(MessageContext.TRANSPORT_HEADERS);
+        this.setPriority((Integer) msgCtx.getProperty(RabbitMQConstants.MSG_PRIORITY));
     }
 
     /**
@@ -269,6 +271,24 @@ public class RabbitMQMessage {
 
     public void setCluster_id(String cluster_id) {
         this.cluster_id = cluster_id;
+    }
+
+    /**
+     * get priority level of a message
+     *
+     * @return priority level
+     */
+    public Integer getPriority() {
+        return priority;
+    }
+
+    /**
+     * sets message priority
+     *
+     * @param priority integer value of the priority level assigned.
+     */
+    public void setPriority(Integer priority) {
+        this.priority = priority;
     }
 
 }
