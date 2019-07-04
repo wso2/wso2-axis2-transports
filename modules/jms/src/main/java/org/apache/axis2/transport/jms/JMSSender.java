@@ -107,7 +107,7 @@ public class JMSSender extends AbstractTransportSender implements ManagementSupp
         if (trpInfo.getProperties() != null) {
             String jmsConnectionFactoryName = props.get(JMSConstants.PARAM_JMS_CONFAC);
 			
-            log.debug("Connection factory address: " + trpInfo.getTargetEPR());
+            log.debug("Using Connection factory:" + jmsConnectionFactoryName);
             if (jmsConnectionFactoryName != null) {
             	log.debug(JMSConstants.PARAM_JMS_CONFAC + " is used");
 
@@ -115,9 +115,8 @@ public class JMSSender extends AbstractTransportSender implements ManagementSupp
             } else {
                 JMSConnectionFactory fac = connFacManager.getJMSConnectionFactory(props);
                 if (fac == null) {
-                	log.debug("Connection factory has been initialized");
-
                     fac = connFacManager.getJMSConnectionFactory(JMSConstants.DEFAULT_CONFAC_NAME);
+		    log.debug("Connection factory has been initialized");
                 } else {
                 	log.debug("Connection factory has been re-used");
                 }
