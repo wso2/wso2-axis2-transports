@@ -101,15 +101,15 @@ public class JMSSender extends AbstractTransportSender implements ManagementSupp
 			
             log.debug("Connection factory address: " + trpInfo.getTargetEPR());
             if (jmsConnectionFactoryName != null) {
-            	log.debug(JMSConstants.PARAM_JMS_CONFAC + " is used");
+            	log.debug("Using Connection factory:" + jmsConnectionFactoryName);
 
                 return connFacManager.getJMSConnectionFactory(jmsConnectionFactoryName);
             } else {
                 JMSConnectionFactory fac = connFacManager.getJMSConnectionFactory(props);
                 if (fac == null) {
+                    fac = connFacManager.getJMSConnectionFactory(JMSConstants.DEFAULT_CONFAC_NAME);
                 	log.debug("Connection factory has been initialized");
 
-                    fac = connFacManager.getJMSConnectionFactory(JMSConstants.DEFAULT_CONFAC_NAME);
                 } else {
                 	log.debug("Connection factory has been re-used");
                 }
