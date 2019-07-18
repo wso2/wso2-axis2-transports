@@ -90,7 +90,8 @@ public class JMSConnectionFactory {
         try {
             pi.deserializeParameters((OMElement) parameter.getValue());
         } catch (AxisFault axisFault) {
-            handleException("Error reading parameters for JMS connection factory" + name, axisFault);
+            handleException("Error reading parameters for JMS connection factory "
+                    + JMSUtils.maskURLPasswordAndCredentials(name), axisFault);
         }
 
         for (Object o : pi.getParameters()) {
@@ -107,13 +108,14 @@ public class JMSConnectionFactory {
                 sharedDestination = JMSUtils.lookup(context, Destination.class,
                         parameters.get(JMSConstants.PARAM_DESTINATION));
             }
-            log.info("JMS ConnectionFactory : " + name + " initialized");
+            log.info("JMS ConnectionFactory : " + JMSUtils.maskURLPasswordAndCredentials(name) + " initialized");
 
         } catch (NamingException e) {
-            throw new AxisJMSException("Cannot acquire JNDI context, JMS Connection factory : " +
-                    parameters.get(JMSConstants.PARAM_CONFAC_JNDI_NAME) + " or default destination : " +
-                    parameters.get(JMSConstants.PARAM_DESTINATION) +
-                    " for JMS CF : " + name + " using : " + JMSUtils.maskAxis2ConfigSensitiveParameters(parameters), e);
+            throw new AxisJMSException("Cannot acquire JNDI context, JMS Connection factory : "
+                    + parameters.get(JMSConstants.PARAM_CONFAC_JNDI_NAME)
+                    + " or default destination : " + parameters.get(JMSConstants.PARAM_DESTINATION)
+                    + " for JMS CF : " + JMSUtils.maskURLPasswordAndCredentials(name) + " using : "
+                    + JMSUtils.maskAxis2ConfigSensitiveParameters(parameters), e);
         }
         setMaxSharedJMSConnectionsCount();
     }
@@ -130,7 +132,8 @@ public class JMSConnectionFactory {
         try {
             pi.deserializeParameters((OMElement) parameter.getValue());
         } catch (AxisFault axisFault) {
-            handleException("Error reading parameters for JMS connection factory" + name, axisFault);
+            handleException("Error reading parameters for JMS connection factory "
+                    + JMSUtils.maskURLPasswordAndCredentials(name), axisFault);
         }
 
         for (Parameter param : pi.getParameters()) {
@@ -175,13 +178,14 @@ public class JMSConnectionFactory {
                 sharedDestination = JMSUtils.lookup(context, Destination.class,
                     parameters.get(JMSConstants.PARAM_DESTINATION));
             }
-            log.info("JMS ConnectionFactory : " + name + " initialized");
+            log.info("JMS ConnectionFactory : " + JMSUtils.maskURLPasswordAndCredentials(name) + " initialized");
 
         } catch (NamingException e) {
-            throw new AxisJMSException("Cannot acquire JNDI context, JMS Connection factory : " +
-                parameters.get(JMSConstants.PARAM_CONFAC_JNDI_NAME) + " or default destination : " +
-                parameters.get(JMSConstants.PARAM_DESTINATION) +
-                " for JMS CF : " + name + " using : " + JMSUtils.maskAxis2ConfigSensitiveParameters(parameters), e);
+            throw new AxisJMSException("Cannot acquire JNDI context, JMS Connection factory : "
+                    + parameters.get(JMSConstants.PARAM_CONFAC_JNDI_NAME) + " or default destination : "
+                    + parameters.get(JMSConstants.PARAM_DESTINATION) + " for JMS CF : "
+                    + JMSUtils.maskURLPasswordAndCredentials(name) + " using : "
+                    + JMSUtils.maskAxis2ConfigSensitiveParameters(parameters), e);
         }
     }
 
@@ -204,7 +208,8 @@ public class JMSConnectionFactory {
         } else if ("consumer".equals(val)) {
             this.cacheLevel = JMSConstants.CACHE_CONSUMER;
         } else if (val != null) {
-            throw new AxisJMSException("Invalid cache level : " + val + " for JMS CF : " + name);
+            throw new AxisJMSException("Invalid cache level : " + val + " for JMS CF : "
+                    + JMSUtils.maskURLPasswordAndCredentials(name));
         }
     }
 
@@ -232,7 +237,7 @@ public class JMSConnectionFactory {
             try {
             	sharedConnection.close();
             } catch (JMSException e) {
-                log.warn("Error shutting down connection factory : " + name, e);
+                log.warn("Error shutting down connection factory : " + JMSUtils.maskURLPasswordAndCredentials(name), e);
             }
         }
 
@@ -240,7 +245,8 @@ public class JMSConnectionFactory {
             try {
                 context.close();
             } catch (NamingException e) {
-                log.warn("Error while closing the InitialContext of factory : " + name, e);
+                log.warn("Error while closing the InitialContext of factory : "
+                        + JMSUtils.maskURLPasswordAndCredentials(name), e);
             }
         }
     }
@@ -373,8 +379,9 @@ public class JMSConnectionFactory {
             } else if ("topic".equalsIgnoreCase(parameters.get(JMSConstants.PARAM_CONFAC_TYPE))) {
                 return false;
             } else {
-                throw new AxisJMSException("Invalid " + JMSConstants.PARAM_CONFAC_TYPE + " : " +
-                    parameters.get(JMSConstants.PARAM_CONFAC_TYPE) + " for JMS CF : " + name);
+                throw new AxisJMSException("Invalid " + JMSConstants.PARAM_CONFAC_TYPE + " : "
+                        + parameters.get(JMSConstants.PARAM_CONFAC_TYPE) + " for JMS CF : "
+                        + JMSUtils.maskURLPasswordAndCredentials(name));
             }
         } else {
             if ("queue".equalsIgnoreCase(parameters.get(JMSConstants.PARAM_DEST_TYPE))) {
@@ -382,8 +389,9 @@ public class JMSConnectionFactory {
             } else if ("topic".equalsIgnoreCase(parameters.get(JMSConstants.PARAM_DEST_TYPE))) {
                 return false;
             } else {
-                throw new AxisJMSException("Invalid " + JMSConstants.PARAM_DEST_TYPE + " : " +
-                    parameters.get(JMSConstants.PARAM_DEST_TYPE) + " for JMS CF : " + name);
+                throw new AxisJMSException("Invalid " + JMSConstants.PARAM_DEST_TYPE + " : "
+                        + parameters.get(JMSConstants.PARAM_DEST_TYPE)
+                        + " for JMS CF : " + JMSUtils.maskURLPasswordAndCredentials(name));
             }
         }
     }
@@ -430,12 +438,13 @@ public class JMSConnectionFactory {
                 jmsSpecVersion(), isQueue(), isDurable(), getClientId(), isSharedSubscription());
 
             if (log.isDebugEnabled()) {
-                log.debug("New JMS Connection from JMS CF : " + name + " created");
+                log.debug("New JMS Connection from JMS CF : " + JMSUtils.maskURLPasswordAndCredentials(name)
+                        + " created");
             }
 
         } catch (JMSException e) {
-            handleException("Error acquiring a Connection from the JMS CF : " + name +
-                " using properties : " + JMSUtils.maskAxis2ConfigSensitiveParameters(parameters), e);
+            handleException("Error acquiring a Connection from the JMS CF : " + JMSUtils.maskURLPasswordAndCredentials(name)
+                    + " using properties : " + JMSUtils.maskAxis2ConfigSensitiveParameters(parameters), e);
         }
         return connection;
     }
@@ -448,7 +457,7 @@ public class JMSConnectionFactory {
     private Session createSession(Connection connection) {
         try {
             if (log.isDebugEnabled()) {
-                log.debug("Creating a new JMS Session from JMS CF : " + name);
+                log.debug("Creating a new JMS Session from JMS CF : " + JMSUtils.maskURLPasswordAndCredentials(name));
             }
             return JMSUtils.createSession(
                 connection, isSessionTransacted(), Session.AUTO_ACKNOWLEDGE, jmsSpecVersion(), isQueue());
@@ -459,7 +468,8 @@ public class JMSConnectionFactory {
                 return JMSUtils.createSession(getConnection(), isSessionTransacted(), Session.AUTO_ACKNOWLEDGE,
                         jmsSpecVersion(), isQueue());
             } catch (JMSException e1) {
-                handleException("Error creating JMS session from JMS CF : " + name, e);
+                handleException("Error creating JMS session from JMS CF : "
+                        + JMSUtils.maskURLPasswordAndCredentials(name), e);
             }
             log.info("Detected a stale connection. Hence refreshing the connection cache map.");
         }
@@ -475,14 +485,16 @@ public class JMSConnectionFactory {
     private MessageProducer createProducer(Session session, Destination destination) {
         try {
             if (log.isDebugEnabled()) {
-                log.debug("Creating a new JMS MessageProducer from JMS CF : " + name);
+                log.debug("Creating a new JMS MessageProducer from JMS CF : "
+                        + JMSUtils.maskURLPasswordAndCredentials(name));
             }
 
             return JMSUtils.createProducer(
                 session, destination, isQueue(), jmsSpecVersion());
 
         } catch (JMSException e) {
-            handleException("Error creating JMS producer from JMS CF : " + name,e);
+            handleException("Error creating JMS producer from JMS CF : "
+                    + JMSUtils.maskURLPasswordAndCredentials(name), e);
         }
         return null;
     }
@@ -538,8 +550,8 @@ public class JMSConnectionFactory {
         if (sharedProducer == null) {
             sharedProducer = createProducer(getSharedSession(), null);
             if (log.isDebugEnabled()) {
-                log.debug("Created shared JMS MessageConsumer with no destination specified, for JMS CF : " + name
-                        + " , with producer caching enabled");
+                log.debug("Created shared JMS MessageConsumer with no destination specified, for JMS CF : "
+                        + JMSUtils.maskURLPasswordAndCredentials(name) + " , with producer caching enabled");
             }
         }
         return sharedProducer;
@@ -572,7 +584,7 @@ public class JMSConnectionFactory {
         if (sharedSession == null) {
             sharedSession = createSession(getSharedConnection());
             if (log.isDebugEnabled()) {
-                log.debug("Created shared JMS Session for JMS CF : " + name);
+                log.debug("Created shared JMS Session for JMS CF : " + JMSUtils.maskURLPasswordAndCredentials(name));
             }
         }
         return sharedSession;
@@ -586,7 +598,8 @@ public class JMSConnectionFactory {
         if (sharedProducer == null) {
             sharedProducer = createProducer(getSharedSession(), sharedDestination);
             if (log.isDebugEnabled()) {
-                log.debug("Created shared JMS MessageConsumer for JMS CF : " + name);
+                log.debug("Created shared JMS MessageConsumer for JMS CF : "
+                        + JMSUtils.maskURLPasswordAndCredentials(name));
             }
         }
         return sharedProducer;
