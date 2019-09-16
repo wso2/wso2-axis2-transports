@@ -417,4 +417,16 @@ public class JMSConstants {
      * Qualified name for SecureVault aliases.
      */
     public static final QName ALIAS_QNAME = new QName("http://org.wso2.securevault/configuration", "secretAlias");
+
+    /** Is Throttling enabled or not*/
+    public static final String JMS_PROXY_THROTTLE_ENABLED = "jms.proxy.throttle.enabled";
+    /** Throttling mode specified */
+    public static final String JMS_PROXY_THROTTLE_MODE = "jms.proxy.throttle.mode";
+    /** Throttling limit of messages per minute */
+    public static final String JMS_PROXY_THROTTLE_PER_MIN = "jms.proxy.throttle.limitPerMinute";
+    /** Batch Throttling constant */
+    public static final String JMS_PROXY_BATCH_THROTTLE = "batch";
+    /** Fixed Interval Throttlinh constant */
+    public static final String JMS_PROXY_FIXED_INTERVAL_THROTTLE = "fixed-interval";
+
 }

@@ -21,6 +21,7 @@ package org.apache.axis2.transport.jms;
 
 import org.apache.axis2.transport.base.BaseConstants;
 import org.apache.axis2.transport.base.threads.WorkerPool;
+import org.apache.commons.lang.time.DateUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -185,6 +186,13 @@ public class ServiceTaskManager {
 
     /** Is a shard topic subscription (JMS 2.0 feature) **/
     private boolean sharedSubscription = false;
+
+    // Checking whether throttling is enabled for JMS Proxy, By default there is no throttling
+    private boolean isThrottlingEnabled = false;
+    // Checking whether throttling is Fixed-Interval mode or Batch mode for JMS Proxy, By default Fixed-Interval is enabled
+    private String throttleMode = JMSConstants.JMS_PROXY_FIXED_INTERVAL_THROTTLE;
+    // Throttle limit if throttling is enabled. 1 message per second
+    private int throttleLimitPerMin = 60;
 
      /**
      * Start or re-start the Task Manager by shutting down any existing worker tasks and
@@ -449,6 +457,9 @@ public class ServiceTaskManager {
             activeTaskCount.getAndIncrement();
             int messageCount = 0;
             long retryDurationOnConsumerFailure = consumeErrorRetryDelay;
+            int consumedMessageCountPerMin = 0;
+            long throttleSleepDelay = DateUtils.MILLIS_PER_MINUTE/throttleLimitPerMin;
+            long consumptionStartedTime = 0;
 
             if (log.isDebugEnabled()) {
                 log.debug("New poll task starting : thread id = " + Thread.currentThread().getId());
@@ -525,13 +536,65 @@ public class ServiceTaskManager {
                         scheduleNewTaskIfAppropriate();
                         handleMessage(message, ut);
 
+                        if (isThrottlingEnabled) {
+                            switch (throttleMode) {
+                                case JMSConstants.JMS_PROXY_FIXED_INTERVAL_THROTTLE: {
+                                    if (log.isDebugEnabled()) {
+                                        log.debug("Sleeping " + throttleSleepDelay
+                                                + " ms with Fixed-Interval throttling for service :" + serviceName);
+                                    }
+                                    Thread.sleep(throttleSleepDelay);
+                                    break;
+                                }
+
+                                case JMSConstants.JMS_PROXY_BATCH_THROTTLE: {
+                                    if (consumedMessageCountPerMin == 0) {
+                                        consumptionStartedTime = System.currentTimeMillis();
+                                        if (log.isDebugEnabled()) {
+                                            log.debug("Batch throttling started at " + consumptionStartedTime
+                                                    + " for service :" + serviceName);
+                                        }
+                                    }
+
+                                    consumedMessageCountPerMin = consumedMessageCountPerMin + 1;
+
+                                    if (consumedMessageCountPerMin == throttleLimitPerMin) {
+                                        long consumptionDuration = System.currentTimeMillis() - consumptionStartedTime;
+
+                                        if (consumptionDuration < DateUtils.MILLIS_PER_MINUTE) {
+                                            long sleepDuration = DateUtils.MILLIS_PER_MINUTE - consumptionDuration;
+                                            Thread.sleep(sleepDuration);
+                                            if (log.isDebugEnabled()) {
+                                                log.debug("After consuming " + consumedMessageCountPerMin
+                                                        + " per minute, Thread is sleeping for "
+                                                        + sleepDuration + " milli seconds");
+                                            }
+                                        }
+                                        consumedMessageCountPerMin = 0;
+                                    }
+                                    if (log.isDebugEnabled()) {
+                                        log.debug("consumed Message Count per min:  " + consumedMessageCountPerMin);
+                                    }
+                                    break;
+                                }
+
+                                default: {
+                                    throw new AxisJMSException("Invalid Throttling mode " + throttleMode
+                                            + "specified for service : " + serviceName);
+                                }
+                            }
+                        }
+
                     } else {
                         idle = true;
                         idleExecutionCount++;
                     }
                 }
             } catch (AxisJMSException e) {
-                log.error("Error receiving the message.");
+                log.error("Error receiving the message.", e);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                log.error("Error in sleeping with Fixed-Interval throttling", e);
             } finally {
                 log.info("JMS Polling server task stopped for service " + serviceName + " " + this);
                 if (log.isTraceEnabled()) {
@@ -1497,5 +1560,64 @@ public class ServiceTaskManager {
             JMSException jmsException = new JMSException("FORCED CONNECTION RESTART", "FC_ERROR");
             messageListenerTask.onException(jmsException);
         }
+    }
+
+    /**
+     * Check if Throttling is enabled for JMS Proxy
+     *
+     * @return if Throttling is enabled or not
+     */
+    public boolean isThrottlingEnabled() {
+        return isThrottlingEnabled;
+    }
+
+    /**
+     * Set isThrottlingEnabled parameter
+     *
+     * @param throttlingEnabled
+     */
+    public void setThrottlingEnabled(boolean throttlingEnabled) {
+        isThrottlingEnabled = throttlingEnabled;
+        if (isThrottlingEnabled) {
+            log.info("Throttling enabled for the service " + serviceName);
+        }
+    }
+
+    /**
+     * Get the Throttling mode
+     *
+     * @return Throttling mode for JMS Proxy : 'batch' or 'fixed-interval'
+     */
+    public String getThrottleMode() {
+        return throttleMode;
+    }
+
+
+    /**
+     * Set the Throttling mode
+     *
+     * @param throttleMode 'batch' or 'fixed-interval' mode
+     */
+    public void setThrottleMode(String throttleMode) {
+        this.throttleMode = throttleMode;
+    }
+
+    /**
+     * Get the limit limitPerMinute for Throttling
+     *
+     * @return limitPerMinute
+     */
+    public int getThrottleLimitPerMin() {
+        return throttleLimitPerMin;
+    }
+
+    /**
+     * Set the ThrottleLimitPerMin based on the limitPerMin value
+     *
+     * @param throttleLimitPerMin which is the limit of messages to be throttled per minute
+     */
+    public void setThrottleLimitPerMin(int throttleLimitPerMin) {
+        this.throttleLimitPerMin = throttleLimitPerMin;
+        log.info("Throttle limit per minute for the service " + serviceName + " is " + throttleLimitPerMin);
     }
 }
