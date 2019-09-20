@@ -558,7 +558,7 @@ public class ServiceTaskManager {
 
                                     consumedMessageCountPerMin = consumedMessageCountPerMin + 1;
 
-                                    if (consumedMessageCountPerMin == throttleLimitPerMin) {
+                                    if (consumedMessageCountPerMin >= throttleLimitPerMin) {
                                         long consumptionDuration = System.currentTimeMillis() - consumptionStartedTime;
 
                                         if (consumptionDuration < DateUtils.MILLIS_PER_MINUTE) {
@@ -594,7 +594,7 @@ public class ServiceTaskManager {
                 log.error("Error receiving the message.", e);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
-                log.error("Error in sleeping with Fixed-Interval throttling", e);
+                log.error("Error in sleeping with " + throttleMode + " throttling", e);
             } finally {
                 log.info("JMS Polling server task stopped for service " + serviceName + " " + this);
                 if (log.isTraceEnabled()) {
