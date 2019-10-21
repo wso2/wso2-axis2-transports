@@ -94,10 +94,18 @@ public class RabbitMQSender extends AbstractTransportSender {
             RabbitMQMessage message = new RabbitMQMessage(msgContext);
             Hashtable<String, String> epProperties = BaseUtils.getEPRProperties(targetEPR);
 
-            if (!StringUtils.isEmpty(epProperties.get(RabbitMQConstants.REPLY_TO_NAME))) {
+            String replyQueue = epProperties.get(RabbitMQConstants.REPLY_TO_NAME);
+
+            if (!StringUtils.isEmpty(replyQueue)) {
                 // request-response scenario
                 RabbitMQRPCMessageSender sender = new RabbitMQRPCMessageSender(factory, targetEPR, epProperties);
                 RabbitMQMessage responseMessage = sender.send(message, msgContext);
+                // checking the correlation id, to see whether the message is empty or not.
+                if (responseMessage.getCorrelationId() == null) {
+                    throw new AxisFault(
+                            "Response not received to queue named " + replyQueue + " in specified reply to timeout of "
+                                    + epProperties.get(RabbitMQConstants.REPLY_TO_TIMEOUT) + " ms.");
+                }
                 MessageContext responseMsgCtx = createResponseMessageContext(msgContext);
                 RabbitMQUtils.setSOAPEnvelope(responseMessage, responseMsgCtx, responseMessage.getContentType());
                 handleIncomingMessage(responseMsgCtx, RabbitMQUtils.getTransportHeaders(responseMessage),
