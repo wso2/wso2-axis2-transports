@@ -340,13 +340,18 @@ public class JMSSender extends AbstractTransportSender implements ManagementSupp
         }
 
         try {
-            messageSender.send(message, msgCtx);
-            Transaction transaction = (Transaction) msgCtx.getProperty(JMSConstants.JMS_XA_TRANSACTION);
-            if (msgCtx.getTo().toString().contains("transport.jms.TransactionCommand=end")) {
-                commitXATransaction(transaction);
-            } else if (msgCtx.getTo().toString().contains("transport.jms.TransactionCommand=rollback")) {
-                rollbackXATransaction(transaction);
+            if (msgCtx.getProperty(JMSConstants.JMS_XA_TRANSACTION) != null) {
+                messageSender.send(message, msgCtx);
+                Transaction transaction = (Transaction) msgCtx.getProperty(JMSConstants.JMS_XA_TRANSACTION);
+                if (msgCtx.getTo().toString().contains("transport.jms.TransactionCommand=end")) {
+                    commitXATransaction(transaction);
+                } else if (msgCtx.getTo().toString().contains("transport.jms.TransactionCommand=rollback")) {
+                    rollbackXATransaction(transaction);
+                }
+            } else {
+                messageSender.transactionallySend(message, msgCtx);
             }
+
             metrics.incrementMessagesSent(msgCtx);
 
         } catch (AxisJMSException e) {
@@ -354,6 +359,8 @@ public class JMSSender extends AbstractTransportSender implements ManagementSupp
             rollbackIfXATransaction(msgCtx);
             jmsConnectionFactory.clearCache();
             handleException("Error sending JMS message", e);
+        } catch (JMSException e) {
+            handleException("Error sending JMS message to destination", e);
         }
 
         try {
