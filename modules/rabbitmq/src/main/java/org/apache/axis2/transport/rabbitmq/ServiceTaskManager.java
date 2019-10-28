@@ -633,6 +633,9 @@ public class ServiceTaskManager {
                         } else {
                             try {
                                 channel.txRollback();
+                                // According to the spec, rollback doesn't automatically redeliver unacked messages.
+                                // We need to call recover explicitly.
+                                channel.basicRecover();
                             } catch (SocketException exx) {
                                 if (!isServiceTaskManagerActive()) {
                                     throw exx;
