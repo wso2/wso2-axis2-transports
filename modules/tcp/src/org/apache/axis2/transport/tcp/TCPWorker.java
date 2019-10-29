@@ -37,6 +37,8 @@ import java.io.InputStreamReader;
 import java.io.StreamTokenizer;
 import java.net.Socket;
 import java.util.Arrays;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
 
 import javax.xml.parsers.FactoryConfigurationError;
 import javax.xml.stream.XMLStreamException;
@@ -60,6 +62,9 @@ public class TCPWorker implements Runnable {
 		MessageContext msgContext = null;
 		try {
 			msgContext = endpoint.createMessageContext();
+			InetAddress remoteAddress = ((InetSocketAddress) socket.getRemoteSocketAddress()).getAddress();
+			msgContext.setProperty(MessageContext.REMOTE_ADDR, remoteAddress.getHostAddress());
+			msgContext.setProperty(TCPConstants.PARAM_HOST, getHostName(remoteAddress));
 			msgContext.setIncomingTransportName(Constants.TRANSPORT_TCP);
 			TCPOutTransportInfo outInfo = new TCPOutTransportInfo();
 			outInfo.setSocket(socket);
@@ -398,4 +403,36 @@ public class TCPWorker implements Runnable {
             log.error("Error while sending the fault response", e);
         }
     }
+
+	/**
+	 * This method tries to determine the hostname of the given InetAddress without
+	 * triggering a reverse DNS lookup.  {@link java.net.InetAddress#getHostName()}
+	 * triggers a reverse DNS lookup which can be very costly in cases where reverse
+	 * DNS fails. Tries to parse a symbolic hostname from {@link java.net.InetAddress#toString()},
+	 * which is documented to return a String of the form "hostname / literal IP address"
+	 * with 'hostname' blank if not already computed & stored in <code>address</code>.
+	 * <p/>
+	 * If the hostname cannot be determined from InetAddress.toString(),
+	 * the value of {@link java.net.InetAddress#getHostAddress()} is returned.
+	 *
+	 * @param address The InetAddress whose hostname has to be determined
+	 * @return hostsname, if it can be determined. hostaddress, if not.
+	 */
+	private static String getHostName(InetAddress address) {
+		String result;
+		String hostAddress = address.getHostAddress();
+		String inetAddress = address.toString();
+		int index1 = inetAddress.lastIndexOf('/');
+		int index2 = inetAddress.indexOf(hostAddress);
+		if (index2 == index1 + 1) {
+			if (index1 == 0) {
+				result = hostAddress;
+			} else {
+				result = inetAddress.substring(0, index1);
+			}
+		} else {
+			result = hostAddress;
+		}
+		return result;
+	}
 }
