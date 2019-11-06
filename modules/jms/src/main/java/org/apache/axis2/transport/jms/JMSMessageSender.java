@@ -64,6 +64,9 @@ public class JMSMessageSender {
     private String jmsSpecVersion = null;
     /** Are we sending to a Queue ? */
     private Boolean isQueue = null;
+    private Boolean jtaCommit;
+    private Boolean rollbackOnly;
+    private boolean sendingSuccessful;
 
     /**
      +     * Boolean to track if producer caching will be honoured.
@@ -155,18 +158,18 @@ public class JMSMessageSender {
     }
 
     /**
-     * Perform actual send of JMS message to the Destination selected
+     * Perform actual send of JMS message to the Destination selected.
      *
      * @param message the JMS message
      * @param msgCtx the Axis2 MessageContext
      */
-    public void send(Message message, MessageContext msgCtx) {
+    public void send(Message message, MessageContext msgCtx) throws JMSException {
 
-        Boolean jtaCommit    = getBooleanProperty(msgCtx, BaseConstants.JTA_COMMIT_AFTER_SEND);
-        Boolean rollbackOnly = getBooleanProperty(msgCtx, BaseConstants.SET_ROLLBACK_ONLY);
+        jtaCommit = getBooleanProperty(msgCtx, BaseConstants.JTA_COMMIT_AFTER_SEND);
+        rollbackOnly = getBooleanProperty(msgCtx, BaseConstants.SET_ROLLBACK_ONLY);
         String deliveryMode = getStringProperty(msgCtx, JMSConstants.JMS_DELIVERY_MODE);
-        Integer priority     = getIntegerProperty(msgCtx, JMSConstants.JMS_PRIORITY);
-        Integer timeToLive   = getIntegerProperty(msgCtx, JMSConstants.JMS_TIME_TO_LIVE);
+        Integer priority = getIntegerProperty(msgCtx, JMSConstants.JMS_PRIORITY);
+        Integer timeToLive = getIntegerProperty(msgCtx, JMSConstants.JMS_TIME_TO_LIVE);
         Integer messageDelay = getIntegerProperty(msgCtx, JMSConstants.JMS_MESSAGE_DELAY);
 
         // Do not commit, if message is marked for rollback
@@ -213,67 +216,80 @@ public class JMSMessageSender {
             }
         }
 
-        boolean sendingSuccessful = false;
+        sendingSuccessful = false;
         // perform actual message sending
-        try {
-            if ("1.1".equals(jmsSpecVersion) || "2.0".equals(jmsSpecVersion) || isQueue == null) {
-                if (isProducerCachingHonoured) {
-                    producer.send(destination, message);
-                } else {
-                    producer.send(message);
+        if ("1.1".equals(jmsSpecVersion) || "2.0".equals(jmsSpecVersion) || isQueue == null) {
+            if (isProducerCachingHonoured) {
+                producer.send(destination, message);
+            } else {
+                producer.send(message);
+            }
+        } else {
+            if (isQueue) {
+                try {
+                    if (isProducerCachingHonoured) {
+                        (producer).send(destination, message);
+                    } else {
+                        (producer).send(message);
+                    }
+                } catch (JMSException e) {
+                    log.error(("Error sending message with MessageContext ID : " + msgCtx.getMessageID()
+                            + " to destination : " + destination + " Hence creating a temporary subscriber" + e));
+                    createTempQueueConsumer();
+                    if (isProducerCachingHonoured) {
+                        producer.send(destination, message);
+                    } else {
+                        producer.send(message);
+                    }
                 }
             } else {
-                if (isQueue) {
-                    try {
-                        if (isProducerCachingHonoured) {
-                            (producer).send(destination, message);
-                        } else {
-                            (producer).send(message);
-                        }
-                    } catch (JMSException e) {
-                        log.error(("Error sending message with MessageContext ID : " + msgCtx.getMessageID()
-                                + " to destination : " + destination + " Hence creating a temporary subscriber" + e));
-                        createTempQueueConsumer();
-                        if (isProducerCachingHonoured) {
-                            producer.send(destination, message);
-                        } else {
-                            producer.send(message);
-                        }
+                try {
+                    if (isProducerCachingHonoured) {
+                        ((TopicPublisher) producer).publish((Topic) destination, message);
+                    } else {
+                        ((TopicPublisher) producer).publish(message);
                     }
-                } else {
-                    try {
-                        if (isProducerCachingHonoured) {
-                            ((TopicPublisher) producer).publish((Topic) destination, message);
-                        } else {
-                            ((TopicPublisher) producer).publish(message);
-                        }
-                    } catch (JMSException e) {
-                        createTempTopicSubscriber();
-                        if (isProducerCachingHonoured) {
-                            ((TopicPublisher) producer).publish((Topic) destination, message);
-                        } else {
-                            ((TopicPublisher) producer).publish(message);
-                        }
+                } catch (JMSException e) {
+                    createTempTopicSubscriber();
+                    if (isProducerCachingHonoured) {
+                        ((TopicPublisher) producer).publish((Topic) destination, message);
+                    } else {
+                        ((TopicPublisher) producer).publish(message);
                     }
                 }
             }
+        }
 
-            // set the actual MessageID to the message context for use by any others down the line
-            String msgId = null;
-            try {
-                msgId = message.getJMSMessageID();
-                if (msgId != null) {
-                    msgCtx.setProperty(JMSConstants.JMS_MESSAGE_ID, msgId);
-                }
-            } catch (JMSException ignore) {}
+        // set the actual MessageID to the message context for use by any others down the line
+        String msgId = null;
+        try {
+            msgId = message.getJMSMessageID();
+            if (msgId != null) {
+                msgCtx.setProperty(JMSConstants.JMS_MESSAGE_ID, msgId);
+            }
+        } catch (JMSException ignore) {
+        }
 
-            sendingSuccessful = true;
+        sendingSuccessful = true;
 
-            if (log.isDebugEnabled()) {
-                log.debug("Sent Message Context ID : " + msgCtx.getMessageID() +
+        if (log.isDebugEnabled()) {
+            log.debug("Sent Message Context ID : " + msgCtx.getMessageID() +
                     " with JMS Message ID : " + msgId
-                        + " to destination : " + destination);
-            }
+                    + " to destination : " + destination);
+        }
+    }
+
+    /**
+     * Perform actual send of JMS message to the Destination selected and commit the transaction on
+     * successful scenario, rollback on failure scenario.
+     *
+     * @param message the JMS message
+     * @param msgCtx  the Axis2 MessageContext
+     */
+    public void transactionallySend(Message message, MessageContext msgCtx) {
+
+        try {
+            send(message, msgCtx);
 
         } catch (JMSException e) {
             handleException("Error sending message with MessageContext ID : " +
