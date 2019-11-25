@@ -134,6 +134,25 @@ public class JMSUtils extends BaseUtils {
     }
 
     /**
+     * Check if a boolean property is set to the message context
+     *
+     * @param propertyName Name of the property
+     * @param msgContext   MessageContext instance
+     * @return True if property is set to true
+     */
+    static boolean checkIfBooleanPropertyIsSet(String propertyName, MessageContext msgContext) {
+        boolean isPropertySet = false;
+        Object booleanProperty = msgContext.getProperty(propertyName);
+        if (booleanProperty != null) {
+            if ((booleanProperty instanceof Boolean && ((Boolean) booleanProperty)) ||
+                    (booleanProperty instanceof String && Boolean.valueOf((String) booleanProperty))) {
+                isPropertySet = true;
+            }
+        }
+        return isPropertySet;
+    }
+
+    /**
      * Return the destination name from the given URL
      *
      * @param url the URL

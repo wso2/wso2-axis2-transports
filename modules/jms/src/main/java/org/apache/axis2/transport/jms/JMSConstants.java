@@ -407,6 +407,10 @@ public class JMSConstants {
 
     public static final String JMS_MESSAGE_DELIVERY_COUNT_HEADER = "JMSXDeliveryCount";
 
+    /**
+     * Message context level property indicating if JMS session need to be recovered associated with the message
+     */
+    public static final String SET_RECOVER = "SET_RECOVER";
 
     /**
      * Parameter for jndi security credentials in jms configs of axis2.xml

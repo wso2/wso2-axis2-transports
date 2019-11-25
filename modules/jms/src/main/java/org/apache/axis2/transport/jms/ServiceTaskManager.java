@@ -710,14 +710,28 @@ public class ServiceTaskManager {
             } finally {
 
                 // if client acknowledgement is selected, and processing requested ACK
-                if (commitOrAck && getSessionAckMode() == Session.CLIENT_ACKNOWLEDGE) {
-                    try {
-                        message.acknowledge();
-                        if (log.isDebugEnabled()) {
-                            log.debug("Message : " + messageId + " acknowledged");
+                if (getSessionAckMode() == Session.CLIENT_ACKNOWLEDGE) {
+                    if (commitOrAck) {
+                        try {
+                            message.acknowledge();
+                            if (log.isDebugEnabled()) {
+                                log.debug("Message : " + messageId + " acknowledged");
+                            }
+                        } catch (JMSException e) {
+                            logError("Error acknowledging message : " + messageId, e);
                         }
-                    } catch (JMSException e) {
-                        logError("Error acknowledging message : " + messageId, e);
+                    } else {
+                        if (cacheLevel >= JMSConstants.CACHE_SESSION) {
+                            try {
+                                session.recover();
+                                if (log.isDebugEnabled()) {
+                                    log.debug("Session is recovered due to "
+                                            + "failure of mediation of message: " + messageId);
+                                }
+                            } catch (JMSException e) {
+                                logError("Error recovering the JMS session", e);
+                            }
+                        }
                     }
                 }
 
