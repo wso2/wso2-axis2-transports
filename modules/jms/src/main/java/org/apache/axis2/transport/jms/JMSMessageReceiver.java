@@ -28,6 +28,7 @@ import javax.jms.*;
 import javax.transaction.UserTransaction;
 
 import static org.apache.axis2.transport.jms.JMSConstants.JMS_MESSAGE_DELIVERY_COUNT_HEADER;
+import static org.apache.axis2.transport.jms.JMSConstants.SET_RECOVER;
 
 /**
  * This is the JMS message receiver which is invoked when a message is received. This processes
@@ -217,13 +218,11 @@ public class JMSMessageReceiver {
                 soapAction,
                 contentTypeInfo.getContentType());
 
-        Object o = msgContext.getProperty(BaseConstants.SET_ROLLBACK_ONLY);
-        if (o != null) {
-            if ((o instanceof Boolean && ((Boolean) o)) ||
-                    (o instanceof String && Boolean.valueOf((String) o))) {
-                return false;
-            }
+        if (JMSUtils.checkIfBooleanPropertyIsSet(BaseConstants.SET_ROLLBACK_ONLY, msgContext)
+                || JMSUtils.checkIfBooleanPropertyIsSet(SET_RECOVER, msgContext)) {
+            return false;
         }
+
         return true;
     }
 
