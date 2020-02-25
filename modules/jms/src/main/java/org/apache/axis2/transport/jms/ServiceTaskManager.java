@@ -1064,6 +1064,19 @@ public class ServiceTaskManager {
                     connection, isSessionTransacted(), getSessionAckMode(), getJmsSpec(), isQueue());
 
             } catch (JMSException e) {
+                try {
+                    if (connection != null) {
+                        connection.close();
+                    }
+                    if (sharedConnection != null) {
+                        sharedConnection.close();
+                    }
+                } catch (JMSException ex) {
+                    log.error("Error while shutting down the connection : ", ex);
+                } finally {
+                    connection = null;
+                    sharedConnection = null;
+                }
                 handleException("Error creating JMS session for service : " + serviceName, e);
             }
             return null;
