@@ -165,8 +165,8 @@ public class JMSMessageSender {
      */
     public void send(Message message, MessageContext msgCtx) throws JMSException {
 
-        jtaCommit = JMSUtils.checkIfBooleanPropertyIsSet(BaseConstants.JTA_COMMIT_AFTER_SEND, msgCtx);
-        rollbackOnly = JMSUtils.checkIfBooleanPropertyIsSet(BaseConstants.SET_ROLLBACK_ONLY, msgCtx);
+        jtaCommit = getBooleanProperty(msgCtx, BaseConstants.JTA_COMMIT_AFTER_SEND);
+        rollbackOnly = getBooleanProperty(msgCtx, BaseConstants.SET_ROLLBACK_ONLY);
         String deliveryMode = getStringProperty(msgCtx, JMSConstants.JMS_DELIVERY_MODE);
         Integer priority = getIntegerProperty(msgCtx, JMSConstants.JMS_PRIORITY);
         Integer timeToLive = getIntegerProperty(msgCtx, JMSConstants.JMS_TIME_TO_LIVE);
