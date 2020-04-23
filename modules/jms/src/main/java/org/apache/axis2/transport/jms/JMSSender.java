@@ -201,17 +201,17 @@ public class JMSSender extends AbstractTransportSender implements ManagementSupp
         }
         msgCtx.setProperty(JMSConstants.PARAM_JMS_HYPHEN_MODE, hyphenSupport);
 
+        JMSReplyMessage jmsReplyMessage = null;
         // need to synchronize as Sessions are not thread safe
-        Destination replyDestination = null;
         synchronized (messageSender.getSession()) {
             try {
-                replyDestination = sendOverJMS(msgCtx, messageSender, contentTypeProperty, jmsConnectionFactory, jmsOut);
+                jmsReplyMessage = sendOverJMS(msgCtx, messageSender, contentTypeProperty, jmsConnectionFactory, jmsOut);
             } finally {
                 if (msgCtx.getProperty(JMSConstants.JMS_XA_TRANSACTION_MANAGER) == null) {
                     messageSender.close();
-                    if (replyDestination instanceof TemporaryQueue) {
+                    if (jmsReplyMessage.getReplyDestination() instanceof TemporaryQueue) {
                         String temporaryQueueName = "";
-                        TemporaryQueue temporaryQueue = (TemporaryQueue) replyDestination;
+                        TemporaryQueue temporaryQueue = (TemporaryQueue) jmsReplyMessage.getReplyDestination();
                         try {
                             temporaryQueueName = temporaryQueue.getQueueName();
                             temporaryQueue.delete();
@@ -221,6 +221,12 @@ public class JMSSender extends AbstractTransportSender implements ManagementSupp
                     }
                 }
             }
+        }
+        // Getting the response flow out of the synchronized block so that the session is released
+        // for other threads.
+        if (jmsReplyMessage.getMsgctx() != null) {
+            handleIncomingMessage(jmsReplyMessage.getMsgctx(), jmsReplyMessage.getTransportHeaders(),
+                    jmsReplyMessage.getSoapAction(), jmsReplyMessage.getContentType());
         }
     }
 
@@ -268,10 +274,11 @@ public class JMSSender extends AbstractTransportSender implements ManagementSupp
     /**
      * Perform actual sending of the JMS message
      */
-    private Destination sendOverJMS(MessageContext msgCtx, JMSMessageSender messageSender,
+    private JMSReplyMessage sendOverJMS(MessageContext msgCtx, JMSMessageSender messageSender,
         String contentTypeProperty, JMSConnectionFactory jmsConnectionFactory,
         JMSOutTransportInfo jmsOut) throws AxisFault {
 
+        JMSReplyMessage jmsReplyMessage = null;
         // convert the axis message context into a JMS Message that we can send over JMS
         Message message = null;
         String correlationId = null;
@@ -371,11 +378,15 @@ public class JMSSender extends AbstractTransportSender implements ManagementSupp
 
             // We assume here that the response uses the same message property to
             // specify the content type of the message.
-            waitForResponseAndProcess(messageSender.getSession(), replyDestination,
+            jmsReplyMessage = waitForResponseAndProcess(messageSender.getSession(), replyDestination,
                 msgCtx, correlationId, contentTypeProperty);
             // TODO ********************************************************************************
         }
-        return replyDestination;
+        if (jmsReplyMessage == null) {
+            jmsReplyMessage = new JMSReplyMessage();
+        }
+        jmsReplyMessage.setReplyDestination(replyDestination);
+        return jmsReplyMessage;
     }
 
     private boolean hasDestinationEPR(MessageContext msgContext) {
@@ -404,16 +415,19 @@ public class JMSSender extends AbstractTransportSender implements ManagementSupp
      * Create a Consumer for the reply destination and wait for the response JMS message
      * synchronously. If a message arrives within the specified time interval, process it
      * through Axis2
-     * @param session the session to use to listen for the response
-     * @param replyDestination the JMS reply Destination
-     * @param msgCtx the outgoing message for which we are expecting the response
+     *
+     * @param session             the session to use to listen for the response
+     * @param replyDestination    the JMS reply Destination
+     * @param msgCtx              the outgoing message for which we are expecting the response
      * @param contentTypeProperty the message property used to determine the content type
      *                            of the response message
+     * @return Bean containing response message information.
      * @throws AxisFault on error
      */
-    private void waitForResponseAndProcess(Session session, Destination replyDestination,
-            MessageContext msgCtx, String correlationId,
-            String contentTypeProperty) throws AxisFault {
+    private JMSReplyMessage waitForResponseAndProcess(Session session, Destination replyDestination,
+                                                      MessageContext msgCtx, String correlationId,
+                                                      String contentTypeProperty) throws AxisFault {
+        JMSReplyMessage jmsReplyMessage = null;
         MessageConsumer consumer = null;
         try {
             consumer = JMSUtils.createConsumer(session, replyDestination,
@@ -445,7 +459,7 @@ public class JMSSender extends AbstractTransportSender implements ManagementSupp
                 }
 
                 try {
-                    processSyncResponse(msgCtx, reply, contentTypeProperty);
+                    jmsReplyMessage = processSyncResponse(msgCtx, reply, contentTypeProperty);
                     metrics.incrementMessagesReceived();
                 } catch (AxisFault e) {
                     metrics.incrementFaultsReceiving();
@@ -475,6 +489,7 @@ public class JMSSender extends AbstractTransportSender implements ManagementSupp
                         "Unable to close consumer for reply destination: " + replyDestination, e);
             }
         }
+        return jmsReplyMessage;
     }
 
     /**
@@ -630,14 +645,15 @@ public class JMSSender extends AbstractTransportSender implements ManagementSupp
      * Creates an Axis MessageContext for the received JMS message and
      * sets up the transports and various properties
      *
-     * @param outMsgCtx the outgoing message for which we are expecting the response
-     * @param message the JMS response message received
+     * @param outMsgCtx           the outgoing message for which we are expecting the response
+     * @param message             the JMS response message received
      * @param contentTypeProperty the message property used to determine the content type
      *                            of the response message
+     * @return Bean containing response message information.
      * @throws AxisFault on error
      */
-    private void processSyncResponse(MessageContext outMsgCtx, Message message,
-            String contentTypeProperty) throws AxisFault {
+    private JMSReplyMessage processSyncResponse(MessageContext outMsgCtx, Message message,
+                                                String contentTypeProperty) throws AxisFault {
 
         MessageContext responseMsgCtx = createResponseMessageContext(outMsgCtx);
 
@@ -653,8 +669,12 @@ public class JMSSender extends AbstractTransportSender implements ManagementSupp
             throw AxisFault.makeFault(ex);
         }
 
-        handleIncomingMessage(responseMsgCtx, JMSUtils.getTransportHeaders(message, responseMsgCtx),
-                              JMSUtils.getProperty(message, BaseConstants.SOAPACTION), contentType);
+        JMSReplyMessage jmsReplyMessage = new JMSReplyMessage();
+        jmsReplyMessage.setMsgctx(responseMsgCtx);
+        jmsReplyMessage.setTransportHeaders(JMSUtils.getTransportHeaders(message, responseMsgCtx));
+        jmsReplyMessage.setSoapAction(JMSUtils.getProperty(message, BaseConstants.SOAPACTION));
+        jmsReplyMessage.setContentType(contentType);
+        return jmsReplyMessage;
     }
 
     private void setProperty(Message message, MessageContext msgCtx, String key) {
