@@ -18,12 +18,10 @@
 
 package org.apache.axis2.transport.rabbitmq;
 
+import com.rabbitmq.client.AMQP;
 import org.apache.axis2.AxisFault;
-import org.apache.axis2.Constants;
 import org.apache.axis2.context.MessageContext;
 import org.apache.axis2.transport.base.BaseConstants;
-import org.apache.axis2.transport.rabbitmq.utils.RabbitMQConstants;
-import org.apache.axis2.transport.rabbitmq.utils.RabbitMQUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -35,31 +33,28 @@ public class RabbitMQMessageReceiver {
     private static final Log log = LogFactory.getLog(RabbitMQMessageReceiver.class);
     private final RabbitMQEndpoint endpoint;
     private final RabbitMQListener listener;
-    private final RabbitMQConnectionFactory rabbitMQConnectionFactory;
 
     /**
      * Create a new RabbitMQMessage receiver
      *
-     * @param listener                  the AMQP transport Listener
-     * @param rabbitMQConnectionFactory the AMQP connection factory we are associated with
-     * @param endpoint                  the RabbitMQEndpoint definition to be used
+     * @param listener the AMQP transport Listener
+     * @param endpoint the RabbitMQEndpoint definition to be used
      */
-    public RabbitMQMessageReceiver(RabbitMQListener listener,
-                                   RabbitMQConnectionFactory rabbitMQConnectionFactory, RabbitMQEndpoint endpoint) {
+    public RabbitMQMessageReceiver(RabbitMQListener listener, RabbitMQEndpoint endpoint) {
         this.endpoint = endpoint;
-        this.rabbitMQConnectionFactory = rabbitMQConnectionFactory;
         this.listener = listener;
     }
 
     /**
      * Process a new message received
      *
-     * @param message the RabbitMQ AMQP message received
+     * @param properties the AMQP basic properties
+     * @param body       the message body
      */
-    public boolean onMessage(RabbitMQMessage message) {
+    public boolean onMessage(AMQP.BasicProperties properties, byte[] body) {
         boolean successful = false;
         try {
-            successful = processThroughAxisEngine(message);
+            successful = processThroughAxisEngine(properties, body);
         } catch (AxisFault axisFault) {
             log.error("Error while processing message", axisFault);
         }
@@ -69,58 +64,25 @@ public class RabbitMQMessageReceiver {
     /**
      * Process the new message through Axis2
      *
-     * @param message the RabbitMQMessage
-     * @return true if the caller should commit
+     * @param properties the AMQP basic properties
+     * @param body       the message body
+     * @return true if no mediation errors
      * @throws AxisFault on Axis2 errors
      */
-    private boolean processThroughAxisEngine(RabbitMQMessage message) throws AxisFault {
+    private boolean processThroughAxisEngine(AMQP.BasicProperties properties, byte[] body) throws AxisFault {
 
         MessageContext msgContext = endpoint.createMessageContext();
-
-        String amqpCorrelationID = message.getCorrelationId();
-        if (amqpCorrelationID != null && amqpCorrelationID.length() > 0) {
-            msgContext.setProperty(RabbitMQConstants.CORRELATION_ID, amqpCorrelationID);
-        } else {
-            msgContext.setProperty(RabbitMQConstants.CORRELATION_ID, message.getMessageId());
-        }
-
-        String contentType = message.getContentType();
-        if (contentType == null) {
-            log.warn("Unable to determine content type for message " +
-                    msgContext.getMessageID() + " setting to text/plain");
-            contentType = RabbitMQConstants.DEFAULT_CONTENT_TYPE;
-            message.setContentType(contentType);
-        }
-        msgContext.setProperty(RabbitMQConstants.CONTENT_TYPE, contentType);
-
-        if (message.getContentEncoding() != null) {
-            msgContext.setProperty(RabbitMQConstants.CONTENT_ENCODING, message.getContentEncoding());
-        }
-        String soapAction = message.getSoapAction();
-
-        if (soapAction == null) {
-            soapAction = RabbitMQUtils.getSOAPActionHeader(message);
-        }
-        String replyTo = message.getReplyTo();
-        if (replyTo != null) {
-            msgContext.setProperty(Constants.OUT_TRANSPORT_INFO,
-                    new RabbitMQOutTransportInfo(rabbitMQConnectionFactory, replyTo, contentType));
-        }
-
-        RabbitMQUtils.setSOAPEnvelope(message, msgContext, contentType);
-
+        String contentType = RabbitMQUtils.buildMessage(properties, body, msgContext);
         try {
             listener.handleIncomingMessage(
                     msgContext,
-                    RabbitMQUtils.getTransportHeaders(message),
-                    soapAction,
+                    RabbitMQUtils.getTransportHeaders(properties),
+                    RabbitMQUtils.getSoapAction(properties),
                     contentType);
             Object rollbackProperty = msgContext.getProperty(BaseConstants.SET_ROLLBACK_ONLY);
-            if (rollbackProperty != null) {
-                if ((rollbackProperty instanceof Boolean && ((Boolean) rollbackProperty)) ||
-                        (rollbackProperty instanceof String && Boolean.valueOf((String) rollbackProperty))) {
-                            return false;
-                }
+            if ((rollbackProperty instanceof Boolean && ((Boolean) rollbackProperty)) ||
+                    (rollbackProperty instanceof String && Boolean.parseBoolean((String) rollbackProperty))) {
+                return false;
             }
         } catch (AxisFault axisFault) {
             log.error("Error when trying to read incoming message ...", axisFault);

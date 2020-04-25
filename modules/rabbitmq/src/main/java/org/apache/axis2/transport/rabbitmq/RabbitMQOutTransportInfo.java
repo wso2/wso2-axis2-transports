@@ -20,8 +20,6 @@ package org.apache.axis2.transport.rabbitmq;
 
 import org.apache.axis2.transport.OutTransportInfo;
 import org.apache.axis2.transport.base.BaseUtils;
-import org.apache.axis2.transport.rabbitmq.utils.AxisRabbitMQException;
-import org.apache.axis2.transport.rabbitmq.utils.RabbitMQConstants;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -32,15 +30,13 @@ import java.util.Hashtable;
  * The RabbitMQOutTransportInfo is a holder of information to send an outgoing message
  * to a RabbitMQ AMQP destination.
  */
-
 public class RabbitMQOutTransportInfo implements OutTransportInfo {
 
     private static final Log log = LogFactory.getLog(RabbitMQOutTransportInfo.class);
-    private String targetEPR = null;
     private Hashtable<String, String> properties = null;
+    private String targetEPR;
+    private String connectionFactoryName;
     private String contentTypeProperty;
-    private RabbitMQConnectionFactory rabbitMQConnectionFactory;
-    private String replyTo;
 
 
     /**
@@ -50,35 +46,35 @@ public class RabbitMQOutTransportInfo implements OutTransportInfo {
      */
     public RabbitMQOutTransportInfo(String targetEPR) {
         this.targetEPR = targetEPR;
-        if (!targetEPR.startsWith(RabbitMQConstants.RABBITMQ_PREFIX)) {
-            handleException("Invalid prefix for a RabbitMQ AMQP EPR : " + targetEPR);
-        } else {
-            properties = BaseUtils.getEPRProperties(targetEPR);
-            contentTypeProperty = properties.get(RabbitMQConstants.CONTENT_TYPE_PROPERTY_PARAM);
-        }
+        properties = BaseUtils.getEPRProperties(targetEPR);
+        contentTypeProperty = properties.get(RabbitMQConstants.CONTENT_TYPE_PROPERTY_PARAM);
     }
 
     /**
      * Creates an instance using the given connection factory and destination
      *
-     * @param rabbitMQConnectionFactory the connection factory
-     * @param replyTo                   the destination
-     * @param contentTypeProperty       the content type
+     * @param connectionFactoryName the connection pool
+     * @param contentTypeProperty    the content type
      */
-    public RabbitMQOutTransportInfo(RabbitMQConnectionFactory rabbitMQConnectionFactory, String replyTo,
-                                    String contentTypeProperty) {
-        this.rabbitMQConnectionFactory = rabbitMQConnectionFactory;
-        this.replyTo = replyTo;
+    public RabbitMQOutTransportInfo(String connectionFactoryName, String contentTypeProperty) {
+        this.connectionFactoryName = connectionFactoryName;
         this.contentTypeProperty = contentTypeProperty;
-    }
-
-    private void handleException(String s) {
-        log.error(s);
-        throw new AxisRabbitMQException(s);
     }
 
     public Hashtable<String, String> getProperties() {
         return properties;
+    }
+
+    public String getTargetEPR() {
+        return targetEPR;
+    }
+
+    public String getConnectionFactoryName() {
+        return connectionFactoryName;
+    }
+
+    public String getContentTypeProperty() {
+        return contentTypeProperty;
     }
 
     public void setContentType(String contentTypeProperty) {
