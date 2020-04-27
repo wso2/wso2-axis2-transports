@@ -89,13 +89,12 @@ public class JMSSenderTestCase extends TestCase {
         JMSOutTransportInfo jmsOutTransportInfo = Mockito.mock(JMSOutTransportInfo.class);
         JMSMessageSender jmsMessageSender = Mockito.mock(JMSMessageSender.class);
         Session session = Mockito.mock(Session.class);
-        Destination destination = Mockito.mock(Destination.class);
 
         Mockito.doReturn(session).when(jmsMessageSender).getSession();
         PowerMockito.whenNew(JMSOutTransportInfo.class).withArguments(any(String.class))
                 .thenReturn(jmsOutTransportInfo);
         Mockito.doReturn(jmsMessageSender).when(jmsOutTransportInfo).createJMSSender(any(MessageContext.class));
-        PowerMockito.doReturn(destination)
+        PowerMockito.doReturn(new JMSReplyMessage())
                 .when(jmsSender, "sendOverJMS", ArgumentMatchers.any(), ArgumentMatchers.any(), ArgumentMatchers.any(),
                         ArgumentMatchers.any(), ArgumentMatchers.any());
 
@@ -143,7 +142,6 @@ public class JMSSenderTestCase extends TestCase {
         JMSOutTransportInfo jmsOutTransportInfo = Mockito.mock(JMSOutTransportInfo.class);
         JMSMessageSender jmsMessageSender = Mockito.mock(JMSMessageSender.class);
         Session session = Mockito.mock(Session.class);
-        Destination destination = Mockito.mock(Destination.class);
 
         final String hyphenMode = "replace";
         JMSConnectionFactory jmsConnectionFactory = Mockito.mock(JMSConnectionFactory.class);
@@ -158,7 +156,7 @@ public class JMSSenderTestCase extends TestCase {
                     .thenReturn(jmsOutTransportInfo);
         Mockito.doReturn(jmsMessageSender).when(jmsOutTransportInfo).createJMSSender(any(MessageContext.class));
         PowerMockito.doReturn(jmsConnectionFactory).when(jmsSender, "getJMSConnectionFactory", ArgumentMatchers.any());
-        PowerMockito.doReturn(destination)
+        PowerMockito.doReturn(new JMSReplyMessage())
                     .when(jmsSender, "sendOverJMS", ArgumentMatchers.any(), ArgumentMatchers.any(),
                           ArgumentMatchers.any(), ArgumentMatchers.any(), ArgumentMatchers.any());
 
