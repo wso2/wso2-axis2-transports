@@ -776,11 +776,11 @@ public class JMSUtils extends BaseUtils {
                 Reference ref = (Reference)object;
                 handleException("JNDI failed to de-reference Reference with name " +
                         name + "; is the factory " + ref.getFactoryClassName() +
-                        " in your classpath?");
+                        " in your classpath?", ex);
                 return null;
             } else {
                 handleException("JNDI lookup of name " + name + " returned a " +
-                        object.getClass().getName() + " while a " + clazz + " was expected");
+                        object.getClass().getName() + " while a " + clazz + " was expected", ex);
                 return null;
             }
         }
