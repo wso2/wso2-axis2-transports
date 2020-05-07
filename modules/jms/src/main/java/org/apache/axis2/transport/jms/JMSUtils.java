@@ -238,8 +238,15 @@ public class JMSUtils extends BaseUtils {
             documentElement = convertJMSMapToXML((MapMessage) message);
         }
         else {
-            handleException("Unsupported JMS message type " + message.getClass().getName());
-            return; // Make compiler happy
+            Class msgClass = message.getClass();
+            String content = "Unsupported JMS message type : " + (msgClass != null ? msgClass.getName() : "undefined.");
+            log.error(content);
+            msgContext.setProperty(JMSConstants.SENDING_FAULT, true);
+            msgContext.setProperty(JMSConstants.ERROR_MESSAGE, content);
+            // ERROR_CODE is not set for msg context since it will suspend the ep if not defined in the configs and
+            // under this case we don't need the default behavior to get the endpoint suspended.
+            TextMessageBuilder textMessageBuilder = new TextMessageBuilderAdapter(builder);
+            documentElement = textMessageBuilder.processDocument(content, contentType, msgContext);
         }
         msgContext.setEnvelope(TransportUtils.createSOAPEnvelope(documentElement));
     }
