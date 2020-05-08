@@ -30,9 +30,7 @@ import org.apache.axis2.format.DataSourceMessageBuilder;
 import org.apache.axis2.format.TextMessageBuilder;
 import org.apache.axis2.format.TextMessageBuilderAdapter;
 import org.apache.axis2.transport.TransportUtils;
-import org.apache.axis2.transport.base.BaseTransportException;
 import org.apache.axis2.transport.base.BaseUtils;
-import org.apache.axis2.transport.base.IgnoreSuspensionBaseTransportException;
 import org.apache.axis2.transport.jms.iowrappers.BytesMessageDataSource;
 import org.apache.axis2.transport.jms.iowrappers.BytesMessageInputStream;
 import org.apache.commons.logging.Log;
@@ -240,15 +238,15 @@ public class JMSUtils extends BaseUtils {
             documentElement = convertJMSMapToXML((MapMessage) message);
         }
         else {
-            try {
-                handleException("Unsupported JMS message type " + message.getClass().getName());
-            } catch (BaseTransportException e) {
-                //JMS transport receiving a malformed jms message should treated as a different case by introducing a
-                //Error code (101550) in Synapse level to differentiate this we have introduced a new Exception
-
-                throw new IgnoreSuspensionBaseTransportException(e.getMessage(), e);
-            }
-            return; // Make compiler happy
+            Class msgClass = message.getClass();
+            String content = "Unsupported JMS message type : " + (msgClass != null ? msgClass.getName() : "undefined.");
+            log.error(content);
+            msgContext.setProperty(JMSConstants.SENDING_FAULT, true);
+            msgContext.setProperty(JMSConstants.ERROR_MESSAGE, content);
+            // ERROR_CODE is not set for msg context since it will suspend the ep if not defined in the configs and
+            // under this case we don't need the default behavior to get the endpoint suspended.
+            TextMessageBuilder textMessageBuilder = new TextMessageBuilderAdapter(builder);
+            documentElement = textMessageBuilder.processDocument(content, contentType, msgContext);
         }
         msgContext.setEnvelope(TransportUtils.createSOAPEnvelope(documentElement));
     }

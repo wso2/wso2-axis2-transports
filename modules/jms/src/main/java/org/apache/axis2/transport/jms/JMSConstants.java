@@ -433,4 +433,7 @@ public class JMSConstants {
     /** Fixed Interval Throttlinh constant */
     public static final String JMS_PROXY_FIXED_INTERVAL_THROTTLE = "fixed-interval";
 
+    // Error handling properties.
+    static final String SENDING_FAULT = "SENDING_FAULT";
+    static final String ERROR_MESSAGE = "ERROR_MESSAGE";
 }
