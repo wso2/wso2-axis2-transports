@@ -212,6 +212,9 @@ public class JMSMessageReceiver {
 
         msgContext.setProperty(JMSConstants.PARAM_JMS_HYPHEN_MODE, endpoint.getHyphenSupport());
 
+        // set "transaction" property in the message context if is present in the JMS message received.
+        msgContext.setProperty(BaseConstants.TRANSACTION, message.getStringProperty(BaseConstants.TRANSACTION));
+
         jmsListener.handleIncomingMessage(
                 msgContext,
                 JMSUtils.getTransportHeaders(message, msgContext),

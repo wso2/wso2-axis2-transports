@@ -619,6 +619,8 @@ public class JMSSender extends AbstractTransportSender implements ManagementSupp
         }
 
         JMSUtils.setTransportHeaders(msgContext, message);
+        // set transaction property in the JMS message if it is present in the messageContext
+        setTransactionProperty(msgContext, message);
         return message;
     }
 
@@ -675,6 +677,19 @@ public class JMSSender extends AbstractTransportSender implements ManagementSupp
         jmsReplyMessage.setSoapAction(JMSUtils.getProperty(message, BaseConstants.SOAPACTION));
         jmsReplyMessage.setContentType(contentType);
         return jmsReplyMessage;
+    }
+
+    /**
+     * Set the "transaction" property in the message if it is present in the message context.
+     *
+     * @param msgContext the message context.
+     * @param message the JMS message.
+     */
+    private void setTransactionProperty(MessageContext msgContext, Message message) {
+        Object transactionProperty = msgContext.getProperty(BaseConstants.TRANSACTION);
+        if (null != transactionProperty && (BaseConstants.TRANSACTION_COUNTED).equals(transactionProperty.toString())) {
+            setProperty(message, msgContext, BaseConstants.TRANSACTION);
+        }
     }
 
     private void setProperty(Message message, MessageContext msgCtx, String key) {
