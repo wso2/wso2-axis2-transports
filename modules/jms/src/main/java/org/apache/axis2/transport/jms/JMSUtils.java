@@ -30,6 +30,7 @@ import org.apache.axis2.format.DataSourceMessageBuilder;
 import org.apache.axis2.format.TextMessageBuilder;
 import org.apache.axis2.format.TextMessageBuilderAdapter;
 import org.apache.axis2.transport.TransportUtils;
+import org.apache.axis2.transport.base.BaseConstants;
 import org.apache.axis2.transport.base.BaseUtils;
 import org.apache.axis2.transport.jms.iowrappers.BytesMessageDataSource;
 import org.apache.axis2.transport.jms.iowrappers.BytesMessageInputStream;
@@ -602,7 +603,8 @@ public class JMSUtils extends BaseUtils {
                 } catch (JMSException ignore) {}
             }
         }
-
+        // remove "INTERNAL_TRANSACTION_COUNTED" header from the transport level headers map.
+        map.remove(BaseConstants.INTERNAL_TRANSACTION_COUNTED);
         return map;
     }
 

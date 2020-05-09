@@ -619,6 +619,8 @@ public class JMSSender extends AbstractTransportSender implements ManagementSupp
         }
 
         JMSUtils.setTransportHeaders(msgContext, message);
+        // set INTERNAL_TRANSACTION_COUNTED property in the JMS message if it is present in the messageContext
+        setTransactionProperty(msgContext, message);
         return message;
     }
 
@@ -675,6 +677,24 @@ public class JMSSender extends AbstractTransportSender implements ManagementSupp
         jmsReplyMessage.setSoapAction(JMSUtils.getProperty(message, BaseConstants.SOAPACTION));
         jmsReplyMessage.setContentType(contentType);
         return jmsReplyMessage;
+    }
+
+    /**
+     * Set the "INTERNAL_TRANSACTION_COUNTED" property in the message if it is present in the message context.
+     *
+     * @param msgContext the message context.
+     * @param message the JMS message.
+     */
+    private void setTransactionProperty(MessageContext msgContext, Message message) {
+        Object transactionProperty = msgContext.getProperty(BaseConstants.INTERNAL_TRANSACTION_COUNTED);
+        if (transactionProperty instanceof Boolean) {
+            try {
+                message.setBooleanProperty(BaseConstants.INTERNAL_TRANSACTION_COUNTED, (Boolean) transactionProperty);
+            } catch (JMSException e) {
+                log.warn("Couldn't set message property : " + BaseConstants.INTERNAL_TRANSACTION_COUNTED + " = "
+                                 + transactionProperty, e);
+            }
+        }
     }
 
     private void setProperty(Message message, MessageContext msgCtx, String key) {
