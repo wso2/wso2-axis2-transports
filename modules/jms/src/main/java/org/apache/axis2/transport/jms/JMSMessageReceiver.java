@@ -17,14 +17,18 @@ package org.apache.axis2.transport.jms;
 
 import org.apache.axis2.AxisFault;
 import org.apache.axis2.Constants;
+import org.apache.axis2.context.MessageContext;
 import org.apache.axis2.transport.base.BaseConstants;
 import org.apache.axis2.transport.base.MetricsCollector;
 import org.apache.axis2.transport.jms.ctype.ContentTypeInfo;
-import org.apache.axis2.context.MessageContext;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import javax.jms.*;
+import javax.jms.DeliveryMode;
+import javax.jms.Destination;
+import javax.jms.JMSException;
+import javax.jms.Message;
+import javax.jms.TextMessage;
 import javax.transaction.UserTransaction;
 
 import static org.apache.axis2.transport.jms.JMSConstants.JMS_MESSAGE_DELIVERY_COUNT_HEADER;
@@ -211,6 +215,10 @@ public class JMSMessageReceiver {
         }
 
         msgContext.setProperty(JMSConstants.PARAM_JMS_HYPHEN_MODE, endpoint.getHyphenSupport());
+
+        // set "INTERNAL_TRANSACTION_COUNTED" property in the message context if is present in the JMS message received.
+        msgContext.setProperty(BaseConstants.INTERNAL_TRANSACTION_COUNTED,
+                               message.getBooleanProperty(BaseConstants.INTERNAL_TRANSACTION_COUNTED));
 
         jmsListener.handleIncomingMessage(
                 msgContext,
