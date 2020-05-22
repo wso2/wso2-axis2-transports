@@ -18,6 +18,8 @@
 
 package org.apache.axis2.transport.rabbitmq;
 
+import com.rabbitmq.client.Channel;
+import com.rabbitmq.client.Delivery;
 import org.apache.axis2.AxisFault;
 import org.apache.axis2.context.ConfigurationContext;
 import org.apache.axis2.context.MessageContext;
@@ -25,15 +27,12 @@ import org.apache.axis2.description.TransportOutDescription;
 import org.apache.axis2.transport.OutTransportInfo;
 import org.apache.axis2.transport.base.AbstractTransportSender;
 import org.apache.axis2.transport.base.BaseUtils;
-import org.apache.axis2.transport.rabbitmq.rpc.RabbitMQRPCMessageSender;
-import org.apache.axis2.transport.rabbitmq.utils.AxisRabbitMQException;
-import org.apache.axis2.transport.rabbitmq.utils.RabbitMQConstants;
-import org.apache.axis2.transport.rabbitmq.utils.RabbitMQUtils;
+import org.apache.commons.lang.BooleanUtils;
 import org.apache.commons.lang.StringUtils;
 import org.wso2.securevault.SecretResolver;
 
-import java.io.IOException;
-import java.util.Hashtable;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * The TransportSender for RabbitMQ AMQP Transport
@@ -43,7 +42,9 @@ public class RabbitMQSender extends AbstractTransportSender {
     /**
      * The connection factory manager to be used when sending messages out
      */
-    private RabbitMQConnectionFactoryManager rabbitMQConnectionFactoryManager;
+    private RabbitMQConnectionFactory rabbitMQConnectionFactory;
+    private RabbitMQChannelPool rabbitMQChannelPool;
+    private RabbitMQChannelPool rabbitMQConfirmChannelPool;
 
     /**
      * Initialize the transport sender by reading pre-defined connection factories for
@@ -56,83 +57,166 @@ public class RabbitMQSender extends AbstractTransportSender {
     @Override
     public void init(ConfigurationContext cfgCtx, TransportOutDescription transportOut)
             throws AxisFault {
-        super.init(cfgCtx, transportOut);
-        SecretResolver secretResolver = cfgCtx.getAxisConfiguration().getSecretResolver();
-        rabbitMQConnectionFactoryManager = new RabbitMQConnectionFactoryManager(transportOut, secretResolver);
-        log.info("RabbitMQ AMQP Transport Sender initialized...");
+        try {
+            super.init(cfgCtx, transportOut);
+            SecretResolver secretResolver = cfgCtx.getAxisConfiguration().getSecretResolver();
+            // initialize connection factory and pool
+            rabbitMQConnectionFactory = new RabbitMQConnectionFactory();
+            int poolSize =
+                    RabbitMQUtils.resolveTransportDescription(transportOut, secretResolver, rabbitMQConnectionFactory);
+            RabbitMQConnectionPool rabbitMQConnectionPool = new RabbitMQConnectionPool(rabbitMQConnectionFactory, poolSize);
+            // initialize channel factory and pool
+            RabbitMQChannelFactory rabbitMQChannelFactory = new RabbitMQChannelFactory(rabbitMQConnectionPool);
+            rabbitMQChannelPool = new RabbitMQChannelPool(rabbitMQChannelFactory, poolSize);
+            // initialize confirm channel factory and pool
+            RabbitMQConfirmChannelFactory rabbitMQConfirmChannelFactory =
+                    new RabbitMQConfirmChannelFactory(rabbitMQConnectionPool);
+            rabbitMQConfirmChannelPool = new RabbitMQChannelPool(rabbitMQConfirmChannelFactory, poolSize);
+            log.info("RabbitMQ AMQP Transport Sender initialized...");
+        } catch (AxisRabbitMQException e) {
+            throw new AxisFault("Error occurred while initializing the RabbitMQ AMQP Transport Sender.", e);
+        }
 
-    }
-
-    @Override
-    public void stop() {
-        // clean up senders connection factory, connections
-        rabbitMQConnectionFactoryManager.stop();
-        super.stop();
     }
 
     /**
-     * Performs the sending of the RabbitMQ AMQP message
+     * Stop the sender
+     */
+    @Override
+    public void stop() {
+        super.stop();
+        log.info("RabbitMQ AMQP Transport Sender stopped...");
+    }
+
+    /**
+     * Performs the sending of the AMQP message
+     *
+     * @param msgCtx           the axis2 message context
+     * @param targetEPR        the RabbitMQ endpoint
+     * @param outTransportInfo the {@link OutTransportInfo} object
+     * @throws AxisFault
      */
     @Override
     public void sendMessage(MessageContext msgCtx, String targetEPR,
                             OutTransportInfo outTransportInfo) throws AxisFault {
         if (targetEPR != null) {
+            // execute when publishing a message to queue in standard flow
             RabbitMQOutTransportInfo transportOutInfo = new RabbitMQOutTransportInfo(targetEPR);
-            RabbitMQConnectionFactory factory = getConnectionFactory(transportOutInfo);
-            if (factory != null) {
-                sendOverAMQP(factory, msgCtx, targetEPR);
-            }
-        }
-    }
+            String factoryName = RabbitMQUtils
+                    .resolveTransportDescriptionFromTargetEPR(transportOutInfo.getProperties(),
+                            rabbitMQConnectionFactory);
+            Channel channel = null;
+            Delivery response = null;
+            SenderType senderType = null;
+            try {
+                // get rabbitmq properties from the EPR
+                Map<String, String> epProperties = BaseUtils.getEPRProperties(targetEPR);
 
-    /**
-     * Perform actual sending of the AMQP message
-     */
-    private void sendOverAMQP(RabbitMQConnectionFactory factory, MessageContext msgContext, String targetEPR)
-            throws AxisFault {
-        try {
-            RabbitMQMessage message = new RabbitMQMessage(msgContext);
-            Hashtable<String, String> epProperties = BaseUtils.getEPRProperties(targetEPR);
-
-            String replyQueue = epProperties.get(RabbitMQConstants.REPLY_TO_NAME);
-
-            if (!StringUtils.isEmpty(replyQueue)) {
-                // request-response scenario
-                RabbitMQRPCMessageSender sender = new RabbitMQRPCMessageSender(factory, targetEPR, epProperties);
-                RabbitMQMessage responseMessage = sender.send(message, msgContext);
-                // checking the correlation id, to see whether the message is empty or not.
-                if (responseMessage.getCorrelationId() == null) {
-                    throw new AxisFault(
-                            "Response not received to queue named " + replyQueue + " in specified reply to timeout of "
-                                    + epProperties.get(RabbitMQConstants.REPLY_TO_TIMEOUT) + " ms.");
+                // set the routing key
+                String queueName = epProperties.get(RabbitMQConstants.QUEUE_NAME);
+                String routingKey = epProperties.get(RabbitMQConstants.QUEUE_ROUTING_KEY);
+                if (StringUtils.isNotEmpty(queueName) && StringUtils.isEmpty(routingKey)) {
+                    routingKey = queueName; // support the backward compatibility
+                } else if (StringUtils.isEmpty(queueName) && StringUtils.isEmpty(routingKey)) {
+                    routingKey = targetEPR.substring(targetEPR.indexOf("/") + 1, targetEPR.indexOf("?"));
                 }
-                MessageContext responseMsgCtx = createResponseMessageContext(msgContext);
-                RabbitMQUtils.setSOAPEnvelope(responseMessage, responseMsgCtx, responseMessage.getContentType());
-                handleIncomingMessage(responseMsgCtx, RabbitMQUtils.getTransportHeaders(responseMessage),
-                        responseMessage.getSoapAction(), responseMessage.getContentType());
-            } else {
-                //Basic out only publish
-                RabbitMQMessageSender sender = new RabbitMQMessageSender(factory, targetEPR, epProperties);
-                sender.send(message, msgContext);
+
+                // send the message
+                senderType = getSenderType(msgCtx, epProperties);
+                if (senderType == SenderType.PUBLISHER_CONFIRMS) {
+                    channel = rabbitMQConfirmChannelPool.borrowObject(factoryName);
+                } else {
+                    channel = rabbitMQChannelPool.borrowObject(factoryName);
+                }
+                RabbitMQMessageSender sender = new RabbitMQMessageSender(channel, factoryName, senderType);
+                response = sender.send(routingKey, msgCtx, epProperties);
+            } catch (Exception e) {
+                log.error("Error occurred while sending message out.", e);
+                channel = null;
+            } finally {
+                returnToPool(factoryName, channel, senderType);
             }
 
-        } catch (AxisRabbitMQException e) {
-            handleException("Error occurred while sending message out", e);
-        } catch (IOException e) {
-            handleException("Error occurred while sending message out", e);
+            // inject message to the axis engine if a response received
+            if (response != null) {
+                MessageContext responseMsgCtx = createResponseMessageContext(msgCtx);
+                String contentType = RabbitMQUtils.buildMessage(
+                        response.getProperties(), response.getBody(), responseMsgCtx);
+                handleIncomingMessage(responseMsgCtx, RabbitMQUtils.getTransportHeaders(response.getProperties()),
+                        RabbitMQUtils.getSoapAction(response.getProperties()),
+                        contentType);
+            }
+        } else if (outTransportInfo instanceof RabbitMQOutTransportInfo) {
+            // execute when publishing a message to the replyTo queue in request-response flow
+            RabbitMQOutTransportInfo transportOutInfo = (RabbitMQOutTransportInfo) outTransportInfo;
+            String factoryName = transportOutInfo.getConnectionFactoryName();
+            Channel channel = null;
+            try {
+                // get the correlationId and replyTo queue from the transport headers
+                Map<String, Object> transportHeaders =
+                        (Map<String, Object>) msgCtx.getProperty(msgCtx.TRANSPORT_HEADERS);
+                msgCtx.setProperty(
+                        RabbitMQConstants.CORRELATION_ID, transportHeaders.get(RabbitMQConstants.CORRELATION_ID));
+                String replyTo = (String) transportHeaders.get(RabbitMQConstants.RABBITMQ_REPLY_TO);
+
+                // set rabbitmq properties
+                Map<String, String> rabbitMQProperties = new HashMap<>();
+                rabbitMQProperties.put(RabbitMQConstants.QUEUE_AUTODECLARE, "false");
+                rabbitMQProperties.put(RabbitMQConstants.EXCHANGE_AUTODECLARE, "false");
+
+                // send the message to the replyTo queue
+                channel = rabbitMQChannelPool.borrowObject(factoryName);
+                RabbitMQMessageSender sender = new RabbitMQMessageSender(channel, factoryName, SenderType.DEFAULT);
+                sender.send(replyTo, msgCtx, rabbitMQProperties);
+            } catch (Exception e) {
+                log.error("Error occurred while sending message out.", e);
+                channel = null;
+            } finally {
+                returnToPool(factoryName, channel, SenderType.DEFAULT);
+            }
         }
     }
 
     /**
-     * Get corresponding AMQP connection factory defined within the transport sender for the
-     * transport-out information - usually constructed from a targetEPR
+     * The channel will return to pool or destroy
      *
-     * @param transportInfo the transport-out information
-     * @return the corresponding ConnectionFactory, if any
+     * @param factoryName pool key
+     * @param channel     instance to return to the keyed pool
+     * @param senderType  the type of the sender to select the relevant pool
      */
-    private RabbitMQConnectionFactory getConnectionFactory(RabbitMQOutTransportInfo transportInfo) {
-        Hashtable<String, String> props = transportInfo.getProperties();
-        RabbitMQConnectionFactory factory = rabbitMQConnectionFactoryManager.getConnectionFactory(props);
-        return factory;
+    private void returnToPool(String factoryName, Channel channel, SenderType senderType) {
+        if (senderType == SenderType.PUBLISHER_CONFIRMS) {
+            rabbitMQConfirmChannelPool.returnObject(factoryName, channel);
+        } else {
+            rabbitMQChannelPool.returnObject(factoryName, channel);
+        }
+    }
+
+    /**
+     * The different sender types
+     */
+    enum SenderType {
+        RPC,
+        PUBLISHER_CONFIRMS,
+        DEFAULT;
+    }
+
+    /**
+     * Get the type of the sender to execute the relevant logic
+     *
+     * @param messageContext the {@link MessageContext} object
+     * @param epProperties   the endpoint properties
+     * @return the {@link SenderType}
+     */
+    private SenderType getSenderType(MessageContext messageContext, Map<String, String> epProperties) {
+        SenderType type;
+        if (waitForSynchronousResponse(messageContext)) {
+            type = SenderType.RPC;
+        } else if (BooleanUtils.toBoolean(epProperties.get(RabbitMQConstants.PUBLISHER_CONFIRMS_ENABLED))) {
+            type = SenderType.PUBLISHER_CONFIRMS;
+        } else {
+            type = SenderType.DEFAULT;
+        }
+        return type;
     }
 }

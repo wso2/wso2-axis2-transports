@@ -1,1013 +1,343 @@
-/*
-* Copyright (c) 2016, WSO2 Inc. (http://www.wso2.org) All Rights Reserved.
-*
-* WSO2 Inc. licenses this file to you under the Apache License,
-* Version 2.0 (the "License"); you may not use this file except
-* in compliance with the License.
-* You may obtain a copy of the License at
-*
-* http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing,
-* software distributed under the License is distributed on an
-* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-* KIND, either express or implied. See the License for the
-* specific language governing permissions and limitations
-* under the License.
-*/
 package org.apache.axis2.transport.rabbitmq;
 
 import com.rabbitmq.client.AMQP;
-import com.rabbitmq.client.AlreadyClosedException;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
-import com.rabbitmq.client.ConsumerCancelledException;
-import com.rabbitmq.client.QueueingConsumer;
+import com.rabbitmq.client.Consumer;
+import com.rabbitmq.client.Envelope;
+import com.rabbitmq.client.Recoverable;
 import com.rabbitmq.client.ShutdownSignalException;
-import org.apache.axiom.om.OMException;
 import org.apache.axis2.transport.base.threads.WorkerPool;
-import org.apache.axis2.transport.rabbitmq.utils.AxisRabbitMQException;
-import org.apache.axis2.transport.rabbitmq.utils.RabbitMQConstants;
-import org.apache.axis2.transport.rabbitmq.utils.RabbitMQUtils;
+import org.apache.commons.lang.BooleanUtils;
 import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang.math.NumberUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import java.io.IOException;
-import java.net.SocketException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.TimeoutException;
 
 /**
- * Each service will have one ServiceTaskManager instance that will send, manage and also destroy
- * idle tasks created for it, for message receipt. It uses the MessageListenerTask to poll for the
- * RabbitMQ AMQP Listening destination and consume messages. The consumed messages is build and sent to
- * axis2 engine for processing
+ * An instance of this class will create when AMQP listener proxy is being deployed.
  */
 public class ServiceTaskManager {
+
     private static final Log log = LogFactory.getLog(ServiceTaskManager.class);
-
-    private static final int STATE_STOPPED = 0;
-    private static final int STATE_STARTING = 1;
-    private static final int STATE_STARTED = 2;
-    private static final int STATE_PAUSED = 3;
-    private static final int STATE_SHUTTING_DOWN = 4;
-    private static final int STATE_FAULTY = 5;
-    private static final int STATE_DUMMY = -1;
-
-    /**
-     * Number of concurrent consumers - for PubSub, this should be 1 to prevent multiple receipt
-     */
-    private int concurrentConsumers = RabbitMQConstants.CONCURRENT_CONSUMER_COUNT_DEFAULT;
-
-    /**
-     * The JMS Connection shared between multiple polling tasks - when enabled (reccomended)
-     */
-    private volatile Connection sharedConnection = null;
-
-    /**
-     * JMS Resource cache level - Connection, Session, Consumer. Auto will select safe default
-     */
-    private volatile int cacheLevel = RabbitMQConstants.CACHE_NONE;
-
-    private WorkerPool workerPool = null;
-
-    private volatile String serviceName;
-
     private volatile Hashtable<String, String> rabbitMQProperties = new Hashtable<>();
-
-    private final RabbitMQConnectionFactory rabbitMQConnectionFactory;
-
-    private final List<MessageListenerTask> pollingTasks =
-            Collections.synchronizedList(new ArrayList<MessageListenerTask>());
+    private final List<ServiceTaskManager.MessageListenerTask> pollingTasks =
+            Collections.synchronizedList(new ArrayList<ServiceTaskManager.MessageListenerTask>());
+    private final RabbitMQConnectionPool rabbitMQConnectionPool;
     private volatile RabbitMQMessageReceiver rabbitMQMessageReceiver;
-    private State serviceTaskManagerState;
-
-    /**
-     * Class to keep States of the ServiceTaskManager and MessageListner
-     */
-    private class State {
-        private volatile int state = STATE_STOPPED;
-
-        public State(boolean update, int state) {
-            getUpdateState(update, state);
-        }
-
-        /**
-         * This method will get or update the states in thread safe manner
-         *
-         * @param update
-         * @param state
-         * @return state
-         */
-        public int getUpdateState(boolean update, int state) {
-            synchronized (this) {
-                if (update) {
-                    this.state = state;
-                }
-                return this.state;
-            }
-        }
-
-        /**
-         * This method is to get state
-         *
-         * @return state
-         */
-        public int getState() {
-            return this.state;
-        }
-
-        /**
-         * This method is to check whether the state is active or not
-         *
-         * @return true if active and false otherwise
-         */
-        public boolean isActive() {
-            if (this.state == STATE_STARTED) {
-                return true;
-            }
-            return false;
-        }
-    }
+    private volatile String serviceName;
+    private WorkerPool workerPool = null;
+    private Connection connection;
+    private String factoryName;
 
     /**
      * Constructor of service task manager.
      *
-     * @param rabbitMQConnectionFactory
+     * @param rabbitMQConnectionPool {@link RabbitMQConnectionPool} object
+     * @param factoryName            connection factory name configured in the axis2.xml
      */
-    public ServiceTaskManager(
-            RabbitMQConnectionFactory rabbitMQConnectionFactory) {
-        this.rabbitMQConnectionFactory = rabbitMQConnectionFactory;
-        this.serviceTaskManagerState = new State(true, STATE_STOPPED);
+    public ServiceTaskManager(RabbitMQConnectionPool rabbitMQConnectionPool, String factoryName) {
+        this.rabbitMQConnectionPool = rabbitMQConnectionPool;
+        this.factoryName = factoryName;
     }
+
 
     /**
      * Start  the Task Manager by adding a new MessageListenerTasks to the worker pool.
      */
-    public void start() {
-        serviceTaskManagerState.getUpdateState(true, STATE_STARTING);
-        //set the concurrentConsumerCount value so that, serviceTask manager will start that number of messagelistners
-        String concurrentConsumerCountString = rabbitMQProperties.get(RabbitMQConstants.CONCURRENT_CONSUMER_COUNT);
-        if (concurrentConsumerCountString != null && !"".equals(concurrentConsumerCountString)) {
-            try {
-                concurrentConsumers = Integer.parseInt(concurrentConsumerCountString);
-            } catch (NumberFormatException e) {
-                concurrentConsumers = RabbitMQConstants.CONCURRENT_CONSUMER_COUNT_DEFAULT;
-                log.warn("Can't parse given RabbitMQ concurrentConsumerCount value as a integer, hence using " +
-                         "channel with default (one MessageListner), provided concurrentConsumerCount value - " +
-                         concurrentConsumerCountString);
-            }
-        }
-        /**
-         * set the cacheLevel value so that, message listners may or may not share same connection depending on this
-         * value, 0 means no cache (connection per listner) and 1 means shared connection (connection shared between
-         * listners)
-         */
-        String cacheLevelString = rabbitMQProperties.get(RabbitMQConstants.CACHE_LEVEL);
-        if (cacheLevelString != null && !"".equals(cacheLevelString)) {
-            try {
-                cacheLevel = Integer.parseInt(cacheLevelString);
-            } catch (NumberFormatException e) {
-                cacheLevel = RabbitMQConstants.CACHE_NONE;
-                log.warn("Can't parse given RabbitMQ cacheLevel value as a integer, hence using " +
-                         "default (CACHE_NONE - no cache), provided cacheLevel value - " + cacheLevelString);
-            }
-        }
+    public void start() throws Exception {
+        // set the concurrentConsumer value so that, serviceTask manager will start that number of message listeners
+        int concurrentConsumers = NumberUtils.toInt(rabbitMQProperties.get(RabbitMQConstants.CONCURRENT_CONSUMER_COUNT),
+                RabbitMQConstants.CONCURRENT_CONSUMER_COUNT_DEFAULT);
+        connection = rabbitMQConnectionPool.borrowObject(factoryName);
         for (int i = 0; i < concurrentConsumers; i++) {
-            workerPool.execute(new MessageListenerTask());
+            workerPool.execute(new ServiceTaskManager.MessageListenerTask());
         }
-        serviceTaskManagerState.getUpdateState(true, STATE_STARTED);
     }
 
     /**
-     * Stop the consumer by changing the state, later closing the connections.
+     * Stop the consumer
      */
     public void stop() {
-        serviceTaskManagerState.getUpdateState(true, STATE_SHUTTING_DOWN);
         synchronized (pollingTasks) {
-            for (MessageListenerTask lstTask : pollingTasks) {
-                lstTask.requestShutdown();
-            }
-            try {
-                //Waiting DEFAULT_WAIT_TIME_BEFORE_CLOSING before starting to close connections
-                Thread.sleep(RabbitMQConstants.DEFAULT_WAIT_TIME_BEFORE_CLOSING);
-            } catch (InterruptedException e) {
-                log.warn("Closing connections before waiting for them to be closed automatically, may throw " +
-                         "exceptions " + serviceName, e);
-            }
-            if (cacheLevel >= RabbitMQConstants.CACHE_CONNECTION) {
-                closeSharedConnection();
-            } else {
-                for (MessageListenerTask lstTask : pollingTasks) {
-                    lstTask.closeConnection();
-                }
+            for (MessageListenerTask listenerTask : pollingTasks) {
+                listenerTask.close();
             }
         }
-        serviceTaskManagerState.getUpdateState(true, STATE_STOPPED);
-    }
-
-    /**
-     * Helper method to close the shared connection(if connection caching is enabled)
-     */
-    private void closeSharedConnection() {
-        if (sharedConnection != null) {
-            try {
-                if (sharedConnection.isOpen()) {
-                    sharedConnection.close();
-                    log.info("RabbitMQ sharedConnection closed for service " + serviceName);
-                }
-            } catch (AlreadyClosedException e) {
-                log.warn("Error while closing sharedConnection, AlreadyClosedException, service - " + serviceName +
-                         ", Listner id - " + Thread.currentThread().getId());
-                if (log.isDebugEnabled()) {
-                    log.debug("Error while closing sharedConnection, AlreadyClosedException, service - " +
-                              serviceName + ", Listner id - " + Thread.currentThread().getId(), e);
-                }
-            } catch (ShutdownSignalException ex) {
-                log.warn("Error while closing sharedConnection, ShutdownSignalException, service - " + serviceName +
-                         ", Listner id - " + Thread.currentThread().getId());
-                if (log.isDebugEnabled()) {
-                    log.debug("Error while closing sharedConnection, ShutdownSignalException, service - " +
-                              serviceName + ", Listner id - " + Thread.currentThread().getId(), ex);
-                }
-            } catch (SocketException exx) {
-                log.warn("Error while closing sharedConnection, SocketException, service - " + serviceName +
-                         ", Listner id - " + Thread.currentThread().getId());
-                if (log.isDebugEnabled()) {
-                    log.debug("Error while closing sharedConnection, SocketException, service - " +
-                              serviceName + ", Listner id - " + Thread.currentThread().getId(), exx);
-                }
-            } catch (IOException e) {
-                log.warn("Error while closing sharedConnection, IOException, service - " + serviceName +
-                         ", Listner id - " + Thread.currentThread().getId());
-                if (log.isDebugEnabled()) {
-                    log.debug("Error while closing sharedConnection, IOException, service - " +
-                              serviceName + ", Listner id - " + Thread.currentThread().getId(), e);
-                }
-            } finally {
-                sharedConnection = null;
-            }
-        }
-    }
-
-    @Deprecated
-    public synchronized void pause() {
-        //TODO implement me ..
-    }
-
-    @Deprecated
-    public synchronized void resume() {
-        //TODO implement me ..
-    }
-
-    public void setWorkerPool(WorkerPool workerPool) {
-        this.workerPool = workerPool;
-    }
-
-    public void setRabbitMQMessageReceiver(RabbitMQMessageReceiver rabbitMQMessageReceiver) {
-        this.rabbitMQMessageReceiver = rabbitMQMessageReceiver;
-    }
-
-    public Hashtable<String, String> getRabbitMQProperties() {
-        return rabbitMQProperties;
-    }
-
-    public void addRabbitMQProperties(Map<String, String> rabbitMQProperties) {
-        this.rabbitMQProperties.putAll(rabbitMQProperties);
-    }
-
-    public void removeAMQPProperties(String key) {
-        this.rabbitMQProperties.remove(key);
-    }
-
-    public String getServiceName() {
-        return serviceName;
-    }
-
-    public void setServiceName(String serviceName) {
-        this.serviceName = serviceName;
     }
 
     /**
      * The actual threads/tasks that perform message polling
      */
-    private class MessageListenerTask implements Runnable {
-        private volatile int listnerState;
-        private String queueName, routeKey, exchangeName;
-        private boolean autoAck = false;
-        private Connection localConnection = null;
-        private int qos = -1; //-1 means qos is not specified, in that case only basic qos will be applied to channel
-        private QueueingConsumer queueingConsumer;
-        private volatile boolean connected = false;
+    private class MessageListenerTask implements Runnable, Consumer {
 
-        MessageListenerTask() {
-            synchronized (pollingTasks) {
-                getUpdateListnerState(true, STATE_STOPPED);
-                pollingTasks.add(this);
-            }
-        }
+        private Channel channel;
+        private String queueName;
+        private boolean autoAck;
+        private long maxDeadLetteredCount;
 
-        @Deprecated
-        public void pause() {
-            //TODO implement me
-        }
-
-        @Deprecated
-        public void resume() {
-            //TODO implement me
+        private MessageListenerTask() throws IOException {
+            this.channel = connection.createChannel();
+            ((Recoverable) this.channel).addRecoveryListener(new RabbitMQRecoveryListener());
+            pollingTasks.add(this);
         }
 
         /**
-         * Execute the polling worker task
-         * Actual reconnection is not happening in here, re-connection is handled by  the rabbitmq connection
-         * itself. The only use of recovery interval in here is that to output the info message
-         */
-        public void run() {
-            try {
-                getUpdateListnerState(true, STATE_STARTED);
-                while (isListnerActive()) {
-                    try {
-                        initConsumer();
-                        startConsumer();
-                    } catch (AlreadyClosedException e) {
-                        if (isServiceTaskManagerActive()) {
-                            log.error("Error, Connection already closed " + serviceName + ", Listner id - " +
-                                      Thread.currentThread().getId(), e);
-                            if (!retryIfNotStopped()) {
-                                break;
-                            }
-                        } else {
-                            log.warn("Error, Connection already closed " + serviceName + ", Listner id - " +
-                                     Thread.currentThread().getId());
-                            if (log.isDebugEnabled()) {
-                                log.debug("Error, Connection already closed " + serviceName + ", Listner id - " +
-                                          Thread.currentThread().getId(), e);
-                            }
-                        }
-                    } catch (ShutdownSignalException sse) {
-                        if (sse.isInitiatedByApplication()) {
-                            log.warn("RabbitMQ Listener of the service " + serviceName + " was disconnected, " +
-                                     "Shutdown signal issued, Listner id - " + Thread.currentThread().getId());
-                            if (log.isDebugEnabled()) {
-                                log.debug("RabbitMQ Listener of the service " + serviceName + " was disconnected, " +
-                                          "Shutdown signal issued, Listner id - " + Thread.currentThread().getId(), sse);
-                            }
-                            getUpdateListnerState(true, STATE_STOPPED);
-                            break;
-                        } else if (!isServiceTaskManagerActive()) {
-                            log.warn("RabbitMQ Listener of the service " + serviceName +
-                                     " was disconnected, Listner id - " + Thread.currentThread().getId());
-                            if (log.isDebugEnabled()) {
-                                log.debug("RabbitMQ Listener of the service " + serviceName +
-                                          " was disconnected, Listner id - " + Thread.currentThread().getId(), sse);
-                            }
-                        } else {
-                            log.error("RabbitMQ Listener of the service " + serviceName + " was disconnected, " +
-                                      "task manager still active, Listner id - " + Thread.currentThread().getId(), sse);
-                            if (!retryIfNotStopped()) {
-                                break;
-                            }
-                        }
-                    } catch (OMException e) {
-                        log.error("Invalid Message Format while Consuming the message, Listner id - " +
-                                  Thread.currentThread().getId(), e);
-                    } catch (SocketException exx) {
-                        if (!isServiceTaskManagerActive()) {
-                            log.warn("RabbitMQ listner disconnected, service - " + serviceName +
-                                     ", Listner id - " + Thread.currentThread().getId());
-                            if (log.isDebugEnabled()) {
-                                log.debug("RabbitMQ listner disconnected, service - " + serviceName +
-                                          ", Listner id - " + Thread.currentThread().getId(), exx);
-                            }
-                        } else {
-                            log.error("RabbitMQ listner disconnected, service - " + serviceName +
-                                      ", Listner id - " + Thread.currentThread().getId(), exx);
-                        }
-                    } catch (IOException e) {
-                        if (e.getCause() instanceof ShutdownSignalException &&
-                            ((ShutdownSignalException) e.getCause()).isInitiatedByApplication()) {
-                            log.warn("RabbitMQ Listener of the service " + serviceName + " was disconnected, " +
-                                     "Shutdown signal issued, Listner id - " + Thread.currentThread().getId());
-                            if (log.isDebugEnabled()) {
-                                log.debug("RabbitMQ Listener of the service " + serviceName + " was disconnected, " +
-                                          "Shutdown signal issued, Listner id - " + Thread.currentThread().getId(), e);
-                            }
-                            getUpdateListnerState(true, STATE_STOPPED);
-                            break;
-                        } else if (!isServiceTaskManagerActive()) {
-                            log.warn("RabbitMQ Listener of the service " + serviceName + " was disconnected, " +
-                                     "IOException occurred, Listner id - " + Thread.currentThread().getId());
-                            if (log.isDebugEnabled()) {
-                                log.debug("RabbitMQ Listener of the service " + serviceName + " was disconnected, " +
-                                          "IOException occurred, Listner id - " + Thread.currentThread().getId(), e);
-                            }
-                        } else {
-                            log.error("RabbitMQ Listener of the service " + serviceName + " was disconnected, " +
-                                      "IOException occurred, but task manager still active, Listner id  " +
-                                      Thread.currentThread().getId(), e);
-                            if (!retryIfNotStopped()) {
-                                break;
-                            }
-                        }
-                    } catch (AxisRabbitMQException e) {
-                        if (isServiceTaskManagerActive()) {
-                            log.error("Error, Connection closed, AxisRabbitMQException occurred, service " +
-                                      serviceName + ", Listner id - " + Thread.currentThread().getId(), e);
-                            if (!retryIfNotStopped()) {
-                                break;
-                            }
-                        } else {
-                            log.warn("Error, Connection closed, AxisRabbitMQException occurred, service " +
-                                     serviceName + ", Listner id - " + Thread.currentThread().getId());
-                            if (log.isDebugEnabled()) {
-                                log.debug("Error, Connection closed, AxisRabbitMQException occurred, service " +
-                                          serviceName + ", Listner id - " + Thread.currentThread().getId(), e);
-                            }
-                        }
-                    } catch (Exception e) {
-                        if (isServiceTaskManagerActive()) {
-                            log.error("Error, Connection closed, Exception occurred, service " + serviceName +
-                                      ", Listner id - " + Thread.currentThread().getId(), e);
-                            if (!retryIfNotStopped()) {
-                                break;
-                            }
-                        } else {
-                            log.warn("Error, Connection closed, Exception occurred, service " + serviceName +
-                                     ", Listner id - " + Thread.currentThread().getId());
-                            if (log.isDebugEnabled()) {
-                                log.debug("Error, Connection closed, Exception occurred, service " + serviceName +
-                                          ", Listner id - " + Thread.currentThread().getId(), e);
-                            }
-                        }
-                    }
-
-                }
-            } finally {
-                closeConnection();
-                getUpdateListnerState(true, STATE_STOPPED);
-                synchronized (pollingTasks) {
-                    pollingTasks.remove(this);
-                }
-            }
-        }
-
-        /**
-         * Create a queue consumer using the properties form transport listener configuration.
-         * When connection is re-connected. This method will request for the connection and create
-         * channel, queues, exchanges and bind queues to exchanges before consuming messages
+         * Register a consumer to the queue
          *
-         * @throws IOException on error
+         * @throws IOException
          */
         private void initConsumer() throws IOException {
-            if (log.isDebugEnabled()) {
-                log.debug("Initializing consumer for service " + serviceName);
-            }
-            //set the qos value for the RMQ channel so it will be applied when getting a channel back
-            String qosString = rabbitMQProperties.get(RabbitMQConstants.CONSUMER_QOS);
-            if (qosString != null && !"".equals(qosString)) {
-                try {
-                    qos = Integer.parseInt(qosString);
-                } catch (NumberFormatException e) {
-                    qos = -1;
-                    log.warn("Can't parse given RabbitMQ qos value as a integer, hence using " +
-                             "channel without qos, provided qos value - " + qosString);
-                }
-            }
-            queueingConsumer = new QueueingConsumer(getChannel());
+            // set the qos value
+            int qos = NumberUtils.toInt(rabbitMQProperties.get(RabbitMQConstants.CONSUMER_QOS),
+                    RabbitMQConstants.DEFAULT_CONSUMER_QOS);
+            channel.basicQos(qos);
+
+            // declaring queue
             queueName = rabbitMQProperties.get(RabbitMQConstants.QUEUE_NAME);
-            routeKey = rabbitMQProperties.get(RabbitMQConstants.QUEUE_ROUTING_KEY);
-            exchangeName = rabbitMQProperties.get(RabbitMQConstants.EXCHANGE_NAME);
+            RabbitMQUtils.declareQueue(channel, queueName, rabbitMQProperties);
 
-            if (log.isDebugEnabled()) {
-                log.debug("Starting MessageListner Thread - " + Thread.currentThread().getId() +
-                          ", with channel(hashcode) - " + queueingConsumer.getChannel().hashCode());
-            }
-            String autoAckStringValue = rabbitMQProperties.get(RabbitMQConstants.QUEUE_AUTO_ACK);
-            if (autoAckStringValue != null) {
-                try {
-                    autoAck = Boolean.parseBoolean(autoAckStringValue);
-                } catch (Exception e) {
-                    log.debug("Format error in rabbitmq.queue.auto.ack parameter");
-                }
-            }
-            //If no queue name is specified then service name will be used as queue name
-            if (StringUtils.isEmpty(queueName)) {
-                queueName = serviceName;
-                log.info("No queue name is specified for " + serviceName + ". " +
-                         "Service name will be used as queue name");
-            }
+            // declaring user defined exchange if given
+            String exchangeName = rabbitMQProperties.get(RabbitMQConstants.EXCHANGE_NAME);
+            RabbitMQUtils.declareExchange(channel, exchangeName, rabbitMQProperties);
 
-            if (routeKey == null) {
-                log.info(
-                        "No routing key specified. Using queue name as the " +
-                        "routing key.");
-                routeKey = queueName;
+            // get max dead-lettered count
+            maxDeadLetteredCount =
+                    NumberUtils.toLong(rabbitMQProperties.get(RabbitMQConstants.MESSAGE_MAX_DEAD_LETTERED_COUNT));
+
+            // get consumer tag if given
+            String consumerTag = rabbitMQProperties.get(RabbitMQConstants.CONSUMER_TAG);
+
+            autoAck = BooleanUtils.toBooleanDefaultIfNull(BooleanUtils.toBooleanObject(rabbitMQProperties
+                    .get(RabbitMQConstants.QUEUE_AUTO_ACK)), true);
+
+            if (StringUtils.isNotEmpty(consumerTag)) {
+                channel.basicConsume(queueName, autoAck, consumerTag, this);
+            } else {
+                channel.basicConsume(queueName, autoAck, this);
             }
+        }
 
-            String queueAutoDeclareStr = rabbitMQProperties.get(RabbitMQConstants.QUEUE_AUTODECLARE);
-            String exchangeAutoDeclareStr = rabbitMQProperties.get(RabbitMQConstants.EXCHANGE_AUTODECLARE);
+        /**
+         * Called when the consumer is registered by a call to any of the {@link Channel#basicConsume} methods.
+         *
+         * @param consumerTag the consumer tag associated with the consumer
+         */
+        @Override
+        public void handleConsumeOk(String consumerTag) {
+            log.info("Start consuming queue: " + queueName + " with consumer tag: " + consumerTag +
+                    " for service: " + serviceName);
+        }
 
-            boolean queueAutoDeclare = true;
-            boolean exchangeAutoDeclare = true;
+        /**
+         * Called when the consumer is cancelled by a call to {@link Channel#basicCancel}.
+         *
+         * @param consumerTag the consumer tag associated with the consumer
+         */
+        @Override
+        public void handleCancelOk(String consumerTag) {
+            log.info("The consumer with consumer tag: " + consumerTag + " stops listening to new messages.");
+        }
 
-            if (!StringUtils.isEmpty(queueAutoDeclareStr)) {
-                queueAutoDeclare = Boolean.parseBoolean(queueAutoDeclareStr);
+        /**
+         * Called when the consumer is cancelled for reasons other than by a call to {@link Channel#basicCancel}.
+         * For example, the queue has been deleted.
+         * See {@link #handleCancelOk} for notification of consumer cancellation due to {@link Channel#basicCancel}.
+         *
+         * @param consumerTag the consumer tag associated with the consumer
+         * @throws IOException
+         */
+        @Override
+        public void handleCancel(String consumerTag) throws IOException {
+            log.info("The consumer with consumer tag: " + consumerTag + " unexpectedly stops listening to new messages.");
+        }
+
+        /**
+         * Called when either the channel or the underlying connection has been shut down.
+         *
+         * @param consumerTag the consumer tag associated with the consumer
+         * @param signal      a {@link ShutdownSignalException} indicating the reason for the shut down
+         */
+        @Override
+        public void handleShutdownSignal(String consumerTag, ShutdownSignalException signal) {
+            if (signal.isInitiatedByApplication()) {
+                log.info("The connection to the messaging server was shut down. Consumer tag " + consumerTag);
+
+            } else if (signal.getReference() instanceof Channel) {
+                int channelNumber = ((Channel) signal.getReference()).getChannelNumber();
+                log.info("The consumer on channel number: " + channelNumber + " with consumer tag: " + consumerTag
+                        + " was shut down.");
+
+            } else {
+                log.info("The consumer with consumer tag: " + consumerTag + " was shut down.");
             }
+        }
 
-            if (!StringUtils.isEmpty(exchangeAutoDeclareStr)) {
-                exchangeAutoDeclare = Boolean.parseBoolean(exchangeAutoDeclareStr);
-            }
-            if (queueAutoDeclare && !StringUtils.isEmpty(queueName)) {
-                //declaring queue
-                RabbitMQUtils.declareQueue(queueingConsumer.getChannel(), queueName, rabbitMQProperties);
-            }
+        /**
+         * Called when a basic.recover-ok is received in reply to a basic.recover. All messages received before this is
+         * invoked that haven't been ack'ed will be re-delivered. All messages received afterwards won't be.
+         *
+         * @param consumerTag the consumer tag associated with the consumer
+         */
+        @Override
+        public void handleRecoverOk(String consumerTag) {
 
-            if (exchangeAutoDeclare && !StringUtils.isEmpty(exchangeName)) {
-                //declaring exchange
-                RabbitMQUtils.declareExchange(queueingConsumer.getChannel(), exchangeName, rabbitMQProperties);
-                queueingConsumer.getChannel().queueBind(queueName, exchangeName, routeKey);
-                if (log.isDebugEnabled()) {
-                    log.debug("Bind queue '" + queueName + "' to exchange '" + exchangeName + "' with route key '" +
-                              routeKey + "'");
-                }
-            }
+        }
 
-            String consumerTagString = rabbitMQProperties.get(RabbitMQConstants.CONSUMER_TAG);
-            if (consumerTagString != null) {
-                queueingConsumer.getChannel().basicConsume(queueName, autoAck, consumerTagString, queueingConsumer);
-                if (log.isDebugEnabled()) {
-                    log.debug("Start consuming queue '" + queueName + "' with consumer tag '" + consumerTagString +
-                              "' for service " + serviceName);
+        /**
+         * Called when a basic.deliver is received for this consumer.
+         *
+         * @param consumerTag the consumer tag associated with the consumer
+         * @param envelope    packaging data for the message
+         * @param properties  content header data for the message
+         * @param body        the message body (opaque, client-specific byte array)
+         * @throws IOException if the consumer encounters an I/O error while processing the message
+         * @see Envelope
+         */
+        @Override
+        public void handleDelivery(String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body)
+                throws IOException {
+            boolean successful = rabbitMQMessageReceiver.onMessage(properties, body);
+            if (successful) {
+                if (!autoAck) {
+                    channel.basicAck(envelope.getDeliveryTag(), false);
                 }
             } else {
-                consumerTagString = queueingConsumer.getChannel().basicConsume(queueName, autoAck, queueingConsumer);
-                if (log.isDebugEnabled()) {
-                    log.debug("Start consuming queue '" + queueName + "' with consumer tag '" + consumerTagString +
-                              "' for service " + serviceName);
+                List<HashMap<String, Object>> xDeathHeader =
+                        (ArrayList<HashMap<String, Object>>) properties.getHeaders().get("x-death");
+                // check if message has been already dead-lettered
+                if (xDeathHeader != null && xDeathHeader.size() > 0 && maxDeadLetteredCount != -1) {
+                    Long count = (Long) xDeathHeader.get(0).get("count");
+                    if (count <= maxDeadLetteredCount) {
+                        channel.basicReject(envelope.getDeliveryTag(), false);
+                        log.info("The rejected message with message id: " + properties.getMessageId() + " and " +
+                                "delivery tag: " + envelope.getDeliveryTag() + " on the queue: " + queueName + " is " +
+                                "dead-lettered " + count + " time(s).");
+                    } else {
+                        // handle the message after exceeding the max dead-lettered count
+                        proceedAfterMaxDeadLetteredCount(envelope, properties, body);
+                    }
+                } else {
+                    // the message might be dead-lettered or discard if an error occurred in the mediation flow
+                    channel.basicReject(envelope.getDeliveryTag(), false);
+                    log.info("The rejected message with message id: " + properties.getMessageId() + " and " +
+                            "delivery tag: " + envelope.getDeliveryTag() + " on the queue: " + queueName + " will " +
+                            "discard or dead-lettered.");
                 }
             }
         }
 
         /**
-         * Used to start consuming messages. This method is called in startup when reconnection  happens
+         * The message will publish to the exchange with routing key or discard
          *
-         * @throws ShutdownSignalException
+         * @param envelope   packaging data for the message
+         * @param properties content header data for the message
+         * @param body       the message body
          * @throws IOException
          */
-        private void startConsumer() throws ShutdownSignalException, IOException {
-            //unable to connect to the queue
-            if (queueingConsumer == null) {
-                getUpdateListnerState(true, STATE_STOPPED);
-                return;
-            }
-
-            Channel channel = queueingConsumer.getChannel();
-
-            while (isListnerActive()) {
-                try {
-                    channel.txSelect();
-                } catch (SocketException exx) {
-                    if (!isServiceTaskManagerActive()) {
-                        throw exx;
-                    } else {
-                        log.error("Error while starting transaction, SocketException, service - " + serviceName +
-                                  ", Listner id - " + Thread.currentThread().getId(), exx);
-                        continue;
-                    }
-                } catch (IOException e) {
-                    if (!isServiceTaskManagerActive()) {
-                        throw e;
-                    } else {
-                        log.error("Error while starting transaction, IOException, service - " + serviceName +
-                                  ", Listner id - " + Thread.currentThread().getId(), e);
-                        continue;
-                    }
-                }
-
-                boolean successful = false;
-
-                RabbitMQMessage message = null;
-                try {
-                    message = getConsumerDelivery(queueingConsumer);
-                } catch (InterruptedException e) {
-                    log.error("Error while consuming message", e);
-                    continue;
-                }
-                if (log.isDebugEnabled()) {
-                    log.debug("Processing message by Message Listner Thread - " + Thread.currentThread().getId() +
-                              ", time - " + System.nanoTime() + ", channel(hashcode) - " + channel.hashCode());
-                }
-
-                if (message != null) {
-                    try {
-                        successful = rabbitMQMessageReceiver.onMessage(message);
-                    } finally {
-                        if (successful) {
-                            try {
-                                if (!autoAck) {
-                                    channel.basicAck(message.getDeliveryTag(), false);
-                                }
-                                channel.txCommit();
-                            } catch (SocketException exx) {
-                                if (!isServiceTaskManagerActive()) {
-                                    throw exx;
-                                } else {
-                                    log.error("Error while committing transaction, SocketException, service - " + serviceName +
-                                              ", Listner id - " + Thread.currentThread().getId(), exx);
-                                    continue;
-                                }
-                            } catch (IOException e) {
-                                if (!isServiceTaskManagerActive()) {
-                                    throw e;
-                                } else {
-                                    log.error("Error while committing transaction, IOException, service - " + serviceName +
-                                              ", Listner id - " + Thread.currentThread().getId(), e);
-                                    continue;
-                                }
-                            }
-                        } else {
-                            try {
-                                channel.txRollback();
-                                // According to the spec, rollback doesn't automatically redeliver unacked messages.
-                                // We need to call recover explicitly.
-                                channel.basicRecover();
-                            } catch (SocketException exx) {
-                                if (!isServiceTaskManagerActive()) {
-                                    throw exx;
-                                } else {
-                                    log.error("Error while trying to roll back transaction, SocketException, service - " + serviceName +
-                                              ", Listner id - " + Thread.currentThread().getId(), exx);
-                                    continue;
-                                }
-                            } catch (IOException e) {
-                                if (!isServiceTaskManagerActive()) {
-                                    throw e;
-                                } else {
-                                    log.error("Error while trying to roll back transaction, IOException, service - " + serviceName +
-                                              ", Listner id - " + Thread.currentThread().getId(), e);
-                                    continue;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-        }
-
-        /**
-         * Returns the delivery from the consumer
-         *
-         * @param consumer the consumer to get the delivery
-         * @return RabbitMQMessage consumed by the consumer
-         * @throws InterruptedException on error
-         * @throws com.rabbitmq.client.ShutdownSignalException
-         */
-        private RabbitMQMessage getConsumerDelivery(QueueingConsumer consumer)
-                throws InterruptedException, ShutdownSignalException {
-            RabbitMQMessage message = new RabbitMQMessage();
-            QueueingConsumer.Delivery delivery = null;
-            try {
-                if (log.isDebugEnabled()) {
-                    log.debug("Waiting for next delivery from queue for service " + serviceName +
-                              ", Listner id - " + Thread.currentThread().getId());
-                }
-                delivery = consumer.nextDelivery();
-            } catch (InterruptedException e) {
-                return null;
-            } catch (ConsumerCancelledException e) {
-                return null;
-            }
-
-            if (delivery != null) {
-                AMQP.BasicProperties properties = delivery.getProperties();
-                Map<String, Object> headers = properties.getHeaders();
-                message.setBody(delivery.getBody());
-                message.setDeliveryTag(delivery.getEnvelope().getDeliveryTag());
-                message.setReplyTo(properties.getReplyTo());
-                message.setMessageId(properties.getMessageId());
-
-                // Content type is as set in delivered message. If not, from service parameters.
-                String contentType = properties.getContentType();
-                if (contentType == null) {
-                    contentType = rabbitMQProperties.get(RabbitMQConstants.CONTENT_TYPE);
-                }
-                message.setContentType(contentType);
-
-                message.setContentEncoding(properties.getContentEncoding());
-                message.setCorrelationId(properties.getCorrelationId());
-                if (headers != null) {
-                    message.setHeaders(headers);
-                    if (headers.get(RabbitMQConstants.SOAP_ACTION) != null) {
-                        message.setSoapAction(headers.get(
-                                RabbitMQConstants.SOAP_ACTION).toString());
-                    }
-                }
+        private void proceedAfterMaxDeadLetteredCount(Envelope envelope, AMQP.BasicProperties properties, byte[] body)
+                throws IOException {
+            String routingKey =
+                    rabbitMQProperties.get(RabbitMQConstants.MESSAGE_ERROR_QUEUE_ROUTING_KEY);
+            String exchangeName =
+                    rabbitMQProperties.get(RabbitMQConstants.MESSAGE_ERROR_EXCHANGE_NAME);
+            if (StringUtils.isNotEmpty(routingKey) && StringUtils.isNotEmpty(exchangeName)) {
+                // publish message to the given exchange with the routing key
+                channel.basicPublish(exchangeName, routingKey, properties, body);
+                channel.basicAck(envelope.getDeliveryTag(), false);
+                log.info("The max dead lettered count exceeded. Hence message with message id: " +
+                        properties.getMessageId() + " and delivery tag: " + envelope.getDeliveryTag() +
+                        " publish to the exchange: " + exchangeName + " with the routing key: " + routingKey + ".");
+            } else if (StringUtils.isNotEmpty(routingKey) && StringUtils.isEmpty(exchangeName)) {
+                // publish message to the default exchange with the routing key
+                channel.basicPublish("", routingKey, properties, body);
+                channel.basicAck(envelope.getDeliveryTag(), false);
+                log.info("The max dead lettered count exceeded. Hence message with message id: " +
+                        properties.getMessageId() + " and delivery tag: " + envelope.getDeliveryTag() +
+                        " publish to the default exchange with the routing key: " + routingKey + ".");
             } else {
-                if (log.isDebugEnabled()) {
-                    log.debug("Queue delivery item is null for service " + serviceName);
-                }
-                return null;
+                // discard the message
+                channel.basicAck(envelope.getDeliveryTag(), false);
+                log.info("The max dead lettered count exceeded. " +
+                        "No 'rabbitmq.message.error.queue.routing.key' specified for publishing the message. " +
+                        "Hence the message with message id: " + properties.getMessageId() + " and delivery tag: " +
+                        envelope.getDeliveryTag() + " on the queue: " + queueName + " will discard.");
             }
-            return message;
         }
 
         /**
-         * Retrying the connection if service not deactivated
-         *
-         * @return true if reconnection successful false otherwise
+         * Execute by the {@link WorkerPool}
          */
-        private boolean retryIfNotStopped() {
-            int retryInterval = rabbitMQConnectionFactory.getRetryInterval();
-            int retryCountMax = rabbitMQConnectionFactory.getRetryCount();
-            int retryCount = 0;
-            while (isListnerActive() && !localConnection.isOpen()
-                   && ((retryCountMax == -1) || (retryCount < retryCountMax))) {
-                retryCount++;
-                log.info("Attempting to reconnect to RabbitMQ Broker for the service " + serviceName +
-                         " in " + retryInterval + " ms, Listner id - " + Thread.currentThread().getId());
-                try {
-                    Thread.sleep(retryInterval);
-                } catch (InterruptedException e) {
-                    log.error("Error while trying to reconnect to RabbitMQ Broker for the service - " + serviceName +
-                              ", Listner id - " + Thread.currentThread().getId(), e);
-                }
-            }
-            if (!isListnerActive() || !serviceTaskManagerState.isActive()) {
-                if (log.isDebugEnabled()) {
-                    log.debug("Service deactivated during waiting period, service - " + serviceName +
-                              ", Listner id - " + Thread.currentThread().getId());
-                }
-                getUpdateListnerState(true, STATE_SHUTTING_DOWN);
-                return false;
-            } else if (localConnection.isOpen()) {
-                log.info("Successfully reconnected to RabbitMQ Broker for the service " + serviceName +
-                         ", Listner id - " + Thread.currentThread().getId());
-                return true;
-            }
-            log.error("Could not reconnect to the RabbitMQ Broker for the service " + serviceName +
-                      ". Connection is closed, Listner id - " + Thread.currentThread().getId());
-            getUpdateListnerState(true, STATE_FAULTY);
-            return false;
-
-        }
-
-        /**
-         * This will be true if there is a rabbitMQ connection
-         *
-         * @return true if connected, false otherwise
-         */
-        @Deprecated
-        public boolean isConnected() {
-            return connected;
-        }
-
-        /**
-         * Setter method for connected
-         *
-         * @param connected
-         */
-        @Deprecated
-        public void setConnected(boolean connected) {
-            this.connected = connected;
-        }
-
-        /**
-         * Helper method to get create and get the channel
-         *
-         * @return channel
-         * @throws IOException
-         */
-        private Channel getChannel() throws IOException {
-            Channel channel = getConnection().createChannel();
-            //If qos is applicable, then apply qos before returning the channel
-            if (this.qos > 0) {
-                channel.basicQos(this.qos);
-            }
-            return channel;
-        }
-
-        /**
-         * Helper method to get connection. If connection caching is enabled, return shared connection, else create a
-         * local connection
-         *
-         * @return localConnection
-         * @throws IOException
-         */
-        private Connection getConnection() throws IOException {
-            if (cacheLevel < RabbitMQConstants.CACHE_CONNECTION) {
-                // Connection is not shared
-                if (localConnection == null) {
-                    if (isServiceTaskManagerActive()) {
-                        localConnection = createConnection();
-                        setConnected(true);
-                    } else {
-                        throw new AxisRabbitMQException("Error, Shutdown signal issued, hence won't create " +
-                                                        "the localConnection, service - " + serviceName +
-                                                        ", Listner id - " + Thread.currentThread().getId());
-                    }
-                }
-            } else if (localConnection == null) {
-                // Connection is shared, but may not have been created
-                synchronized (ServiceTaskManager.this) {
-                    if (sharedConnection == null) {
-                        if (isServiceTaskManagerActive()) {
-                            sharedConnection = createConnection();
-                        } else {
-                            throw new AxisRabbitMQException("Error, Shutdown signal issued, hence won't create " +
-                                                            "the sharedConnection, service - " + serviceName +
-                                                            ", Listner id - " + Thread.currentThread().getId());
-                        }
-                    }
-                }
-                localConnection = sharedConnection;
-                setConnected(true);
-            }
-            // else: Connection is shared and is already referenced by this.connection
-            return localConnection;
-        }
-
-        /**
-         * Helper method to create connection using connection factory.
-         *
-         * @return connection
-         * @throws IOException
-         */
-        private Connection createConnection() throws IOException {
-            Connection connection = null;
+        @Override
+        public void run() {
             try {
-                connection = rabbitMQConnectionFactory.createConnection();
-                log.info("RabbitMQ connection created for service " + serviceName);
-            } catch (Exception e) {
-                log.error("Error while creating RabbitMQ connection for service " + serviceName, e);
-                throw new AxisRabbitMQException("Error while creating RabbitMQ connection for service " + serviceName, e);
-            }
-            return connection;
-        }
-
-        /**
-         * Method used to change states to STATE_SHUTTING_DOWN, so in next cycle, message listner will shut down
-         */
-        protected void requestShutdown() {
-            getUpdateListnerState(true, STATE_SHUTTING_DOWN);
-        }
-
-        /**
-         * Method used to close connections. This will close local connection and connection resides in messageConsumer
-         */
-        protected void closeConnection() {
-            getUpdateListnerState(true, STATE_SHUTTING_DOWN);
-            try {
-                //closing the class local connection
-                if (localConnection != null) {
-                    try {
-                        if (localConnection.isOpen()) {
-                            localConnection.close();
-                            log.info("RabbitMQ localConnection closed for service " + serviceName + ", Listner id - " +
-                                     Thread.currentThread().getId());
-                        }
-                    } catch (AlreadyClosedException e) {
-                        log.warn("Error while closing Connection, AlreadyClosedException, service - " + serviceName +
-                                 ", Listner id - " + Thread.currentThread().getId());
-                        if (log.isDebugEnabled()) {
-                            log.debug("Error while closing Connection, AlreadyClosedException, service - " +
-                                      serviceName + ", Listner id - " + Thread.currentThread().getId(), e);
-                        }
-                    } catch (ShutdownSignalException ex) {
-                        log.warn("Error while closing Connection, ShutdownSignalException, service - " + serviceName +
-                                 ", Listner id - " + Thread.currentThread().getId());
-                        if (log.isDebugEnabled()) {
-                            log.debug("Error while closing Connection, ShutdownSignalException, service - " +
-                                      serviceName + ", Listner id - " + Thread.currentThread().getId(), ex);
-                        }
-                    } catch (SocketException exx) {
-                        log.warn("Error while closing Connection, SocketException, service - " + serviceName +
-                                 ", Listner id - " + Thread.currentThread().getId());
-                        if (log.isDebugEnabled()) {
-                            log.debug("Error while closing Connection, SocketException, service - " +
-                                      serviceName + ", Listner id - " + Thread.currentThread().getId(), exx);
-                        }
-                    } catch (IOException e) {
-                        log.warn("Error while closing Connection, IOException, service - " + serviceName +
-                                 ", Listner id - " + Thread.currentThread().getId());
-                        if (log.isDebugEnabled()) {
-                            log.debug("Error while closing Connection, IOException, service - " +
-                                      serviceName + ", Listner id - " + Thread.currentThread().getId(), e);
-                        }
-                    }
-                }
-
-            } finally {
-                localConnection = null;
-            }
-            Channel channel = null;
-            if (queueingConsumer != null) {
-                channel = queueingConsumer.getChannel();
-            }
-            try {
-                if (channel != null) {
-                    try {
-                        //closing the channel and connection in queing consumer
-                        if (channel.isOpen()) {
-                            channel.close();
-                            log.info("RabbitMQ consumer channel closed for service " + serviceName + ", Listner id - " +
-                                     Thread.currentThread().getId());
-                        }
-                        if (channel.getConnection() != null && channel.getConnection().isOpen()) {
-                            channel.getConnection().close();
-                            log.info("RabbitMQ consumer connection closed for service " + serviceName + ", Listner id - " +
-                                     Thread.currentThread().getId());
-                        }
-                    } catch (AlreadyClosedException e) {
-                        log.warn("Error while closing consumer Connection, AlreadyClosedException, service - " + serviceName +
-                                 ", Listner id - " + Thread.currentThread().getId());
-                        if (log.isDebugEnabled()) {
-                            log.debug("Error while closing consumer Connection, AlreadyClosedException, service - " +
-                                      serviceName + ", Listner id - " + Thread.currentThread().getId(), e);
-                        }
-                    } catch (ShutdownSignalException ex) {
-                        log.warn("Error while closing consumer Connection, ShutdownSignalException, service - " + serviceName +
-                                 ", Listner id - " + Thread.currentThread().getId());
-                        if (log.isDebugEnabled()) {
-                            log.debug("Error while closing consumer Connection, ShutdownSignalException, service - " +
-                                      serviceName + ", Listner id - " + Thread.currentThread().getId(), ex);
-                        }
-                    } catch (SocketException exx) {
-                        log.warn("Error while closing consumer Connection, SocketException, service - " + serviceName +
-                                 ", Listner id - " + Thread.currentThread().getId());
-                        if (log.isDebugEnabled()) {
-                            log.debug("Error while closing consumer Connection, SocketException, service - " +
-                                      serviceName + ", Listner id - " + Thread.currentThread().getId(), exx);
-                        }
-                    } catch (TimeoutException e) {
-                        log.warn("Error while closing consumer Connection, TimeoutException, service - " + serviceName +
-                                ", Listner id - " + Thread.currentThread().getId());
-                        if (log.isDebugEnabled()) {
-                            log.debug("Error while closing consumer Connection, TimeoutException, service - " +
-                                    serviceName + ", Listner id - " + Thread.currentThread().getId(), e);
-                        }
-                    } catch (IOException e) {
-                        log.warn("Error while closing consumer Connection, IOException, service - " + serviceName +
-                                 ", Listner id - " + Thread.currentThread().getId());
-                        if (log.isDebugEnabled()) {
-                            log.debug("Error while closing consumer Connection, IOException, service - " +
-                                      serviceName + ", Listner id - " + Thread.currentThread().getId(), e);
-                        }
-                    }
-                }
-            } finally {
-                channel = null;
-            }
-            getUpdateListnerState(true, STATE_STOPPED);
-        }
-
-        /**
-         * Helper method to get or update listner states
-         *
-         * @param update
-         * @param state
-         * @return listnerState
-         */
-        private int getUpdateListnerState(boolean update, int state) {
-            synchronized (ServiceTaskManager.this) {
-                if (update) {
-                    this.listnerState = state;
-                }
-                return this.listnerState;
+                initConsumer();
+            } catch (IOException e) {
+                log.error("Error occurred while initializing the consumer.", e);
             }
         }
 
         /**
-         * Helper method to check whether listner is active or not
-         *
-         * @return true if listner is active, false otherwise
+         * Return connection back to the pool when undeploying the listener proxy
          */
-        private boolean isListnerActive() {
-            if (this.listnerState == STATE_STARTED) {
-                return true;
-            }
-            return false;
+        public void close() {
+            connection.abort();
+            rabbitMQConnectionPool.returnObject(factoryName, connection);
+            channel = null;
+            connection = null;
         }
+    }
 
-        /**
-         * Helper method which will check whether both listner and service task manager in active state. If not
-         * update listner state to STATE_STOPPED as well
-         * @return true if both are in STATE_STARTED, false otherwise
-         */
-        private boolean isServiceTaskManagerActive() {
-            if (getUpdateListnerState(false, STATE_DUMMY) != STATE_STARTED ||
-                serviceTaskManagerState.getUpdateState(false, STATE_DUMMY) != STATE_STARTED) {
-                getUpdateListnerState(true, STATE_STOPPED);
-                return false;
+    /**
+     * Get the service name
+     *
+     * @return the service name
+     */
+    public String getServiceName() {
+        return serviceName;
+    }
 
-            }
-            return true;
-        }
+    /**
+     * Set the service name
+     *
+     * @param serviceName the name of the service
+     */
+    public void setServiceName(String serviceName) {
+        this.serviceName = serviceName;
+    }
 
+    /**
+     * Set the rabbitmq message receiver
+     *
+     * @param rabbitMQMessageReceiver a {@link RabbitMQMessageReceiver} object
+     */
+    public void setRabbitMQMessageReceiver(RabbitMQMessageReceiver rabbitMQMessageReceiver) {
+        this.rabbitMQMessageReceiver = rabbitMQMessageReceiver;
+    }
+
+    /**
+     * Add connection factory config parameters to the map
+     *
+     * @param rabbitMQProperties map of connection parameters
+     */
+    public void addRabbitMQProperties(Map<String, String> rabbitMQProperties) {
+        this.rabbitMQProperties.putAll(rabbitMQProperties);
+    }
+
+    /**
+     * Set the worker pool
+     *
+     * @param workerPool a {@link WorkerPool} object
+     */
+    public void setWorkerPool(WorkerPool workerPool) {
+        this.workerPool = workerPool;
     }
 }

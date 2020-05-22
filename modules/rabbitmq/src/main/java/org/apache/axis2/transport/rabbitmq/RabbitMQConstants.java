@@ -16,16 +16,18 @@
  * under the License.
  */
 
-package org.apache.axis2.transport.rabbitmq.utils;
+package org.apache.axis2.transport.rabbitmq;
 
 /**
- * Holds constants for RabbitMQ Implementation
+ * Holds constants for rabbitmq transport
  */
 public class RabbitMQConstants {
+    public static final String AMQ_PREFIX = "amq.";
     public static final String CONTENT_TYPE_PROPERTY_PARAM = "rabbitmq.transport.ContentTypeProperty";
     public static final String RABBITMQ_REPLY_TO = "RABBITMQ_REPLY_TO";
+    public static final String RABBITMQ_WAIT_REPLY = "RABBITMQ_WAIT_REPLY";
+    public static final String RABBITMQ_WAIT_CONFIRMS = "RABBITMQ_WAIT_CONFIRMS";
     public static final String SOAP_ACTION = "SOAP_ACTION";
-    public static final String RABBITMQ_PREFIX = "rabbitmq";
 
     public static final String RABBITMQ_CON_FAC = "rabbitmq.connection.factory";
 
@@ -34,14 +36,12 @@ public class RabbitMQConstants {
     public static final String SERVER_USER_NAME = "rabbitmq.server.user.name";
     public static final String SERVER_PASSWORD = "rabbitmq.server.password";
     public static final String SERVER_VIRTUAL_HOST = "rabbitmq.server.virtual.host";
-    public static final String SERVER_RETRY_INTERVAL = "rabbitmq.server.retry.interval";
 
-    public static final String HEARTBEAT = "rabbitmq.factory.heartbeat";
-    public static final String CONNECTION_TIMEOUT = "rabbitmq.factory.connection.timeout";
+    public static final String HEARTBEAT = "rabbitmq.connection.factory.heartbeat";
+    public static final String CONNECTION_TIMEOUT = "rabbitmq.connection.factory.timeout";
+    public static final String NETWORK_RECOVERY_INTERVAL = "rabbitmq.connection.factory.network.recovery.interval";
     public static final String RETRY_INTERVAL = "rabbitmq.connection.retry.interval";
     public static final String RETRY_COUNT = "rabbitmq.connection.retry.count";
-    public static final String RECEIVE_TIMEOUT = "rabbitmq.connection.receive.timeout";
-    public static final String CONNECTION_POOL_SIZE = "rabbitmq.connection.pool.size";
 
     public static final String CORRELATION_ID = "rabbitmq.message.correlation.id";
     public static final String MESSAGE_ID = "rabbitmq.message.id";
@@ -53,10 +53,6 @@ public class RabbitMQConstants {
     public static final String APP_ID = "rabbitmq.message.app.id";
     public static final String CLUSTER_ID = "rabbitmq.message.cluster.id";
     public static final String MSG_PRIORITY = "rabbitmq.message.priority";
-
-    public static final String REPLY_TO_NAME = "rabbitmq.replyto.name";
-    public static final String REPLY_TO_TIMEOUT = "rabbitmq.replyto.timeout";
-    public static final String REPLY_TO_CONTENT_TYPE = "rabbitmq.replyto.content.type";
 
     public static final String QUEUE_AUTODECLARE = "rabbitmq.queue.autodeclare";
     public static final String EXCHANGE_AUTODECLARE = "rabbitmq.exchange.autodeclare";
@@ -74,7 +70,8 @@ public class RabbitMQConstants {
     public static final String EXCHANGE_NAME = "rabbitmq.exchange.name";
     public static final String EXCHANGE_TYPE = "rabbitmq.exchange.type";
     public static final String EXCHANGE_DURABLE = "rabbitmq.exchange.durable";
-    public static final String EXCHANGE_AUTODELETE = "rabbitmq.exchange.auto.delete";
+    public static final String EXCHANGE_AUTO_DELETE = "rabbitmq.exchange.auto.delete";
+    public static final String EXCHANGE_OPTIONAL_ARG_PREFIX = "rabbitmq.exchange.optional.";
 
     public static final String QUEUE_NAME = "rabbitmq.queue.name";
     public static final String QUEUE_DURABLE = "rabbitmq.queue.durable";
@@ -88,28 +85,28 @@ public class RabbitMQConstants {
     public static final String CONSUMER_QOS = "rabbitmq.channel.consumer.qos";
     public static final String CONSUMER_TAG = "rabbitmq.consumer.tag";
     public static final String CONCURRENT_CONSUMER_COUNT = "rabbitmq.concurrent.consumer.count";
-    public static final String CACHE_LEVEL = "rabbitmq.cache.level";
+
+    public static final String MESSAGE_MAX_DEAD_LETTERED_COUNT = "rabbitmq.message.max.dead.lettered.count";
+    public static final String MESSAGE_ERROR_EXCHANGE_NAME = "rabbitmq.message.error.exchange.name";
+    public static final String MESSAGE_ERROR_QUEUE_ROUTING_KEY = "rabbitmq.message.error.queue.routing.key";
+
+    public static final String PUBLISHER_CONFIRMS_ENABLED = "rabbitmq.publisher.confirms.enabled";
 
     public static final String DEFAULT_CONTENT_TYPE = "text/plain";
     public static final int DEFAULT_RETRY_INTERVAL = 30000;
     public static final int DEFAULT_RETRY_COUNT = 3;
-    public static final int DEFAULT_THREAD_COUNT = 20;
     public static final int DEFAULT_DELIVERY_MODE = 2; //Default is persistent
-    public static final int DEFAULT_REPLY_TO_TIMEOUT = 30000;
-    public static final int DEFAULT_CONNECTION_POOL_SIZE = 20;
-    public static final int DEFAULT_WAIT_TIME_BEFORE_CLOSING = 500; //in milliseconds
+    public static final int DEFAULT_RABBITMQ_TIMEOUT = 30000;
+    public static final int DEFAULT_POOL_SIZE = 100;
+    public static final int DEFAULT_CONSUMER_QOS = 0;
 
-    /** Do not cache any JMS resources between tasks (when sending) or JMS CF's (when sending) */
-    public static final int CACHE_NONE = 0;
-    /** Cache only the JMS connection between tasks (when receiving), or JMS CF's (when sending)*/
-    public static final int CACHE_CONNECTION = 1;
     /** Default concurrent consumer count */
     public static final int CONCURRENT_CONSUMER_COUNT_DEFAULT = 1;
 
     public static final String SECURE_VAULT_NAMESPACE = "http://org.wso2.securevault/configuration";
     public static final String SECRET_ALIAS_ATTRIBUTE = "secretAlias";
-    /** parameter to enable confirmed delivery (Ensure reliable delivery) in sender **/
-    public static final String CONFIRMED_DELIVERY = "rabbitmq.confirm.delivery";
+    public static final String PARAM_POOL_SIZE = "poolSize";
+
 }
 
 

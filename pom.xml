@@ -217,9 +217,14 @@
                 <version>1.3</version>
             </dependency>
             <dependency>
-                <groupId>org.wso2.orbit.com.rabbitmq</groupId>
+                <groupId>com.rabbitmq</groupId>
                 <artifactId>amqp-client</artifactId>
-                <version>${rabbitmq.orbit.version}</version>
+                <version>${rabbitmq.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.commons</groupId>
+                <artifactId>commons-pool2</artifactId>
+                <version>${commons.pool2.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.eclipse.paho</groupId>
@@ -278,11 +283,6 @@
                 <groupId>org.apache.directory.shared</groupId>
                 <artifactId>shared-ldap</artifactId>
                 <version>0.9.11</version>
-            </dependency>
-            <dependency>
-                <groupId>org.slf4j</groupId>
-                <artifactId>slf4j-log4j12</artifactId>
-                <version>1.3.0</version>
             </dependency>
             <dependency>
                 <groupId>jetty</groupId>
@@ -512,8 +512,8 @@
                     <artifactId>maven-compiler-plugin</artifactId>
                     <version>${maven.compiler.plugin.version}</version>
                     <configuration>
-                        <source>1.7</source>
-                        <target>1.7</target>
+                        <source>1.8</source>
+                        <target>1.8</target>
                     </configuration>
                 </plugin>
                 <plugin>
@@ -626,14 +626,15 @@
         <maven.javadoc.plugin.version>2.1</maven.javadoc.plugin.version>
         <wagon.ssh.version>2.12</wagon.ssh.version>
         <maven.surefire.plugin.version>2.4</maven.surefire.plugin.version>
-        <maven.bundle.plugin.version>1.4.0</maven.bundle.plugin.version>
+        <maven.bundle.plugin.version>2.5.3</maven.bundle.plugin.version>
         <maven.dependency.plugin.version>2.0</maven.dependency.plugin.version>
-        <maven.compiler.plugin.version>2.3.1</maven.compiler.plugin.version>
+        <maven.compiler.plugin.version>3.8.0</maven.compiler.plugin.version>
         <maven.surefire.plugin.version>2.3</maven.surefire.plugin.version>
         <maven.jar.plugin.version>2.1</maven.jar.plugin.version>
         <jms-1.1-spec.version>1.1</jms-1.1-spec.version>
         <jta-spec.version>1.0</jta-spec.version>
-        <rabbitmq.orbit.version>3.6.6.wso2v1</rabbitmq.orbit.version>
+        <rabbitmq.version>5.8.0</rabbitmq.version>
+        <commons.pool2.version>2.8.0</commons.pool2.version>
         <jsmpp-version>2.0.1</jsmpp-version>
         <slf4j-version>1.7.25</slf4j-version>
         <paho.version>1.2.0</paho.version>

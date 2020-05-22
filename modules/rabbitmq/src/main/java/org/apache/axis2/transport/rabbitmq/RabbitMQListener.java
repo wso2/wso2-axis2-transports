@@ -20,10 +20,7 @@ package org.apache.axis2.transport.rabbitmq;
 
 
 import org.apache.axis2.AxisFault;
-import org.apache.axis2.description.AxisService;
-import org.apache.axis2.description.Parameter;
 import org.apache.axis2.transport.base.AbstractTransportListenerEx;
-import org.apache.axis2.transport.rabbitmq.utils.RabbitMQConstants;
 import org.wso2.securevault.SecretResolver;
 
 /**
@@ -38,16 +35,33 @@ public class RabbitMQListener extends AbstractTransportListenerEx<RabbitMQEndpoi
     /**
      * The ConnectionFactoryManager which centralizes the management of defined factories
      */
-    private RabbitMQConnectionFactoryManager rabbitMQConnectionFactoryManager;
-    private SecretResolver secretResolver;
+    private RabbitMQConnectionFactory rabbitMQConnectionFactory;
+    private RabbitMQConnectionPool rabbitMQConnectionPool;
 
+    /**
+     * Initialize the rabbitmq listener reading the transport configurations
+     *
+     * @throws AxisFault
+     */
     @Override
     protected void doInit() throws AxisFault {
-        secretResolver = getConfigurationContext().getAxisConfiguration().getSecretResolver();
-        rabbitMQConnectionFactoryManager = new RabbitMQConnectionFactoryManager(getTransportInDescription(), secretResolver);
-        log.info("RabbitMQ AMQP Transport Receiver initialized...");
+        try {
+            SecretResolver secretResolver = getConfigurationContext().getAxisConfiguration().getSecretResolver();
+            rabbitMQConnectionFactory = new RabbitMQConnectionFactory();
+            int poolSize = RabbitMQUtils.resolveTransportDescription(getTransportInDescription(), secretResolver,
+                    rabbitMQConnectionFactory);
+            rabbitMQConnectionPool = new RabbitMQConnectionPool(rabbitMQConnectionFactory, poolSize);
+            log.info("RabbitMQ AMQP Transport Receiver initialized...");
+        } catch (AxisRabbitMQException e) {
+            throw new AxisFault("Error occurred while initializing the RabbitMQ AMQP Transport Receiver. ", e);
+        }
     }
 
+    /**
+     * Create rrabbitmq endpoint
+     *
+     * @return a {@link RabbitMQEndpoint} object
+     */
     @Override
     protected RabbitMQEndpoint createEndpoint() {
         return new RabbitMQEndpoint(this, workerPool);
@@ -62,7 +76,11 @@ public class RabbitMQListener extends AbstractTransportListenerEx<RabbitMQEndpoi
     @Override
     protected void startEndpoint(RabbitMQEndpoint endpoint) throws AxisFault {
         ServiceTaskManager stm = endpoint.getServiceTaskManager();
-        stm.start();
+        try {
+            stm.start();
+        } catch (Exception e) {
+            throw new AxisFault("Error occurred while starting the endpoint " + stm.getServiceName(), e);
+        }
     }
 
     /**
@@ -76,36 +94,35 @@ public class RabbitMQListener extends AbstractTransportListenerEx<RabbitMQEndpoi
         if (log.isDebugEnabled()) {
             log.debug("Stopping receiver for for service : " + stm.getServiceName());
         }
-
         stm.stop();
-
         log.info("Stopped listening for AMQP messages to service : " + endpoint.getServiceName());
     }
 
     /**
-     * Return the connection factory name for this service. If this service
-     * refers to an invalid factory or defaults to a non-existent default
-     * factory, this returns null
+     * Get rabbitmq connection pool
      *
-     * @param service the AxisService
-     * @return the ConnectionFactory to be used, or null if reference is invalid
+     * @return a {@link RabbitMQConnectionPool} object
      */
-    public RabbitMQConnectionFactory getConnectionFactory(AxisService service) {
-        Parameter conFacParam = service.getParameter(RabbitMQConstants.RABBITMQ_CON_FAC);
-        if (conFacParam != null) {
-            return rabbitMQConnectionFactoryManager.getConnectionFactory((String) conFacParam.getValue());
-        }
-        return null;
+    public RabbitMQConnectionPool getRabbitMQConnectionPool() {
+        return this.rabbitMQConnectionPool;
+    }
+
+    /**
+     * Get rabbitmq connection factory
+     *
+     * @return a {@link RabbitMQConnectionFactory} object
+     */
+    public RabbitMQConnectionFactory getRabbitMQConnectionFactory() {
+        return this.rabbitMQConnectionFactory;
     }
 
     @Override
     public void pause() throws AxisFault {
-        //TODO Implement me
-    }
 
+    }
 
     @Override
     public void resume() throws AxisFault {
-        //TODO Implement me
+
     }
 }

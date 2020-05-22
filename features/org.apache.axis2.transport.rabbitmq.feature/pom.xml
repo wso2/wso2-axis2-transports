@@ -35,6 +35,14 @@
             <groupId>org.apache.axis2.transport</groupId>
             <artifactId>axis2-transport-rabbitmq-amqp</artifactId>
         </dependency>
+        <dependency>
+            <groupId>com.rabbitmq</groupId>
+            <artifactId>amqp-client</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-pool2</artifactId>
+        </dependency>
     </dependencies>
 
     <build>
@@ -60,7 +68,8 @@
                             </adviceFile>
                             <bundles>
                                 <bundleDef>org.apache.axis2.transport:axis2-transport-rabbitmq-amqp</bundleDef>
-                                <bundleDef>org.wso2.orbit.com.rabbitmq:amqp-client:${rabbitmq.orbit.version}</bundleDef>
+                                <bundleDef>com.rabbitmq:amqp-client</bundleDef>
+                                <bundleDef>org.apache.commons:commons-pool2</bundleDef>
                             </bundles>
                             <importFeatures>
                                 <!--<importFeatureDef>org.wso2.carbon.core.common:compatible:${carbon.kernel.version}</importFeatureDef>-->
