@@ -178,6 +178,7 @@ public class MailTransportSender extends AbstractTransportSender
         }
 
         if (mailOutInfo != null) {
+            ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
             try {
                 String messageID = sendMail(mailOutInfo, msgCtx);
                 // this is important in axis2 client side if the mail transport uses anonymous addressing
@@ -189,6 +190,8 @@ public class MailTransportSender extends AbstractTransportSender
                 handleException("Error generating mail message", e);
             } catch (IOException e) {
                 handleException("Error generating mail message", e);
+            } finally {
+                Thread.currentThread().setContextClassLoader(classLoader);
             }
         } else {
             handleException("Unable to determine out transport information to send message");
