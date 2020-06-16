@@ -390,6 +390,8 @@ public class RabbitMQUtils {
         // set content-type to the message context
         String contentType = properties.getContentType();
         if (contentType == null) {
+            log.warn("Unable to determine content type for message " + msgContext.getMessageID()
+                     + " setting to text/plain");
             contentType = RabbitMQConstants.DEFAULT_CONTENT_TYPE;
         }
         msgContext.setProperty(RabbitMQConstants.CONTENT_TYPE, contentType);
@@ -421,7 +423,7 @@ public class RabbitMQUtils {
         try {
             charSetEnc = new ContentType(contentType).getParameter("charset");
         } catch (ParseException ex) {
-            log.debug("Parse error", ex);
+            log.error("Parse error", ex);
         }
         msgContext.setProperty(Constants.Configuration.CHARACTER_SET_ENCODING, charSetEnc);
 
