@@ -405,15 +405,8 @@ public class RabbitMQUtils {
         if (properties.getContentEncoding() != null) {
             msgContext.setProperty(RabbitMQConstants.CONTENT_ENCODING, properties.getContentEncoding());
         }
-        // set out transport info to the message context for rpc messaging flow
-        String replyTo = properties.getReplyTo();
-        if (replyTo != null) {
-            String connectionFactoryName = properties.getHeaders().get(RabbitMQConstants.RABBITMQ_CON_FAC).toString();
-            msgContext.setProperty(Constants.OUT_TRANSPORT_INFO,
-                    new RabbitMQOutTransportInfo(connectionFactoryName, contentType));
-        }
 
-        // set SOAP envelop
+        // set SOAP envelope
         int index = contentType.indexOf(';');
         String type = index > 0 ? contentType.substring(0, index) : contentType;
         Builder builder = BuilderUtil.getBuilderFromSelector(type, msgContext);
@@ -439,6 +432,29 @@ public class RabbitMQUtils {
 
         msgContext.setEnvelope(TransportUtils.createSOAPEnvelope(documentElement));
 
+        return contentType;
+    }
+
+    /**
+     * Build SOAP envelop from AMQP properties and byte body
+     *
+     * @param properties the AMQP basic properties
+     * @param body       the message body
+     * @param msgContext the message context
+     * @throws AxisFault if an error occurs while building the message
+     */
+    public static String buildMessageWithReplyTo(AMQP.BasicProperties properties, byte[] body,
+            MessageContext msgContext) throws AxisFault {
+
+        String contentType = buildMessage(properties, body, msgContext);
+
+        // set out transport info to the message context for rpc messaging flow
+        String replyTo = properties.getReplyTo();
+        if (replyTo != null) {
+            String connectionFactoryName = properties.getHeaders().get(RabbitMQConstants.RABBITMQ_CON_FAC).toString();
+            msgContext.setProperty(Constants.OUT_TRANSPORT_INFO,
+                                   new RabbitMQOutTransportInfo(connectionFactoryName, contentType));
+        }
         return contentType;
     }
 

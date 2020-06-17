@@ -72,7 +72,7 @@ public class RabbitMQMessageReceiver {
     private boolean processThroughAxisEngine(AMQP.BasicProperties properties, byte[] body) throws AxisFault {
 
         MessageContext msgContext = endpoint.createMessageContext();
-        String contentType = RabbitMQUtils.buildMessage(properties, body, msgContext);
+        String contentType = RabbitMQUtils.buildMessageWithReplyTo(properties, body, msgContext);
         try {
             listener.handleIncomingMessage(
                     msgContext,
