@@ -18,6 +18,8 @@
 
 package org.apache.axis2.transport.rabbitmq;
 
+import com.rabbitmq.client.BuiltinExchangeType;
+
 /**
  * Holds constants for rabbitmq transport
  */
@@ -106,6 +108,10 @@ public class RabbitMQConstants {
     public static final String SECURE_VAULT_NAMESPACE = "http://org.wso2.securevault/configuration";
     public static final String SECRET_ALIAS_ATTRIBUTE = "secretAlias";
     public static final String PARAM_POOL_SIZE = "poolSize";
+
+    public static final String EXCHANGE_TYPE_DEFAULT = BuiltinExchangeType.DIRECT.getType();
+    public static final String EXCHANGE_DURABLE_DEFAULT = "true";
+    public static final String EXCHANGE_AUTO_DELETE_DEFAULT = "false";
 
 }
 
