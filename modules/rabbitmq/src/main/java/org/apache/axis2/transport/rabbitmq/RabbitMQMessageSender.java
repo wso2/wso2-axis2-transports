@@ -31,7 +31,6 @@ import java.io.IOException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.HashMap;
-import java.util.Hashtable;
 import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
@@ -77,13 +76,11 @@ public class RabbitMQMessageSender {
             throws IOException, AxisRabbitMQException {
         Delivery response = null;
 
+
         // declaring queue if given
         String queueName = rabbitMQProperties.get(RabbitMQConstants.QUEUE_NAME);
-        RabbitMQUtils.declareQueue(channel, queueName, rabbitMQProperties);
-
-        // declaring user defined exchange if given
         String exchangeName = rabbitMQProperties.get(RabbitMQConstants.EXCHANGE_NAME);
-        RabbitMQUtils.declareExchange(channel, exchangeName, rabbitMQProperties);
+        RabbitMQUtils.declareQueuesExchangesAndBindings(channel, queueName, exchangeName, rabbitMQProperties);
 
         AMQP.BasicProperties.Builder builder = buildBasicProperties(msgContext);
 

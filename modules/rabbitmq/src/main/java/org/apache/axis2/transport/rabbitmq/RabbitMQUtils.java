@@ -21,7 +21,6 @@ package org.apache.axis2.transport.rabbitmq;
 
 import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.Address;
-import com.rabbitmq.client.BuiltinExchangeType;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
@@ -135,8 +134,9 @@ public class RabbitMQUtils {
     }
 
     public static boolean isDurableQueue(Map<String, String> properties) {
-        return BooleanUtils
-                .toBoolean(BooleanUtils.toBooleanObject(properties.get(RabbitMQConstants.QUEUE_DURABLE)));
+        String durableString = properties
+                .getOrDefault(RabbitMQConstants.QUEUE_DURABLE, RabbitMQConstants.QUEUE_DURABLE_DEFAULT);
+        return BooleanUtils.toBoolean(BooleanUtils.toBooleanObject(durableString));
     }
 
     public static boolean isExclusiveQueue(Map<String, String> properties) {
@@ -150,8 +150,9 @@ public class RabbitMQUtils {
     }
 
     public static boolean isDurableExchange(Map<String, String> properties) {
-        return BooleanUtils
-                .toBoolean(BooleanUtils.toBooleanObject(properties.get(RabbitMQConstants.EXCHANGE_DURABLE)));
+        String durableString = properties
+                .getOrDefault(RabbitMQConstants.EXCHANGE_DURABLE, RabbitMQConstants.EXCHANGE_DURABLE_DEFAULT);
+        return BooleanUtils.toBoolean(BooleanUtils.toBooleanObject(durableString));
     }
 
     public static boolean isAutoDeleteExchange(Map<String, String> properties) {
@@ -218,6 +219,22 @@ public class RabbitMQUtils {
     }
 
     /**
+     * Helper method to declare and bind the exchange and the queue.
+     *
+     * @param channel    a rabbitmq channel
+     * @param queueName  a name of the queue to declare
+     * @param properties queue declaration properties
+     * @throws IOException if any error occurs during the declaration/binding
+     */
+    public static void declareQueuesExchangesAndBindings(Channel channel, String queueName, String exchangeName,
+            Map<String, String> properties) throws IOException {
+
+        declareQueue(channel, queueName, properties);
+        declareExchange(channel, exchangeName, properties);
+        bindQueueToExchange(channel, queueName, exchangeName, properties);
+    }
+
+    /**
      * Helper method to declare queue when direct channel is given
      *
      * @param channel    a rabbitmq channel
@@ -225,7 +242,7 @@ public class RabbitMQUtils {
      * @param properties queue declaration properties
      * @throws IOException
      */
-    public static void declareQueue(Channel channel, String queueName,
+    private static void declareQueue(Channel channel, String queueName,
                                     Map<String, String> properties) throws IOException {
         boolean autoDeclare = BooleanUtils.toBooleanDefaultIfNull(
                 BooleanUtils.toBooleanObject(properties.get(RabbitMQConstants.QUEUE_AUTODECLARE)), true);
@@ -242,30 +259,31 @@ public class RabbitMQUtils {
      * @param exchangeName the exchange exchangeName
      * @param properties   RabbitMQ properties
      */
-    public static void declareExchange(Channel channel, String exchangeName, Map<String, String> properties)
-            throws IOException {
+    private static void declareExchange(Channel channel, String exchangeName, Map<String, String> properties) throws IOException {
         boolean autoDeclare = BooleanUtils.toBooleanDefaultIfNull(
                 BooleanUtils.toBooleanObject(properties.get(RabbitMQConstants.EXCHANGE_AUTODECLARE)), true);
-        String queueName = properties.get(RabbitMQConstants.QUEUE_NAME);
-        String routingKey = properties.get(RabbitMQConstants.QUEUE_ROUTING_KEY);
-        if (StringUtils.isNotEmpty(exchangeName) && autoDeclare) {
+        if (StringUtils.isNotEmpty(exchangeName) && autoDeclare && !exchangeName.startsWith(RabbitMQConstants.AMQ_PREFIX)) {
             // declare the exchange
-            if (!exchangeName.startsWith(RabbitMQConstants.AMQ_PREFIX)) {
-                String exchangeType = properties
-                        .getOrDefault(RabbitMQConstants.EXCHANGE_TYPE, RabbitMQConstants.EXCHANGE_TYPE_DEFAULT);
+            String exchangeType = properties
+                    .getOrDefault(RabbitMQConstants.EXCHANGE_TYPE, RabbitMQConstants.EXCHANGE_TYPE_DEFAULT);
+            channel.exchangeDeclare(exchangeName, exchangeType, isDurableExchange(properties),
+                                    isAutoDeleteExchange(properties), setExchangeOptionalArguments(properties));
+        }
+    }
 
-                String durableString = properties
-                        .getOrDefault(RabbitMQConstants.EXCHANGE_DURABLE, RabbitMQConstants.EXCHANGE_DURABLE_DEFAULT);
-                boolean durable = BooleanUtils.toBoolean(BooleanUtils.toBooleanObject(durableString));
-
-                String autoDeleteString = properties
-                        .getOrDefault(RabbitMQConstants.EXCHANGE_AUTO_DELETE,
-                                      RabbitMQConstants.EXCHANGE_AUTO_DELETE_DEFAULT);
-                boolean autoDelete = BooleanUtils.toBoolean(BooleanUtils.toBooleanObject(autoDeleteString));
-
-                channel.exchangeDeclare(exchangeName, exchangeType, durable,
-                                        autoDelete, setExchangeOptionalArguments(properties));
-            }
+    /**
+     * Helper method to bind a queue to a specified exchange
+     *
+     * @param channel      the channel to use for creating the binding
+     * @param queueName    the name of the queue to bind to
+     * @param exchangeName the name of the exchange to bind the queue to
+     * @param properties   optional RabbitMQ properties for the binding creation
+     * @throws IOException if an error occurs while creating the binding
+     */
+    private static void bindQueueToExchange(Channel channel, String queueName, String exchangeName,
+            Map<String, String> properties) throws IOException {
+        if (StringUtils.isNotEmpty(exchangeName)) {
+            String routingKey = properties.get(RabbitMQConstants.QUEUE_ROUTING_KEY);
             // bind the queue and exchange with routing key
             if (StringUtils.isNotEmpty(queueName) && StringUtils.isNotEmpty(routingKey)) {
                 channel.queueBind(queueName, exchangeName, routingKey);
