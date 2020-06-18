@@ -140,7 +140,7 @@ public class RabbitMQSender extends AbstractTransportSender {
             // inject message to the axis engine if a response received
             if (response != null) {
                 MessageContext responseMsgCtx = createResponseMessageContext(msgCtx);
-                String contentType = RabbitMQUtils.buildMessage(
+                String contentType = RabbitMQUtils.buildMessageWithReplyTo(
                         response.getProperties(), response.getBody(), responseMsgCtx);
                 handleIncomingMessage(responseMsgCtx, RabbitMQUtils.getTransportHeaders(response.getProperties()),
                         RabbitMQUtils.getSoapAction(response.getProperties()),
