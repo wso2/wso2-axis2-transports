@@ -111,7 +111,7 @@ public class RabbitMQConstants {
 
     public static final String EXCHANGE_TYPE_DEFAULT = BuiltinExchangeType.DIRECT.getType();
     public static final String EXCHANGE_DURABLE_DEFAULT = "true";
-    public static final String EXCHANGE_AUTO_DELETE_DEFAULT = "false";
+    public static final String QUEUE_DURABLE_DEFAULT = "true";
 
 }
 
