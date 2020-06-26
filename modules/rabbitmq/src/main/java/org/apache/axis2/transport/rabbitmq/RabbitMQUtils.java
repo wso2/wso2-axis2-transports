@@ -38,6 +38,7 @@ import org.apache.axis2.description.ParameterInclude;
 import org.apache.axis2.description.ParameterIncludeImpl;
 import org.apache.axis2.transport.MessageFormatter;
 import org.apache.axis2.transport.TransportUtils;
+import org.apache.axis2.transport.base.BaseConstants;
 import org.apache.axis2.transport.base.BaseUtils;
 import org.apache.axis2.util.MessageProcessorSelector;
 import org.apache.commons.lang.BooleanUtils;
@@ -110,8 +111,10 @@ public class RabbitMQUtils {
         Map<String, Object> headers = properties.getHeaders();
         if (headers != null && !headers.isEmpty()) {
             for (String headerName : headers.keySet()) {
-                String value = headers.get(headerName).toString();
-                map.put(headerName, value);
+                if (!BaseConstants.INTERNAL_TRANSACTION_COUNTED.equals(headerName)) {
+                    String value = headers.get(headerName).toString();
+                    map.put(headerName, value);
+                }
             }
         }
 
@@ -443,6 +446,12 @@ public class RabbitMQUtils {
             log.error("Parse error", ex);
         }
         msgContext.setProperty(Constants.Configuration.CHARACTER_SET_ENCODING, charSetEnc);
+
+        // set "INTERNAL_TRANSACTION_COUNTED" property in the message context if is present in the JMS message received.
+        if (properties.getHeaders().containsKey(BaseConstants.INTERNAL_TRANSACTION_COUNTED)) {
+            msgContext.setProperty(BaseConstants.INTERNAL_TRANSACTION_COUNTED,
+                                   properties.getHeaders().get(BaseConstants.INTERNAL_TRANSACTION_COUNTED));
+        }
 
         documentElement = builder.processDocument(
                 new ByteArrayInputStream(body), contentType,
