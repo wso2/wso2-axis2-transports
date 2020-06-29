@@ -22,6 +22,7 @@ import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Delivery;
 import org.apache.axis2.context.MessageContext;
+import org.apache.axis2.transport.base.BaseConstants;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.math.NumberUtils;
 import org.apache.commons.logging.Log;
@@ -32,6 +33,7 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -271,6 +273,11 @@ public class RabbitMQMessageSender {
         if (senderType == RabbitMQSender.SenderType.RPC) {
             builder.replyTo(channel.queueDeclare().getQueue());
             headers.put(RabbitMQConstants.RABBITMQ_CON_FAC, factoryName);
+        }
+
+        if (msgCtx.getProperties().containsKey(BaseConstants.INTERNAL_TRANSACTION_COUNTED)) {
+            headers.put(BaseConstants.INTERNAL_TRANSACTION_COUNTED,
+                        msgCtx.getProperty(BaseConstants.INTERNAL_TRANSACTION_COUNTED));
         }
 
         builder.headers(headers);
