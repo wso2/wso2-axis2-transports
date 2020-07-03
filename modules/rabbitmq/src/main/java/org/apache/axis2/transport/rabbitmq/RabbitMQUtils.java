@@ -56,6 +56,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.TimeoutException;
 
 /**
@@ -448,7 +449,8 @@ public class RabbitMQUtils {
         msgContext.setProperty(Constants.Configuration.CHARACTER_SET_ENCODING, charSetEnc);
 
         // set "INTERNAL_TRANSACTION_COUNTED" property in the message context if is present in the JMS message received.
-        if (properties.getHeaders().containsKey(BaseConstants.INTERNAL_TRANSACTION_COUNTED)) {
+        Map<String, Object> headers = properties.getHeaders();
+        if (Objects.nonNull(headers) && headers.containsKey(BaseConstants.INTERNAL_TRANSACTION_COUNTED)) {
             msgContext.setProperty(BaseConstants.INTERNAL_TRANSACTION_COUNTED,
                                    properties.getHeaders().get(BaseConstants.INTERNAL_TRANSACTION_COUNTED));
         }

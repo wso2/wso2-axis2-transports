@@ -21,6 +21,7 @@ package org.apache.axis2.transport.rabbitmq;
 import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Delivery;
+import org.apache.axis2.AxisFault;
 import org.apache.axis2.context.MessageContext;
 import org.apache.axis2.transport.base.BaseConstants;
 import org.apache.commons.lang.StringUtils;
@@ -144,7 +145,7 @@ public class RabbitMQMessageSender {
             channel.basicCancel(replyConsumerTag);
         }
         if (response == null) {
-            log.warn("Did not receive a response within " + timeout + "ms to the replyTo queue " + replyTo);
+            throw new AxisFault("Did not receive a response within " + timeout + "ms to the replyTo queue " + replyTo);
         }
         return response;
     }
