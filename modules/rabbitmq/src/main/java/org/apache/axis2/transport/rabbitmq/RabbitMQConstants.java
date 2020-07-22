@@ -30,6 +30,7 @@ public class RabbitMQConstants {
     public static final String RABBITMQ_WAIT_REPLY = "RABBITMQ_WAIT_REPLY";
     public static final String RABBITMQ_WAIT_CONFIRMS = "RABBITMQ_WAIT_CONFIRMS";
     public static final String SOAP_ACTION = "SOAP_ACTION";
+    public static final String SET_REQUEUE_ON_ROLLBACK = "SET_REQUEUE_ON_ROLLBACK";
 
     public static final String RABBITMQ_CON_FAC = "rabbitmq.connection.factory";
 
@@ -91,6 +92,7 @@ public class RabbitMQConstants {
     public static final String MESSAGE_MAX_DEAD_LETTERED_COUNT = "rabbitmq.message.max.dead.lettered.count";
     public static final String MESSAGE_ERROR_EXCHANGE_NAME = "rabbitmq.message.error.exchange.name";
     public static final String MESSAGE_ERROR_QUEUE_ROUTING_KEY = "rabbitmq.message.error.queue.routing.key";
+    public static final String MESSAGE_REQUEUE_DELAY = "rabbitmq.message.requeue.delay";
 
     public static final String PUBLISHER_CONFIRMS_ENABLED = "rabbitmq.publisher.confirms.enabled";
 
