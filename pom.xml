@@ -56,7 +56,7 @@
                 <module>modules/mqtt</module>
                 <module>modules/sms</module>
                 <module>modules/msmq</module>
-                <module>modules/testkit</module>
+<!--                <module>modules/testkit</module>-->
                 <module>features/org.apache.axis2.transport.jms.feature</module>
                 <module>features/org.apache.axis2.transport.mail.feature</module>
                 <module>features/org.apache.axis2.transport.tcp.feature</module>
