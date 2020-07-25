@@ -72,8 +72,6 @@ public class ServiceTaskManager {
     private static final int STATE_PAUSED = 2;
     /** The Task manager is started, but a shutdown has been requested */
     private static final int STATE_SHUTTING_DOWN = 3;
-    /** The Task manager has encountered an error */
-    private static final int STATE_FAILURE = 4;
 
     /** The name of the service managed by this instance */
     private String serviceName;
@@ -256,12 +254,10 @@ public class ServiceTaskManager {
      */
     public synchronized void stop() {
 
+        serviceTaskManagerState = STATE_SHUTTING_DOWN;
+
         if (log.isDebugEnabled()) {
             log.debug("Stopping ServiceTaskManager for service : " + serviceName);
-        }
-
-        if (serviceTaskManagerState != STATE_FAILURE) {
-            serviceTaskManagerState = STATE_SHUTTING_DOWN;
         }
 
         synchronized(pollingTasks) {
@@ -294,9 +290,7 @@ public class ServiceTaskManager {
             log.warn("Unable to shutdown all polling tasks of service : " + serviceName);
         }
 
-        if (serviceTaskManagerState != STATE_FAILURE) {
-            serviceTaskManagerState = STATE_STOPPED;
-        }
+        serviceTaskManagerState = STATE_STOPPED;
         log.info("Task manager for service : " + serviceName + " shutdown");
     }
 
@@ -802,8 +796,6 @@ public class ServiceTaskManager {
                 return;
             }
 
-            // if we failed while active, update state to show failure
-            setServiceTaskManagerState(STATE_FAILURE);
             log.error("JMS Connection failed : " + j.getMessage() + " - shutting down worker tasks");
 
             int r = 1;
@@ -864,15 +856,19 @@ public class ServiceTaskManager {
                     }
 
                 }
-            } while (!isSTMActive() || !connected);
+            } while (isSTMActive() && !connected);
         }
 
         protected void requestShutdown() {
             workerState = STATE_SHUTTING_DOWN;
         }
 
+        /**
+         * Both ServiceTaskManager and MessageListenerTask should be in active state
+         * @return
+         */
         private boolean isActive() {
-            return workerState == STATE_STARTED;
+            return workerState == STATE_STARTED && isSTMActive();
         }
 
         protected boolean isTaskIdle() {
