@@ -239,7 +239,7 @@ public class ServiceTaskManager {
                     " for service : " + serviceName);
             }
         }
-
+        serviceTaskManagerState = STATE_STARTED;
         for (int i=0; i<concurrentConsumers; i++) {
             if (jmsMessageReceiver.getJmsListener().getState() == BaseConstants.PAUSED) {
                 workerPool.execute(new MessageListenerTask(BaseConstants.PAUSED));
@@ -247,8 +247,6 @@ public class ServiceTaskManager {
                 workerPool.execute(new MessageListenerTask(BaseConstants.STARTED));
             }
         }
-
-        serviceTaskManagerState = STATE_STARTED;
         log.info("Task manager for service : " + serviceName + " [re-]initialized");
 
     }
