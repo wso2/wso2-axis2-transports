@@ -130,12 +130,9 @@ public class RabbitMQSender extends AbstractTransportSender {
                 }
                 RabbitMQMessageSender sender = new RabbitMQMessageSender(channel, factoryName, senderType);
                 response = sender.send(routingKey, msgCtx, epProperties);
-            } catch (AxisFault e) {
+            } catch (Exception e) {
                 channel = null;
                 handleException("Error occurred while sending message out.", e);
-            } catch (Exception e) {
-                log.error("Error occurred while sending message out.", e);
-                channel = null;
             } finally {
                 returnToPool(factoryName, channel, senderType);
             }
