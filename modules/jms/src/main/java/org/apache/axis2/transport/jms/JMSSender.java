@@ -209,7 +209,7 @@ public class JMSSender extends AbstractTransportSender implements ManagementSupp
             } finally {
                 if (msgCtx.getProperty(JMSConstants.JMS_XA_TRANSACTION_MANAGER) == null) {
                     messageSender.close();
-                    if (jmsReplyMessage.getReplyDestination() instanceof TemporaryQueue) {
+                    if (jmsReplyMessage != null && jmsReplyMessage.getReplyDestination() instanceof TemporaryQueue) {
                         String temporaryQueueName = "";
                         TemporaryQueue temporaryQueue = (TemporaryQueue) jmsReplyMessage.getReplyDestination();
                         try {
