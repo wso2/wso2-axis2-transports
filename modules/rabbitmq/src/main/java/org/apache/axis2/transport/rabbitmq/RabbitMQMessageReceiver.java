@@ -70,8 +70,15 @@ public class RabbitMQMessageReceiver {
      * @throws AxisFault on Axis2 errors
      */
     private AcknowledgementMode processThroughAxisEngine(AMQP.BasicProperties properties, byte[] body) throws AxisFault {
-
         MessageContext msgContext = endpoint.createMessageContext();
+        // Get transport properties for configured contentType
+        String contentTypeParameter = null;
+        try {
+            contentTypeParameter = endpoint.getServiceTaskManager().getRabbitMQProperties().get(RabbitMQConstants.CONTENT_TYPE);
+            msgContext.setProperty(RabbitMQConstants.CONTENT_TYPE, contentTypeParameter);
+        } catch(Exception e)    {
+            log.warn("Error while getting content-type from proxy", e);
+        }
         String contentType = RabbitMQUtils.buildMessageWithReplyTo(properties, body, msgContext);
         try {
             listener.handleIncomingMessage(
