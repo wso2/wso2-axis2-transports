@@ -414,12 +414,20 @@ public class RabbitMQUtils {
             msgContext.setProperty(RabbitMQConstants.CORRELATION_ID, amqpCorrelationID);
         } else {
             msgContext.setProperty(RabbitMQConstants.CORRELATION_ID, properties.getMessageId());
-        }
+        }        
         // set content-type to the message context
-        String contentType = properties.getContentType();
+        String contentType = null;
+        // keep content-type if already configured
+        Object contentTypeFromMC = msgContext.getProperty(RabbitMQConstants.CONTENT_TYPE);
+        if(contentTypeFromMC != null && contentTypeFromMC instanceof String) {
+            contentType = (String) contentTypeFromMC;
+        }
+        if (contentType == null || contentType.isEmpty()) {
+            contentType = properties.getContentType();
+        }
         if (contentType == null) {
             log.warn("Unable to determine content type for message " + msgContext.getMessageID()
-                     + " setting to text/plain");
+                     + " setting to " + RabbitMQConstants.DEFAULT_CONTENT_TYPE);
             contentType = RabbitMQConstants.DEFAULT_CONTENT_TYPE;
         }
         msgContext.setProperty(RabbitMQConstants.CONTENT_TYPE, contentType);
