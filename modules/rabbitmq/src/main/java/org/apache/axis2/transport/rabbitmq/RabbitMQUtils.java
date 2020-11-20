@@ -54,9 +54,9 @@ import javax.xml.namespace.QName;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Objects;
 import java.util.concurrent.TimeoutException;
 
 /**
@@ -111,13 +111,13 @@ public class RabbitMQUtils {
         // any other transport properties / headers
         Map<String, Object> headers = properties.getHeaders();
         if (headers != null && !headers.isEmpty()) {
-            for (String headerName : headers.keySet()) {
-                if (!BaseConstants.INTERNAL_TRANSACTION_COUNTED.equals(headerName)) {
-                    String value = headers.get(headerName).toString();
-                    map.put(headerName, value);
+            for (Map.Entry<String, Object> headerEntry : headers.entrySet()) {
+                if (!BaseConstants.INTERNAL_TRANSACTION_COUNTED.equals(headerEntry.getKey())) {
+                    map.put(headerEntry.getKey(), headerEntry.getValue().toString());
                 }
             }
         }
+
 
         return map;
     }
@@ -398,101 +398,122 @@ public class RabbitMQUtils {
     }
 
     /**
-     * Build SOAP envelop from AMQP properties and byte body
+     * Build SOAP envelop from AMQP msgProperties and byte body
      *
-     * @param properties the AMQP basic properties
+     * @param msgProperties the AMQP basic msgProperties
      * @param body       the message body
      * @param msgContext the message context
+     * @param serviceProperties
      * @return content-type used to build the soap message
      * @throws AxisFault
      */
-    public static String buildMessage(AMQP.BasicProperties properties, byte[] body, MessageContext msgContext)
-            throws AxisFault {
-        // set correlation id to the message context
-        String amqpCorrelationID = properties.getCorrelationId();
-        if (amqpCorrelationID != null && amqpCorrelationID.length() > 0) {
-            msgContext.setProperty(RabbitMQConstants.CORRELATION_ID, amqpCorrelationID);
+    public static String buildMessage(AMQP.BasicProperties msgProperties, byte[] body, MessageContext msgContext,
+                                      Map<String, String> serviceProperties) throws AxisFault {
+        setCorrelationId(msgContext, msgProperties);
+        String contentType = setContentType(msgContext, msgProperties, serviceProperties);
+        setContentEncoding(msgContext, msgProperties, serviceProperties);
+        processReplyToHeader(msgContext, msgProperties, contentType);
+        setTransactionCountedProperty(msgContext, msgProperties);
+        setSoapEnvelop(msgContext, body, contentType);
+        return contentType;
+    }
+
+    private static void setSoapEnvelop(MessageContext msgContext, byte[] body, String contentType) throws AxisFault {
+
+        Builder builder = getBuilder(msgContext, contentType);
+        OMElement documentElement = builder.processDocument(new ByteArrayInputStream(body), contentType, msgContext);
+        msgContext.setEnvelope(TransportUtils.createSOAPEnvelope(documentElement));
+    }
+
+    private static Builder getBuilder(MessageContext msgContext, String rawContentType) throws AxisFault {
+        try {
+            ContentType contentType = new ContentType(rawContentType);
+            String charset = contentType.getParameter("charset");
+            msgContext.setProperty(Constants.Configuration.CHARACTER_SET_ENCODING, charset);
+
+            Builder builder = BuilderUtil.getBuilderFromSelector(contentType.getBaseType(), msgContext);
+            if (builder == null) {
+                if (log.isDebugEnabled()) {
+                    log.debug("No message builder found for type '" + contentType.getBaseType() + "'. Falling back to SOAP.");
+                }
+                builder = new SOAPBuilder();
+            }
+            return builder;
+        } catch (ParseException e) {
+            throw new AxisFault("Error parsing content type: " + rawContentType, e);
+        }
+    }
+
+    /**
+     * Set "INTERNAL_TRANSACTION_COUNTED" property in the message context if is present in the JMS message received.
+     */
+    private static void setTransactionCountedProperty(MessageContext msgContext, AMQP.BasicProperties msgProperties) {
+        Map<String, Object> headers = msgProperties.getHeaders();
+        if (headers != null && headers.containsKey(BaseConstants.INTERNAL_TRANSACTION_COUNTED)) {
+            msgContext.setProperty(BaseConstants.INTERNAL_TRANSACTION_COUNTED,
+                                   msgProperties.getHeaders().get(BaseConstants.INTERNAL_TRANSACTION_COUNTED));
+        }
+    }
+
+    /**
+     * Set out transport info to the message context for rpc messaging flow
+     */
+    private static void processReplyToHeader(MessageContext msgContext, AMQP.BasicProperties msgProperties,
+                                             String contentType) {
+        String replyTo = msgProperties.getReplyTo();
+        if (replyTo != null) {
+            String connectionFactoryName =
+                    msgProperties.getHeaders().get(RabbitMQConstants.RABBITMQ_CON_FAC).toString();
+            msgContext.setProperty(Constants.OUT_TRANSPORT_INFO,
+                                   new RabbitMQOutTransportInfo(connectionFactoryName, contentType));
+        }
+    }
+
+    private static void setContentEncoding(MessageContext msgContext, AMQP.BasicProperties msgProperties,
+                                           Map<String, String> serviceProperties) {
+
+        String encodingFromService = serviceProperties.get(RabbitMQConstants.CONTENT_ENCODING);
+        String contentEncoding =
+                (StringUtils.isEmpty(encodingFromService)) ? msgProperties.getContentEncoding() : encodingFromService;
+
+        if (contentEncoding != null){
+            msgContext.setProperty(RabbitMQConstants.CONTENT_ENCODING, contentEncoding);
+        }
+    }
+
+    private static String setContentType(MessageContext msgContext, AMQP.BasicProperties msgProperties,
+                                         Map<String, String> serviceProperties) {
+        String contentTypeFromService = serviceProperties.get(RabbitMQConstants.CONTENT_TYPE);
+        String contentTypeFromMessage = msgProperties.getContentType();
+        String contentType;
+
+        if (StringUtils.isNotEmpty(contentTypeFromService)) {
+            contentType = contentTypeFromService;
+        } else if (StringUtils.isNotEmpty(contentTypeFromMessage)) {
+            contentType = msgProperties.getContentType();
         } else {
-            msgContext.setProperty(RabbitMQConstants.CORRELATION_ID, properties.getMessageId());
-        }        
-        // set content-type to the message context
-        String contentType = null;
-        // keep content-type if already configured
-        Object contentTypeFromMC = msgContext.getProperty(RabbitMQConstants.CONTENT_TYPE);
-        if(contentTypeFromMC != null && contentTypeFromMC instanceof String) {
-            contentType = (String) contentTypeFromMC;
-        }
-        if (contentType == null || contentType.isEmpty()) {
-            contentType = properties.getContentType();
-        }
-        if (contentType == null) {
             log.warn("Unable to determine content type for message " + msgContext.getMessageID()
                      + " setting to " + RabbitMQConstants.DEFAULT_CONTENT_TYPE);
             contentType = RabbitMQConstants.DEFAULT_CONTENT_TYPE;
         }
         msgContext.setProperty(RabbitMQConstants.CONTENT_TYPE, contentType);
-        // set content encoding to the message context
-        if (properties.getContentEncoding() != null) {
-            msgContext.setProperty(RabbitMQConstants.CONTENT_ENCODING, properties.getContentEncoding());
-        }
-
-        // set SOAP envelope
-        int index = contentType.indexOf(';');
-        String type = index > 0 ? contentType.substring(0, index) : contentType;
-        Builder builder = BuilderUtil.getBuilderFromSelector(type, msgContext);
-        if (builder == null) {
-            if (log.isDebugEnabled()) {
-                log.debug("No message builder found for type '" + type + "'. Falling back to SOAP.");
-            }
-            builder = new SOAPBuilder();
-        }
-
-        OMElement documentElement;
-        String charSetEnc = null;
-        try {
-            charSetEnc = new ContentType(contentType).getParameter("charset");
-        } catch (ParseException ex) {
-            log.error("Parse error", ex);
-        }
-        msgContext.setProperty(Constants.Configuration.CHARACTER_SET_ENCODING, charSetEnc);
-
-        // set "INTERNAL_TRANSACTION_COUNTED" property in the message context if is present in the JMS message received.
-        Map<String, Object> headers = properties.getHeaders();
-        if (Objects.nonNull(headers) && headers.containsKey(BaseConstants.INTERNAL_TRANSACTION_COUNTED)) {
-            msgContext.setProperty(BaseConstants.INTERNAL_TRANSACTION_COUNTED,
-                                   properties.getHeaders().get(BaseConstants.INTERNAL_TRANSACTION_COUNTED));
-        }
-
-        documentElement = builder.processDocument(
-                new ByteArrayInputStream(body), contentType,
-                msgContext);
-
-        msgContext.setEnvelope(TransportUtils.createSOAPEnvelope(documentElement));
-
         return contentType;
     }
 
-    /**
-     * Build SOAP envelop from AMQP properties and byte body
-     *
-     * @param properties the AMQP basic properties
-     * @param body       the message body
-     * @param msgContext the message context
-     * @throws AxisFault if an error occurs while building the message
-     */
-    public static String buildMessageWithReplyTo(AMQP.BasicProperties properties, byte[] body,
-            MessageContext msgContext) throws AxisFault {
+    private static void setCorrelationId(MessageContext msgContext, AMQP.BasicProperties msgProperties) {
+        String correlationID;
 
-        String contentType = buildMessage(properties, body, msgContext);
-
-        // set out transport info to the message context for rpc messaging flow
-        String replyTo = properties.getReplyTo();
-        if (replyTo != null) {
-            String connectionFactoryName = properties.getHeaders().get(RabbitMQConstants.RABBITMQ_CON_FAC).toString();
-            msgContext.setProperty(Constants.OUT_TRANSPORT_INFO,
-                                   new RabbitMQOutTransportInfo(connectionFactoryName, contentType));
+        if (StringUtils.isNotEmpty(msgProperties.getCorrelationId())) {
+            correlationID = msgProperties.getCorrelationId();
+        } else {
+            correlationID = msgProperties.getMessageId();
         }
-        return contentType;
+        msgContext.setProperty(RabbitMQConstants.CORRELATION_ID, correlationID);
+    }
+
+    public static String buildMessage(AMQP.BasicProperties properties, byte[] body,
+                                      MessageContext msgContext) throws AxisFault {
+        return buildMessage(properties, body, msgContext, Collections.emptyMap());
     }
 
     /**

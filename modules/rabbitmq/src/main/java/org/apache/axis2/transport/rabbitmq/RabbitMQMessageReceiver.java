@@ -25,6 +25,8 @@ import org.apache.axis2.transport.base.BaseConstants;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import java.util.Map;
+
 /**
  * This is the RabbitMQ AMQP message receiver which is invoked when a message is received. This processes
  * the message through the axis2 engine
@@ -46,61 +48,42 @@ public class RabbitMQMessageReceiver {
     }
 
     /**
-     * Process a new message received
-     *
-     * @param properties the AMQP basic properties
-     * @param body       the message body
-     */
-    public AcknowledgementMode onMessage(AMQP.BasicProperties properties, byte[] body) {
-        AcknowledgementMode acknowledgementMode = AcknowledgementMode.REQUEUE_FALSE;
-        try {
-            acknowledgementMode = processThroughAxisEngine(properties, body);
-        } catch (AxisFault axisFault) {
-            log.error("Error while processing message", axisFault);
-        }
-        return acknowledgementMode;
-    }
-
-    /**
      * Process the new message through Axis2
      *
-     * @param properties the AMQP basic properties
+     * @param messageProperties the AMQP basic messageProperties
      * @param body       the message body
      * @return true if no mediation errors
      * @throws AxisFault on Axis2 errors
      */
-    private AcknowledgementMode processThroughAxisEngine(AMQP.BasicProperties properties, byte[] body) throws AxisFault {
-        MessageContext msgContext = endpoint.createMessageContext();
-        // Get transport properties for configured contentType
-        String contentTypeParameter = null;
+    AcknowledgementMode processThroughAxisEngine(AMQP.BasicProperties messageProperties, byte[] body) {
         try {
-            contentTypeParameter = endpoint.getServiceTaskManager().getRabbitMQProperties().get(RabbitMQConstants.CONTENT_TYPE);
-            msgContext.setProperty(RabbitMQConstants.CONTENT_TYPE, contentTypeParameter);
-        } catch(Exception e)    {
-            log.warn("Error while getting content-type from proxy", e);
-        }
-        String contentType = RabbitMQUtils.buildMessageWithReplyTo(properties, body, msgContext);
-        try {
-            listener.handleIncomingMessage(
-                    msgContext,
-                    RabbitMQUtils.getTransportHeaders(properties),
-                    RabbitMQUtils.getSoapAction(properties),
-                    contentType);
-            Object rollbackProperty = msgContext.getProperty(BaseConstants.SET_ROLLBACK_ONLY);
-            if ((rollbackProperty instanceof Boolean && ((Boolean) rollbackProperty)) ||
-                    (rollbackProperty instanceof String && Boolean.parseBoolean((String) rollbackProperty))) {
-                return AcknowledgementMode.REQUEUE_FALSE;
-            }
-            Object requeueOnRollbackProperty = msgContext.getProperty(RabbitMQConstants.SET_REQUEUE_ON_ROLLBACK);
-            if ((requeueOnRollbackProperty instanceof Boolean && ((Boolean) requeueOnRollbackProperty)) ||
-                    (requeueOnRollbackProperty instanceof String &&
-                            Boolean.parseBoolean((String) requeueOnRollbackProperty))) {
-                return AcknowledgementMode.REQUEUE_TRUE;
-            }
+            MessageContext msgContext = endpoint.createMessageContext();
+            Map<String, String> serviceProperties = endpoint.getServiceTaskManager().getRabbitMQProperties();
+            String contentType = RabbitMQUtils.buildMessage(messageProperties, body, msgContext, serviceProperties);
+            listener.handleIncomingMessage(msgContext, RabbitMQUtils.getTransportHeaders(messageProperties),
+                                           RabbitMQUtils.getSoapAction(messageProperties), contentType);
+            return getAcknowledgementMode(msgContext);
         } catch (AxisFault axisFault) {
-            log.error("Error when trying to read incoming message ...", axisFault);
+            log.error("Error when trying to read incoming message.", axisFault);
             return AcknowledgementMode.REQUEUE_FALSE;
         }
-        return AcknowledgementMode.ACKNOWLEDGE;
+    }
+
+    private AcknowledgementMode getAcknowledgementMode(MessageContext msgContext) {
+        AcknowledgementMode acknowledgementMode;
+        if (isBooleanPropertySet(BaseConstants.SET_ROLLBACK_ONLY, msgContext)) {
+            acknowledgementMode = AcknowledgementMode.REQUEUE_FALSE;
+        } else if (isBooleanPropertySet(RabbitMQConstants.SET_REQUEUE_ON_ROLLBACK, msgContext)) {
+            acknowledgementMode = AcknowledgementMode.REQUEUE_TRUE;
+        } else {
+            acknowledgementMode = AcknowledgementMode.ACKNOWLEDGE;
+        }
+        return acknowledgementMode;
+    }
+
+    private boolean isBooleanPropertySet(String propertyName, MessageContext messageContext) {
+        Object property = messageContext.getProperty(propertyName);
+        return (property instanceof Boolean && ((Boolean) property)) ||
+                (property instanceof String && Boolean.parseBoolean((String) property));
     }
 }

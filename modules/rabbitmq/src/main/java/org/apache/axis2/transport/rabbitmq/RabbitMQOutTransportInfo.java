@@ -24,6 +24,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import java.util.Hashtable;
+import java.util.Map;
 
 
 /**
@@ -33,7 +34,7 @@ import java.util.Hashtable;
 public class RabbitMQOutTransportInfo implements OutTransportInfo {
 
     private static final Log log = LogFactory.getLog(RabbitMQOutTransportInfo.class);
-    private Hashtable<String, String> properties = null;
+    private Map<String, String> properties = null;
     private String targetEPR;
     private String connectionFactoryName;
     private String contentTypeProperty;
@@ -61,7 +62,7 @@ public class RabbitMQOutTransportInfo implements OutTransportInfo {
         this.contentTypeProperty = contentTypeProperty;
     }
 
-    public Hashtable<String, String> getProperties() {
+    public Map<String, String> getProperties() {
         return properties;
     }
 
