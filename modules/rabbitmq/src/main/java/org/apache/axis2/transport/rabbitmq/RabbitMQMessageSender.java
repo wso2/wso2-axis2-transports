@@ -22,6 +22,7 @@ import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Delivery;
 import org.apache.axis2.AxisFault;
+import org.apache.axis2.Constants;
 import org.apache.axis2.context.MessageContext;
 import org.apache.axis2.transport.base.BaseConstants;
 import org.apache.commons.lang.StringUtils;
@@ -34,7 +35,6 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Objects;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -256,12 +256,12 @@ public class RabbitMQMessageSender {
         }
         builder.correlationId(correlationId);
 
-        String contentType = (String) msgCtx.getProperty("messageType");
+        String contentType = (String) msgCtx.getProperty(Constants.Configuration.MESSAGE_TYPE);
         if (contentType != null) {
             builder.contentType(contentType);
         }
 
-        String contentEncoding = (String) msgCtx.getProperty("CHARACTER_SET_ENCODING");
+        String contentEncoding = (String) msgCtx.getProperty(Constants.Configuration.CHARACTER_SET_ENCODING);
         if (contentEncoding != null) {
             builder.contentEncoding(contentEncoding);
         }
@@ -284,4 +284,6 @@ public class RabbitMQMessageSender {
         builder.headers(headers);
         return builder;
     }
+
+
 }

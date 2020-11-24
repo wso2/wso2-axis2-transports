@@ -18,7 +18,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
 
@@ -28,15 +27,16 @@ import java.util.Map;
 public class ServiceTaskManager {
 
     private static final Log log = LogFactory.getLog(ServiceTaskManager.class);
-    private volatile Hashtable<String, String> rabbitMQProperties = new Hashtable<>();
+    private final Map<String, String> rabbitMQProperties = new HashMap<>();
+    private final Map<String, String> unmodifiableRabbitMQProperties = Collections.unmodifiableMap(rabbitMQProperties);
     private final List<ServiceTaskManager.MessageListenerTask> pollingTasks =
-            Collections.synchronizedList(new ArrayList<ServiceTaskManager.MessageListenerTask>());
+            Collections.synchronizedList(new ArrayList<>());
     private final RabbitMQConnectionPool rabbitMQConnectionPool;
     private volatile RabbitMQMessageReceiver rabbitMQMessageReceiver;
     private volatile String serviceName;
     private WorkerPool workerPool = null;
     private Connection connection;
-    private String factoryName;
+    private final String factoryName;
 
     /**
      * Constructor of service task manager.
@@ -72,6 +72,10 @@ public class ServiceTaskManager {
                 listenerTask.close();
             }
         }
+    }
+
+    public Map<String, String> getRabbitMQProperties() {
+        return unmodifiableRabbitMQProperties;
     }
 
     /**
@@ -207,7 +211,8 @@ public class ServiceTaskManager {
         @Override
         public void handleDelivery(String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body)
                 throws IOException {
-            AcknowledgementMode acknowledgementMode = rabbitMQMessageReceiver.onMessage(properties, body);
+            AcknowledgementMode acknowledgementMode =
+                    rabbitMQMessageReceiver.processThroughAxisEngine(properties, body);
             switch (acknowledgementMode) {
                 case REQUEUE_TRUE:
                     try {

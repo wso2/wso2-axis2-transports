@@ -140,11 +140,10 @@ public class RabbitMQSender extends AbstractTransportSender {
             // inject message to the axis engine if a response received
             if (response != null) {
                 MessageContext responseMsgCtx = createResponseMessageContext(msgCtx);
-                String contentType = RabbitMQUtils.buildMessageWithReplyTo(
+                String contentType = RabbitMQUtils.buildMessage(
                         response.getProperties(), response.getBody(), responseMsgCtx);
                 handleIncomingMessage(responseMsgCtx, RabbitMQUtils.getTransportHeaders(response.getProperties()),
-                        RabbitMQUtils.getSoapAction(response.getProperties()),
-                        contentType);
+                                      RabbitMQUtils.getSoapAction(response.getProperties()), contentType);
             }
         } else if (outTransportInfo instanceof RabbitMQOutTransportInfo) {
             // execute when publishing a message to the replyTo queue in request-response flow
