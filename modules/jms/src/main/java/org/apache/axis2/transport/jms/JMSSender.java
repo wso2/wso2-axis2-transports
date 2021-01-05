@@ -286,7 +286,7 @@ public class JMSSender extends AbstractTransportSender implements ManagementSupp
             message = createJMSMessage(msgCtx, messageSender.getSession(), contentTypeProperty);
         } catch (JMSException e) {
             rollbackIfXATransaction(msgCtx);
-            jmsConnectionFactory.clearCache();
+            jmsConnectionFactory.clearCache(messageSender.getConnection());
             handleException("Error creating a JMS message from the message context", e);
         }
 
@@ -344,7 +344,7 @@ public class JMSSender extends AbstractTransportSender implements ManagementSupp
         } catch (AxisJMSException e) {
             metrics.incrementFaultsSending();
             rollbackIfXATransaction(msgCtx);
-            jmsConnectionFactory.clearCache();
+            jmsConnectionFactory.clearCache(messageSender.getConnection());
             handleException("Error sending JMS message", e);
         } catch (JMSException e) {
             handleException("Error sending JMS message to destination", e);

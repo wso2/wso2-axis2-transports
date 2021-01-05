@@ -15,7 +15,6 @@
 */
 package org.apache.axis2.transport.jms;
 
-import org.apache.axiom.om.OMAttribute;
 import org.apache.axiom.om.OMElement;
 import org.apache.axis2.AxisFault;
 import org.apache.axis2.description.Parameter;
@@ -37,6 +36,7 @@ import javax.naming.Context;
 import javax.naming.InitialContext;
 import javax.naming.NamingException;
 import java.util.Hashtable;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -464,7 +464,7 @@ public class JMSConnectionFactory {
 
         } catch (JMSException e) {
             try {
-                clearSharedConnections();
+                clearSharedConnection(connection);
                 return JMSUtils.createSession(getConnection(), isSessionTransacted(), Session.AUTO_ACKNOWLEDGE,
                         jmsSpecVersion(), isQueue());
             } catch (JMSException e1) {
@@ -606,20 +606,26 @@ public class JMSConnectionFactory {
     }
 
     /**
-     * Clear the shared connection map due to stale connections
+     * Clear the troublesome connection from the map.
+     *
+     * @param connection Connection to clear
      */
-    private synchronized void clearSharedConnections() {
-        for (Map.Entry<Integer, Connection> connectionMap : sharedConnectionMap.entrySet()) {
-            try {
-                if (connectionMap.getValue() != null) {
-                    connectionMap.getValue().close();
+    private synchronized void clearSharedConnection(Connection connection) {
+        Iterator<Map.Entry<Integer, Connection>> connectionIterator = sharedConnectionMap.entrySet().iterator();
+        while (connectionIterator.hasNext()) {
+            Map.Entry<Integer, Connection> connectionEntry = connectionIterator.next();
+            Connection jmsConnection = connectionEntry.getValue();
+            if ((jmsConnection != null) && (jmsConnection.equals(connection))) {
+                try {
+                    log.warn("Closing corrupted connection - clientID: " + connection.getClientID());
+                    connectionEntry.getValue().close();
+                } catch (JMSException e) {
+                    log.warn("Error while shutting down the connection : ", e);
                 }
-            } catch (JMSException e) {
-                log.warn("Error while shutting down the connection : ", e);
+                connectionIterator.remove();
+                break;
             }
         }
-        sharedConnectionMap.clear();
-        lastReturnedConnectionIndex = 0;
     }
 
     /**
@@ -637,11 +643,14 @@ public class JMSConnectionFactory {
     }
 
     /**
-     * Clear all JMS cached objects upon {@link JMSException} or {@link AxisJMSException}
+     * Clear shared JMS objects and related connection
+     * upon {@link JMSException} or {@link AxisJMSException}.
+     *
+     * @param connection troublesome connection
      */
-    public void clearCache() {
+    public void clearCache(Connection connection) {
         clearSharedProducer();
         clearSharedSession();
-        clearSharedConnections();
+        clearSharedConnection(connection);
     }
 }
