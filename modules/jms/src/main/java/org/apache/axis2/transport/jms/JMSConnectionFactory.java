@@ -29,6 +29,7 @@ import org.wso2.securevault.commons.MiscellaneousUtil;
 import javax.jms.Connection;
 import javax.jms.ConnectionFactory;
 import javax.jms.Destination;
+import javax.jms.ExceptionListener;
 import javax.jms.JMSException;
 import javax.jms.MessageProducer;
 import javax.jms.Session;
@@ -567,6 +568,7 @@ public class JMSConnectionFactory {
         Connection connection = sharedConnectionMap.get(lastReturnedConnectionIndex);
         if (connection == null) {
             connection = createConnection();
+            setCorruptedConnectionListener(connection);
             sharedConnectionMap.put(lastReturnedConnectionIndex, connection);
         }
         lastReturnedConnectionIndex++;
@@ -652,5 +654,46 @@ public class JMSConnectionFactory {
         clearSharedProducer();
         clearSharedSession();
         clearSharedConnection(connection);
+    }
+
+    /**
+     * Sets exception listener for the shared JMS connection
+     * to evict it upon an exception.
+     *
+     * @param jmsConnection JMS connection
+     */
+    private void setCorruptedConnectionListener(Connection jmsConnection) {
+        try {
+            jmsConnection.setExceptionListener(new CorruptedJMSConnectionListener(jmsConnection));
+        } catch (JMSException e) {
+            log.error("Error while setting ExceptionListener to the JMS connection", e);
+        }
+    }
+
+    /**
+     * Class defining custom exception listener to evict corrupted shared connections.
+     */
+    private class CorruptedJMSConnectionListener implements ExceptionListener {
+
+        private final Connection jmsConnection;
+
+        CorruptedJMSConnectionListener(Connection jmsConnection) {
+            this.jmsConnection = jmsConnection;
+        }
+
+        @Override
+        public void onException(JMSException e) {
+            log.warn("An exception occurred on JMS connection. Evicting the cached connection", e);
+            Iterator<Map.Entry<Integer, Connection>> connectionIterator = sharedConnectionMap.entrySet().iterator();
+            while (connectionIterator.hasNext()) {
+                Map.Entry<Integer, Connection> connectionEntry = connectionIterator.next();
+                Connection connection = connectionEntry.getValue();
+                if ((connection != null) && (connection.equals(jmsConnection))) {
+                    connectionIterator.remove();
+                    log.warn("Removing cached connection index: " + connectionEntry.getKey());
+                    break;
+                }
+            }
+        }
     }
 }
