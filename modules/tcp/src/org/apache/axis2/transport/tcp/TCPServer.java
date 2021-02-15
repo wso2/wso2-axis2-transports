@@ -49,6 +49,11 @@ public class TCPServer implements Runnable {
 
             try {
                 socket = serverSocket.accept();
+                //enabling the boolean value true
+                // TODO make this option configurable over proxy params
+                boolean on=true;
+                //setKeepAlive() method either enables or disables the SO_KEEPALIVE option
+                socket.setKeepAlive(on);
             } catch (java.io.InterruptedIOException ignored) {
 
             } catch (Exception e) {
@@ -57,11 +62,6 @@ public class TCPServer implements Runnable {
             }
 
             if (socket != null) {
-                //enabling the boolean value true
-                // TODO make this option configurable over proxy params
-                boolean on=true;
-                //setKeepAlive() method either enables or disables the SO_KEEPALIVE option
-                socket.setKeepAlive(on);
                 workerPool.execute(new TCPWorker(endpoint, socket));
             }
         }
