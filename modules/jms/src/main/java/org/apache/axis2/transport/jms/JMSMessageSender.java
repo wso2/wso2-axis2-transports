@@ -67,6 +67,7 @@ public class JMSMessageSender {
     private Boolean jtaCommit;
     private Boolean rollbackOnly;
     private boolean sendingSuccessful;
+    private SessionWrapper sessionWrapper;
 
     /**
      +     * Boolean to track if producer caching will be honoured.
@@ -141,7 +142,8 @@ public class JMSMessageSender {
             this.isProducerCachingHonoured = cacheLevel > JMSConstants.CACHE_SESSION;
             this.jmsSpecVersion = jmsConnectionFactory.jmsSpecVersion();
             this.connection = jmsConnectionFactory.getConnection();
-            this.session = jmsConnectionFactory.getSession(connection);
+            this.sessionWrapper = jmsConnectionFactory.getSessionWrapper(connection);
+            this.session = sessionWrapper.getSession();
             boolean isQueue = jmsConnectionFactory.isQueue() == null ? true : jmsConnectionFactory.isQueue();
             String destinationFromAddress = JMSUtils.getDestination(targetAddress);
             //precedence is given to the destination specified by targetAddress
@@ -535,5 +537,9 @@ public class JMSMessageSender {
 
     public Destination getDestination() {
         return destination;
+    }
+
+    public SessionWrapper getSessionWrapper() {
+        return sessionWrapper;
     }
 }

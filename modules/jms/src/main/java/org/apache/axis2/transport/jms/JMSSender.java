@@ -202,6 +202,15 @@ public class JMSSender extends AbstractTransportSender implements ManagementSupp
         msgCtx.setProperty(JMSConstants.PARAM_JMS_HYPHEN_MODE, hyphenSupport);
 
         JMSReplyMessage jmsReplyMessage = null;
+
+        // Set the status of the SessionWrapper as busy
+        if (messageSender.getSessionWrapper() != null) {
+            if (log.isDebugEnabled()) {
+                log.debug("Set the status of the session as busy for " + messageSender.getSessionWrapper().getSession());
+            }
+            messageSender.getSessionWrapper().setBusy(true);
+        }
+
         // need to synchronize as Sessions are not thread safe
         synchronized (messageSender.getSession()) {
             try {
@@ -219,6 +228,13 @@ public class JMSSender extends AbstractTransportSender implements ManagementSupp
                             log.error("Error while deleting the temporary queue " + temporaryQueueName, e);
                         }
                     }
+                }
+                // Set the status of the SessionWrapper as free
+                if (messageSender.getSessionWrapper() != null) {
+                    if (log.isDebugEnabled()) {
+                        log.debug("Set the status of the session as free for " + messageSender.getSessionWrapper().getSession());
+                    }
+                    messageSender.getSessionWrapper().setBusy(false);
                 }
             }
         }
@@ -363,10 +379,6 @@ public class JMSSender extends AbstractTransportSender implements ManagementSupp
             // information would be given. Then it should poll (until timeout) the
             // requested destination for the response message and inject it from a
             // asynchronous worker thread
-            try {
-                messageSender.getConnection().start();  // multiple calls are safely ignored
-            } catch (JMSException ignore) {}
-
             try {
                 String jmsCorrelationID = message.getJMSCorrelationID();
                 if (jmsCorrelationID != null && jmsCorrelationID.length() > 0) {

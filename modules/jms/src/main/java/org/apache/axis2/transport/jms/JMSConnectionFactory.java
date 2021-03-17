@@ -74,9 +74,13 @@ public class JMSConnectionFactory {
     /** The shared JMS connection for this JMS connection factory */
     private int cacheLevel = JMSConstants.CACHE_CONNECTION;
 
-    private Map<Integer, Connection> sharedConnectionMap = new ConcurrentHashMap<Integer,Connection>();
+    private Map<Integer, Connection> sharedConnectionMap = new ConcurrentHashMap<>();
+    private Map<Integer, SessionWrapper> sharedSessionWrapperMap = new ConcurrentHashMap<>();
     private int maxSharedConnectionCount = 10;
     private int lastReturnedConnectionIndex = 0;
+    private int lastReturnedSessionIndex = 0;
+    private int busySessionWrapperCount = 0;
+
 
     /**
      * Digest a JMS CF definition from an axis2.xml 'Parameter' and construct.
@@ -443,6 +447,8 @@ public class JMSConnectionFactory {
                         + " created");
             }
 
+            connection.start();
+
         } catch (JMSException e) {
             handleException("Error acquiring a Connection from the JMS CF : " + JMSUtils.maskURLPasswordAndCredentials(name)
                     + " using properties : " + JMSUtils.maskAxis2ConfigSensitiveParameters(parameters), e);
@@ -451,23 +457,23 @@ public class JMSConnectionFactory {
     }
 
     /**
-     * Create a new Session
+     * Create a new SessionWrapper object for {@link javax.jms.Session}
      * @param connection Connection to use
      * @return A new Session
      */
-    private Session createSession(Connection connection) {
+    private SessionWrapper createSessionWrapper(Connection connection) {
         try {
             if (log.isDebugEnabled()) {
                 log.debug("Creating a new JMS Session from JMS CF : " + JMSUtils.maskURLPasswordAndCredentials(name));
             }
-            return JMSUtils.createSession(
-                connection, isSessionTransacted(), Session.AUTO_ACKNOWLEDGE, jmsSpecVersion(), isQueue());
+            return new SessionWrapper(JMSUtils.createSession(
+                    connection, isSessionTransacted(), Session.AUTO_ACKNOWLEDGE, jmsSpecVersion(), isQueue()));
 
         } catch (JMSException e) {
             try {
                 clearSharedConnection(connection);
-                return JMSUtils.createSession(getConnection(), isSessionTransacted(), Session.AUTO_ACKNOWLEDGE,
-                        jmsSpecVersion(), isQueue());
+                return new SessionWrapper(JMSUtils.createSession(getConnection(), isSessionTransacted(), Session.AUTO_ACKNOWLEDGE,
+                        jmsSpecVersion(), isQueue()));
             } catch (JMSException e1) {
                 handleException("Error creating JMS session from JMS CF : "
                         + JMSUtils.maskURLPasswordAndCredentials(name), e);
@@ -513,15 +519,15 @@ public class JMSConnectionFactory {
     }
 
     /**
-     * Get a new Session or shared Session from this JMS CF
+     * Get a new Session or shared Session wrapper object from this JMS CF
      * @param connection the Connection to be used
      * @return new or shared Session from this JMS CF
      */
-    public Session getSession(Connection connection) {
+    public SessionWrapper getSessionWrapper(Connection connection) {
         if (cacheLevel > JMSConstants.CACHE_CONNECTION) {
-            return getSharedSession();
+            return getSharedSessionWrapper();
         } else {
-            return createSession((connection == null ? getConnection() : connection));
+            return createSessionWrapper((connection == null ? getConnection() : connection));
         }
     }
 
@@ -537,7 +543,7 @@ public class JMSConnectionFactory {
         if (cacheLevel > JMSConstants.CACHE_SESSION) {
             return getNullDestinationSharedProducer();
         } else {
-            return createProducer((session == null ? getSession(connection) : session), destination);
+            return createProducer((session == null ? getSessionWrapper(connection).getSession() : session), destination);
         }
     }
 
@@ -549,7 +555,7 @@ public class JMSConnectionFactory {
      */
     private synchronized MessageProducer getNullDestinationSharedProducer() {
         if (sharedProducer == null) {
-            sharedProducer = createProducer(getSharedSession(), null);
+            sharedProducer = createProducer(getSharedSessionWrapper().getSession(), null);
             if (log.isDebugEnabled()) {
                 log.debug("Created shared JMS MessageConsumer with no destination specified, for JMS CF : "
                         + JMSUtils.maskURLPasswordAndCredentials(name) + " , with producer caching enabled");
@@ -579,17 +585,37 @@ public class JMSConnectionFactory {
     }
 
     /**
-     * Get a shared Session from this JMS CF
-     * @return shared Session from this JMS CF
+     * Get a SessionWrapper object which has {@link javax.jms.Session}
+     * @return shared SessionWrapper object
      */
-    private synchronized Session getSharedSession() {
-        if (sharedSession == null) {
-            sharedSession = createSession(getSharedConnection());
-            if (log.isDebugEnabled()) {
-                log.debug("Created shared JMS Session for JMS CF : " + JMSUtils.maskURLPasswordAndCredentials(name));
-            }
+    private synchronized SessionWrapper getSharedSessionWrapper() {
+        SessionWrapper sessionWrapper = sharedSessionWrapperMap.get(lastReturnedSessionIndex);
+        if (sessionWrapper == null) {
+            sessionWrapper = createSessionWrapper(getSharedConnection());
+            sharedSessionWrapperMap.put(lastReturnedSessionIndex, sessionWrapper);
         }
-        return sharedSession;
+
+        lastReturnedSessionIndex++;
+        // there will be max session count correspond to max connection count
+        if (lastReturnedSessionIndex >= maxSharedConnectionCount) {
+            lastReturnedSessionIndex = 0;
+        }
+        //Check whether the session associated with the connection data holder is already in-use
+        if (sessionWrapper.isBusy()) {
+            // Recursively get a session with free session
+            busySessionWrapperCount++;
+            if (busySessionWrapperCount >= maxSharedConnectionCount) {
+                log.warn("Returning a busy session as there are no free cached session are available");
+                busySessionWrapperCount = 0;
+                return sessionWrapper;
+            }
+            return getSharedSessionWrapper();
+        } else {
+            if (log.isDebugEnabled()) {
+                log.debug("Using the " + lastReturnedSessionIndex + " session from the shared session pool");
+            }
+            return sessionWrapper;
+        }
     }
 
     /**
@@ -598,7 +624,7 @@ public class JMSConnectionFactory {
      */
     private synchronized MessageProducer getSharedProducer() {
         if (sharedProducer == null) {
-            sharedProducer = createProducer(getSharedSession(), sharedDestination);
+            sharedProducer = createProducer(getSharedSessionWrapper().getSession(), sharedDestination);
             if (log.isDebugEnabled()) {
                 log.debug("Created shared JMS MessageConsumer for JMS CF : "
                         + JMSUtils.maskURLPasswordAndCredentials(name));
