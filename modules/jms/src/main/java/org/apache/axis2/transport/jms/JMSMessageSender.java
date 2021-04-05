@@ -153,7 +153,7 @@ public class JMSMessageSender {
             } else {
                 this.destination = jmsConnectionFactory.getSharedDestination();
             }
-            this.producer = jmsConnectionFactory.getMessageProducer(connection, session, destination);
+            this.producer = jmsConnectionFactory.getMessageProducer(connection, sessionWrapper, destination);
         } catch (Exception e) {
             handleException("Error while creating message sender", e);
         }
