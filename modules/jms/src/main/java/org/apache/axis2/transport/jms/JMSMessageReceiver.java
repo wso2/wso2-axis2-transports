@@ -160,9 +160,11 @@ public class JMSMessageReceiver {
 
         MessageContext msgContext = endpoint.createMessageContext();
 
-        // set the JMS Message ID as the Message ID of the MessageContext
+        // set the JMS Message ID as the Message ID of the MessageContext if JMS Message ID is not null
         try {
-            msgContext.setMessageID(message.getJMSMessageID());
+            if (message.getJMSMessageID() != null) {
+                msgContext.setMessageID(message.getJMSMessageID());
+            }
             String jmsCorrelationID = message.getJMSCorrelationID();
             if (jmsCorrelationID != null && jmsCorrelationID.length() > 0) {
                 msgContext.setProperty(JMSConstants.JMS_COORELATION_ID, jmsCorrelationID);
