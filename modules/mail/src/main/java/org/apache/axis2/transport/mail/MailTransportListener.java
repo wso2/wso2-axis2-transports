@@ -494,8 +494,10 @@ public class MailTransportListener extends AbstractPollingTransportListener<Poll
                     outInfo.getFromAddress().getAddress()));
         }
 
-        // save original mail message id message context MessageID
-        msgContext.setMessageID(outInfo.getRequestMessageID());
+        // set the Mail Message ID as the Message ID of the MessageContext if Mail Message ID is not null
+        if (outInfo.getRequestMessageID() != null) {
+            msgContext.setMessageID(outInfo.getRequestMessageID());
+        }
 
         // set the message payload to the message context
         InputStream in = messagePart.getInputStream();
