@@ -486,11 +486,12 @@ public class JMSConnectionFactory {
 
     /**
      * Create a new MessageProducer
+     * @param connection Connection to be used
      * @param session Session to be used
      * @param destination Destination to be used
      * @return a new MessageProducer
      */
-    private MessageProducer createProducer(Session session, Destination destination) {
+    private MessageProducer createProducer(Connection connection, Session session, Destination destination) {
         try {
             if (log.isDebugEnabled()) {
                 log.debug("Creating a new JMS MessageProducer from JMS CF : "
@@ -501,8 +502,24 @@ public class JMSConnectionFactory {
                 session, destination, isQueue(), jmsSpecVersion());
 
         } catch (JMSException e) {
-            handleException("Error creating JMS producer from JMS CF : "
-                    + JMSUtils.maskURLPasswordAndCredentials(name), e);
+            // Error occurs when creating the producer. Discard current session and retry
+            try {
+                return JMSUtils.createProducer(
+                        getSessionWrapper(connection).getSession(), destination, isQueue(), jmsSpecVersion());
+            } catch (JMSException jmsException) {
+                // Error occurs when creating the producer. Discard current session / connection and retry
+                clearSharedConnection(connection);
+                try {
+                    SessionWrapper sessionWrapper =
+                            new SessionWrapper(JMSUtils.createSession(createConnection(), isSessionTransacted(),
+                                    Session.AUTO_ACKNOWLEDGE, jmsSpecVersion(), isQueue()));
+                    return JMSUtils
+                            .createProducer(sessionWrapper.getSession(), destination, isQueue(), jmsSpecVersion());
+                    } catch (JMSException exception) {
+                    handleException("Error creating JMS session from JMS CF : "
+                            + JMSUtils.maskURLPasswordAndCredentials(name), e);
+                }
+            }
         }
         return null;
     }
@@ -545,7 +562,8 @@ public class JMSConnectionFactory {
             return getNullDestinationSharedProducer(connection, sessionWrapper);
         } else {
             Session session = sessionWrapper.getSession();
-            return createProducer((session == null ? getSessionWrapper(connection).getSession() : session), destination);
+            return createProducer(connection, (session == null ? getSessionWrapper(connection).getSession() : session),
+                    destination);
         }
     }
 
@@ -560,7 +578,7 @@ public class JMSConnectionFactory {
     private synchronized MessageProducer getNullDestinationSharedProducer(Connection connection,
                                                                           SessionWrapper sessionWrapper) {
         if (sharedProducer == null) {
-            sharedProducer = createProducer(sessionWrapper.getSession(), null);
+            sharedProducer = createProducer(connection, sessionWrapper.getSession(), null);
             if (log.isDebugEnabled()) {
                 log.debug("Created shared JMS MessageConsumer with no destination specified, for JMS CF : "
                         + JMSUtils.maskURLPasswordAndCredentials(name) + " , with producer caching enabled");
@@ -625,21 +643,6 @@ public class JMSConnectionFactory {
     }
 
     /**
-     * Get a shared MessageProducer from this JMS CF
-     * @return shared MessageProducer from this JMS CF
-     */
-    private synchronized MessageProducer getSharedProducer() {
-        if (sharedProducer == null) {
-            sharedProducer = createProducer(getSharedSessionWrapper().getSession(), sharedDestination);
-            if (log.isDebugEnabled()) {
-                log.debug("Created shared JMS MessageConsumer for JMS CF : "
-                        + JMSUtils.maskURLPasswordAndCredentials(name));
-            }
-        }
-        return sharedProducer;
-    }
-
-    /**
      * Clear the troublesome connection from the map.
      *
      * @param connection Connection to clear
@@ -657,6 +660,7 @@ public class JMSConnectionFactory {
                     log.warn("Error while shutting down the connection : ", e);
                 }
                 connectionIterator.remove();
+                removeInvalidSessions(jmsConnection);
                 break;
             }
         }
