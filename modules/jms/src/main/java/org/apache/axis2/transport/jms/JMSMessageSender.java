@@ -25,6 +25,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import javax.jms.Connection;
+import javax.jms.ConnectionFactory;
 import javax.jms.DeliveryMode;
 import javax.jms.Destination;
 import javax.jms.JMSException;
@@ -40,6 +41,7 @@ import javax.transaction.Transaction;
 import javax.transaction.UserTransaction;
 import javax.transaction.xa.XAResource;
 import javax.transaction.xa.Xid;
+import java.util.Objects;
 
 /**
  * Performs the actual sending of a JMS message, and the subsequent committing of a JTA transaction
@@ -68,6 +70,7 @@ public class JMSMessageSender {
     private Boolean rollbackOnly;
     private boolean sendingSuccessful;
     private SessionWrapper sessionWrapper;
+    JMSConnectionFactory jmsConnectionFactory;
 
     /**
      +     * Boolean to track if producer caching will be honoured.
@@ -141,21 +144,69 @@ public class JMSMessageSender {
             this.cacheLevel = jmsConnectionFactory.getCacheLevel();
             this.isProducerCachingHonoured = cacheLevel > JMSConstants.CACHE_SESSION;
             this.jmsSpecVersion = jmsConnectionFactory.jmsSpecVersion();
-            this.connection = jmsConnectionFactory.getConnection();
-            this.sessionWrapper = jmsConnectionFactory.getSessionWrapper(connection);
-            this.session = sessionWrapper.getSession();
-            boolean isQueue = jmsConnectionFactory.isQueue() == null ? true : jmsConnectionFactory.isQueue();
-            String destinationFromAddress = JMSUtils.getDestination(targetAddress);
-            //precedence is given to the destination specified by targetAddress
-            if (destinationFromAddress != null && !destinationFromAddress.isEmpty()) {
-                this.destination = jmsConnectionFactory.getDestination(JMSUtils.getDestination(targetAddress),
-                        isQueue ? JMSConstants.DESTINATION_TYPE_QUEUE : JMSConstants.DESTINATION_TYPE_TOPIC);
-            } else {
-                this.destination = jmsConnectionFactory.getSharedDestination();
-            }
-            this.producer = jmsConnectionFactory.getMessageProducer(connection, sessionWrapper, destination);
+            initProducer(jmsConnectionFactory, targetAddress);
         } catch (Exception e) {
             handleException("Error while creating message sender", e);
+        }
+    }
+
+    private void initProducer(JMSConnectionFactory jmsConnectionFactory, String targetAddress) throws JMSException {
+        // setting the connection factory reference
+        this.jmsConnectionFactory = jmsConnectionFactory;
+        setDestination(jmsConnectionFactory, targetAddress);
+        this.connection = jmsConnectionFactory.getConnection();
+        try {
+            this.sessionWrapper = jmsConnectionFactory.getSessionWrapper(connection);
+            this.session = sessionWrapper.getSession();
+        } catch (JMSException e) {
+            if (JMSConnectionFactory.SESSION_BUSY.equals(e.getMessage())) {
+                recoverSession(jmsConnectionFactory);
+            } else {
+                throw e;
+            }
+        }
+        this.producer = jmsConnectionFactory.getMessageProducer(sessionWrapper, destination);
+    }
+
+    private void recoverSession(JMSConnectionFactory jmsConnectionFactory) throws JMSException {
+        int busySessionWrapperCounter = 0;
+        while (!hasReachedMaximum(jmsConnectionFactory, busySessionWrapperCounter)) {
+            connection = jmsConnectionFactory.getConnection();
+            try {
+                sessionWrapper = jmsConnectionFactory.getSessionWrapper(connection);
+                this.session = sessionWrapper.getSession();
+                break;
+            } catch (JMSException jmsException) {
+                if (JMSConnectionFactory.SESSION_BUSY.equals(jmsException.getMessage())) {
+                    busySessionWrapperCounter++;
+                } else {
+                    throw jmsException;
+                }
+            }
+        }
+        if (hasReachedMaximum(jmsConnectionFactory, busySessionWrapperCounter)) {
+            log.warn("Using a busy session as there are no free cached session available");
+        }
+    }
+
+    private boolean hasReachedMaximum(JMSConnectionFactory jmsConnectionFactory, int busySessionWrapperCounter) {
+        return busySessionWrapperCounter >= jmsConnectionFactory.getMaxSharedConnectionCount();
+    }
+
+    private void setDestination(JMSConnectionFactory jmsConnectionFactory, String targetAddress) {
+        String destinationFromAddress = JMSUtils.getDestination(targetAddress);
+        //precedence is given to the destination specified by targetAddress
+        if (!destinationFromAddress.isEmpty()) {
+            if (Objects.nonNull(jmsConnectionFactory.isQueue())) {
+                isQueue = jmsConnectionFactory.isQueue();
+            } else {
+                isQueue = true;
+            }
+            this.destination = jmsConnectionFactory.getDestination(JMSUtils.getDestination(targetAddress),
+                                                                   isQueue ? JMSConstants.DESTINATION_TYPE_QUEUE :
+                                                                           JMSConstants.DESTINATION_TYPE_TOPIC);
+        } else {
+            this.destination = jmsConnectionFactory.getSharedDestination();
         }
     }
 
@@ -294,6 +345,7 @@ public class JMSMessageSender {
             send(message, msgCtx);
 
         } catch (JMSException e) {
+            jmsConnectionFactory.setExceptionOccurred(true);
             handleException("Error sending message with MessageContext ID : " +
                     msgCtx.getMessageID() + " to destination : " + destination, e);
 

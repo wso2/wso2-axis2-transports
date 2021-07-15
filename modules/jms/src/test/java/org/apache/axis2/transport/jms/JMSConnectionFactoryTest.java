@@ -44,8 +44,7 @@ public class JMSConnectionFactoryTest extends TestCase {
     @InjectMocks
     JMSConnectionFactory factory = Mockito.mock(JMSConnectionFactory.class);
 
-    private Map<SessionWrapper, Connection> connectionSessionMap = new ConcurrentHashMap<>();
-    private Map<Integer, SessionWrapper> sharedSessionWrapperMap = new ConcurrentHashMap<>();
+    private Map<Connection, SessionWrapper> sharedSessionWrapperMapPerConn = new ConcurrentHashMap<>();
 
     public void testRemoveInvalidSessions()
             throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
@@ -55,20 +54,16 @@ public class JMSConnectionFactoryTest extends TestCase {
         SessionWrapper sessionWrapper1 = Mockito.mock(SessionWrapper.class);
         SessionWrapper sessionWrapper2 = Mockito.mock(SessionWrapper.class);
 
-        connectionSessionMap.put(sessionWrapper1, connection1);
-        connectionSessionMap.put(sessionWrapper2, connection2);
-
-        sharedSessionWrapperMap.put(1, sessionWrapper1);
-        sharedSessionWrapperMap.put(2, sessionWrapper2);
+        sharedSessionWrapperMapPerConn.put(connection1, sessionWrapper1);
+        sharedSessionWrapperMapPerConn.put(connection2, sessionWrapper2);
 
         MockitoAnnotations.initMocks(this);
-        ReflectionTestUtils.setField(factory, "sharedSessionWrapperMap", sharedSessionWrapperMap);
-        ReflectionTestUtils.setField(factory, "connectionSessionMap", connectionSessionMap);
+        ReflectionTestUtils.setField(factory, "sharedSessionWrapperMapPerConn", sharedSessionWrapperMapPerConn);
 
         Method privateMethod = JMSConnectionFactory.class.getDeclaredMethod("removeInvalidSessions", Connection.class);
         privateMethod.setAccessible(true);
         privateMethod.invoke(factory, connection1);
 
-        assertEquals("Invalid session is not removed", 1, connectionSessionMap.size());
+        assertEquals("Invalid session is not removed", 1, sharedSessionWrapperMapPerConn.size());
     }
 }
