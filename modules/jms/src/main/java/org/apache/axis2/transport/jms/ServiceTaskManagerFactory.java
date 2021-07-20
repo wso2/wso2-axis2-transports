@@ -124,7 +124,7 @@ public class ServiceTaskManagerFactory {
             stm.setInitialReconnectDuration(value);
         }
         value = getOptionalIntProperty(JMSConstants.PARAM_RECON_MAX_DURATION, svc, cf);
-        if (value != null) {
+        if (value != null) {value = getOptionalIntProperty(JMSConstants.JMS_PROXY_THROTTLE_PER_MIN, svc, cf);
             stm.setMaxReconnectDuration(value);
         }
         Double dValue = getOptionalDoubleProperty(JMSConstants.PARAM_RECON_FACTOR, svc, cf);
@@ -136,13 +136,35 @@ public class ServiceTaskManagerFactory {
         if (value != null) {
             stm.setThrottleLimitPerMin(value);
         }
+
+        value = getOptionalIntProperty(JMSConstants.JMS_PROXY_THROTTLE_COUNT, svc, cf);
+        if (value != null) {
+            stm.setThrottleCount(value);
+        }
+
         Boolean bValue = getOptionalBooleanProperty(JMSConstants.JMS_PROXY_THROTTLE_ENABLED, svc, cf);
         if (bValue != null) {
             stm.setThrottlingEnabled(bValue);
         }
+
+        bValue = getOptionalBooleanProperty(JMSConstants.JMS_PROXY_DYNAMIC_THROTTLE_ENABLED, svc, cf);
+        if (bValue != null) {
+            stm.setDynamicThrottlingEnabled(bValue);
+        }
+
         String sValue = getOptionalStringProperty(JMSConstants.JMS_PROXY_THROTTLE_MODE, svc, cf);
         if (sValue != null) {
             stm.setThrottleMode(sValue);
+        }
+
+        sValue = getOptionalStringProperty(JMSConstants.JMS_PROXY_THROTTLE_TIME_UNIT, svc, cf);
+        if (sValue != null) {
+            stm.setThrottleTimeUnit(sValue);
+        }
+
+        sValue = getOptionalStringProperty(JMSConstants.JMS_PROXY_DYNAMIC_THROTTLE_PROPERTY, svc, cf);
+        if (sValue != null) {
+            stm.setDynamicThrottlePropertyName(sValue);
         }
 
         stm.setWorkerPool(workerPool);
