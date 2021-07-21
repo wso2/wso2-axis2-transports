@@ -192,6 +192,14 @@ public class ServiceTaskManager {
     // Throttle limit if throttling is enabled. 1 message per second
     private int throttleLimitPerMin = 60;
 
+    private String throttleTimeUnit = null;
+
+    private int throttleCount = 60;
+
+    private boolean dynamicThrottlingEnabled = false;
+
+    private String dynamicThrottlePropertyName = null;
+
      /**
      * Start or re-start the Task Manager by shutting down any existing worker tasks and
      * re-creating them. However, if this is STM is PAUSED, a start request is ignored.
@@ -441,6 +449,29 @@ public class ServiceTaskManager {
             listenerPaused = false;
         }
 
+        private long getSleepDelay() {
+
+            // if throttle time unit is defined, prioritize on unit based mechanism
+            if (getThrottleTimeUnit() != null) {
+                long sleepDelay = 0;
+                switch (getThrottleTimeUnit()) {
+                    case JMSConstants.JMS_PROXY_THROTTLE_MINUTE:
+                        sleepDelay = DateUtils.MILLIS_PER_MINUTE / getThrottleCount();
+                        break;
+                    case JMSConstants.JMS_PROXY_THROTTLE_HOUR:
+                        sleepDelay = DateUtils.MILLIS_PER_HOUR / getThrottleCount();
+                        break;
+                    case JMSConstants.JMS_PROXY_THROTTLE_DAY:
+                        sleepDelay = DateUtils.MILLIS_PER_DAY / getThrottleCount();
+                        break;
+                    default:
+                        throw new AxisJMSException("Invalid time unit has been defined for throttling.");
+                }
+                return sleepDelay;
+            }
+            return DateUtils.MILLIS_PER_MINUTE / throttleLimitPerMin;
+        }
+
         /**
          * Execute the polling worker task
          */
@@ -449,8 +480,7 @@ public class ServiceTaskManager {
             activeTaskCount.getAndIncrement();
             int messageCount = 0;
             long retryDurationOnConsumerFailure = consumeErrorRetryDelay;
-            int consumedMessageCountPerMin = 0;
-            long throttleSleepDelay = DateUtils.MILLIS_PER_MINUTE/throttleLimitPerMin;
+            int consumedMessageCount = 0;
             long consumptionStartedTime = 0;
 
             if (log.isDebugEnabled()) {
@@ -529,8 +559,13 @@ public class ServiceTaskManager {
                         handleMessage(message, ut);
 
                         if (isThrottlingEnabled) {
+                            // if dynamic throttling is enabled, we will update the related properties from system.
+                            if (isDynamicThrottlingEnabled()) {
+                                updateThrottlingParametersFromSystem();
+                            }
                             switch (throttleMode) {
                                 case JMSConstants.JMS_PROXY_FIXED_INTERVAL_THROTTLE: {
+                                    long throttleSleepDelay = getSleepDelay();
                                     if (log.isDebugEnabled()) {
                                         log.debug("Sleeping " + throttleSleepDelay
                                                 + " ms with Fixed-Interval throttling for service :" + serviceName);
@@ -540,7 +575,7 @@ public class ServiceTaskManager {
                                 }
 
                                 case JMSConstants.JMS_PROXY_BATCH_THROTTLE: {
-                                    if (consumedMessageCountPerMin == 0) {
+                                    if (consumedMessageCount == 0) {
                                         consumptionStartedTime = System.currentTimeMillis();
                                         if (log.isDebugEnabled()) {
                                             log.debug("Batch throttling started at " + consumptionStartedTime
@@ -548,24 +583,36 @@ public class ServiceTaskManager {
                                         }
                                     }
 
-                                    consumedMessageCountPerMin = consumedMessageCountPerMin + 1;
-
-                                    if (consumedMessageCountPerMin >= throttleLimitPerMin) {
-                                        long consumptionDuration = System.currentTimeMillis() - consumptionStartedTime;
-
-                                        if (consumptionDuration < DateUtils.MILLIS_PER_MINUTE) {
-                                            long sleepDuration = DateUtils.MILLIS_PER_MINUTE - consumptionDuration;
-                                            Thread.sleep(sleepDuration);
-                                            if (log.isDebugEnabled()) {
-                                                log.debug("After consuming " + consumedMessageCountPerMin
-                                                        + " per minute, Thread is sleeping for "
-                                                        + sleepDuration + " milli seconds");
+                                    consumedMessageCount++;
+                                    long consumptionDuration = System.currentTimeMillis() - consumptionStartedTime;
+                                    if (getThrottleTimeUnit() != null) {
+                                        // prioritize on unit based throttling
+                                        if (consumedMessageCount >= getThrottleCount()) {
+                                            // consumed messages have exceeded the defined count
+                                            long remainingDuration = getRemainingDuration(consumptionDuration);
+                                            if (remainingDuration >= 0) {
+                                                // if time is remaining, we need to sleep while it exceeds
+                                                Thread.sleep(remainingDuration);
                                             }
+                                            consumedMessageCount = 0;
                                         }
-                                        consumedMessageCountPerMin = 0;
-                                    }
-                                    if (log.isDebugEnabled()) {
-                                        log.debug("consumed Message Count per min:  " + consumedMessageCountPerMin);
+                                    } else {
+                                        // this is only applicable for minute based throttle machanism
+                                        if (consumedMessageCount >= throttleLimitPerMin) {
+                                            if (consumptionDuration < DateUtils.MILLIS_PER_MINUTE) {
+                                                long sleepDuration = DateUtils.MILLIS_PER_MINUTE - consumptionDuration;
+                                                Thread.sleep(sleepDuration);
+                                                if (log.isDebugEnabled()) {
+                                                    log.debug("After consuming " + consumedMessageCount
+                                                            + " per minute, Thread is sleeping for "
+                                                            + sleepDuration + " milli seconds");
+                                                }
+                                            }
+                                            consumedMessageCount = 0;
+                                        }
+                                        if (log.isDebugEnabled()) {
+                                            log.debug("consumed Message Count per min:  " + consumedMessageCount);
+                                        }
                                     }
                                     break;
                                 }
@@ -576,7 +623,6 @@ public class ServiceTaskManager {
                                 }
                             }
                         }
-
                     } else {
                         idle = true;
                         idleExecutionCount++;
@@ -1123,6 +1169,36 @@ public class ServiceTaskManager {
         }
     }
 
+    private void updateThrottlingParametersFromSystem() {
+
+        String throttleCountFromSystem = System.getProperty(getDynamicThrottlePropertyName());
+        if (throttleCountFromSystem != null) {
+            log.info("Throttle count updated from system system property.");
+            setThrottleCount(Integer.parseInt(throttleCountFromSystem));
+            // upon updating the new throttle count, clear the system property.
+            System.clearProperty(getDynamicThrottlePropertyName());
+        }
+    }
+
+    private long getRemainingDuration(long consumptionDuration) {
+        long remainingDuration = 0;
+
+        switch (getThrottleTimeUnit()) {
+            case JMSConstants.JMS_PROXY_THROTTLE_HOUR:
+                remainingDuration = DateUtils.MILLIS_PER_HOUR - consumptionDuration;
+                break;
+            case JMSConstants.JMS_PROXY_THROTTLE_MINUTE:
+                remainingDuration = DateUtils.MILLIS_PER_MINUTE - consumptionDuration;
+                break;
+            case JMSConstants.JMS_PROXY_THROTTLE_DAY:
+                remainingDuration = DateUtils.MILLIS_PER_DAY - consumptionDuration;
+                break;
+            default:
+                throw new AxisJMSException("Invalid time unit has been defined for throttling.");
+        }
+        return remainingDuration;
+    }
+
     /**
      * Get the InitialContext for lookup using the JNDI parameters applicable to the service
      * @return the InitialContext to be used
@@ -1640,5 +1716,37 @@ public class ServiceTaskManager {
     public void setThrottleLimitPerMin(int throttleLimitPerMin) {
         this.throttleLimitPerMin = throttleLimitPerMin;
         log.info("Throttle limit per minute for the service " + serviceName + " is " + throttleLimitPerMin);
+    }
+
+    public void setThrottleTimeUnit(String timeUnit) {
+        this.throttleTimeUnit = timeUnit;
+    }
+
+    public void setThrottleCount(int count) {
+        this.throttleCount = count;
+    }
+
+    public void setDynamicThrottlingEnabled(boolean dynamicThrottlingEnabled) {
+        this.dynamicThrottlingEnabled = dynamicThrottlingEnabled;
+    }
+
+    public String getThrottleTimeUnit() {
+        return throttleTimeUnit;
+    }
+
+    public int getThrottleCount() {
+        return throttleCount;
+    }
+
+    public boolean isDynamicThrottlingEnabled() {
+        return dynamicThrottlingEnabled;
+    }
+
+    public void setDynamicThrottlePropertyName(String propertyName) {
+        this.dynamicThrottlePropertyName = propertyName;
+    }
+
+    public String getDynamicThrottlePropertyName() {
+        return dynamicThrottlePropertyName;
     }
 }

@@ -428,6 +428,21 @@ public class JMSConstants {
     public static final String JMS_PROXY_THROTTLE_MODE = "jms.proxy.throttle.mode";
     /** Throttling limit of messages per minute */
     public static final String JMS_PROXY_THROTTLE_PER_MIN = "jms.proxy.throttle.limitPerMinute";
+    /** Time unit to be used for throttling i.e: minute, day, hour */
+    public static final String JMS_PROXY_THROTTLE_TIME_UNIT = "jms.proxy.throttle.timeUnit";
+    /** Number of messages to trigger throttling in a unit time unit */
+    public static final String JMS_PROXY_THROTTLE_COUNT = "jms.proxy.throttle.count";
+    /** Is throttle count read dynamically. True leads to low performance */
+    public static final String JMS_PROXY_DYNAMIC_THROTTLE_ENABLED = "jms.proxy.throttle.dynamic.enabled";
+    /** System property to be set if the dynamic throttling is enabled */
+    public static final String JMS_PROXY_DYNAMIC_THROTTLE_PROPERTY = "jms.proxy.throttle.count.systemProperty";
+
+    public static final String JMS_PROXY_THROTTLE_HOUR = "hour";
+
+    public static final String JMS_PROXY_THROTTLE_MINUTE = "minute";
+
+    public static final String JMS_PROXY_THROTTLE_DAY = "day";
+
     /** Batch Throttling constant */
     public static final String JMS_PROXY_BATCH_THROTTLE = "batch";
     /** Fixed Interval Throttlinh constant */
