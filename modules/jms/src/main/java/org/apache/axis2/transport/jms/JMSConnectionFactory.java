@@ -613,13 +613,6 @@ public class JMSConnectionFactory {
                 sharedSessionWrapperMapPerConn.put(connection, sessionWrapper);
             }
         }
-        //Check whether the session associated with the connection data holder is already in-use
-        if (!sessionWrapper.isBusy()) {
-            if (log.isDebugEnabled()) {
-                log.debug("Using the session from the shared session pool");
-            }
-            sessionWrapper.setBusy(true);
-        }
         return sessionWrapper;
     }
 

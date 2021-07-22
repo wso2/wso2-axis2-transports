@@ -159,6 +159,7 @@ public class JMSMessageSender {
         if (sessionWrapper.isBusy()) {
             recoverSession(jmsConnectionFactory);
         }
+        sessionWrapper.setBusy(true);
         this.session = sessionWrapper.getSession();
         this.producer = jmsConnectionFactory.getMessageProducer(sessionWrapper, destination);
     }
