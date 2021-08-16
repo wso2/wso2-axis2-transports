@@ -115,6 +115,8 @@ public class RabbitMQConstants {
     public static final String EXCHANGE_DURABLE_DEFAULT = "true";
     public static final String QUEUE_DURABLE_DEFAULT = "true";
 
+    public static final String IN_EQUIVALENT_ARGUMENT_ERROR = "inequivalent arg";
+    public static final String QUEUE = "queue";
+    public static final String EXCHANGE = "exchange";
+
 }
-
-
