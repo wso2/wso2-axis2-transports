@@ -94,12 +94,12 @@ public class RabbitMQMessageSender {
         try {
             RabbitMQUtils.declareQueue(channel, queueName, rabbitMQProperties);
         } catch (IOException ex) {
-            checkAndIgnoreInEquivalentParamException(ex, RabbitMQConstants.QUEUE, queueName);
+            channel = checkAndIgnoreInEquivalentParamException(ex, RabbitMQConstants.QUEUE, queueName);
         }
         try {
             RabbitMQUtils.declareExchange(channel, exchangeName, rabbitMQProperties);
         } catch (IOException ex) {
-            checkAndIgnoreInEquivalentParamException(ex, RabbitMQConstants.EXCHANGE, exchangeName);
+            channel = checkAndIgnoreInEquivalentParamException(ex, RabbitMQConstants.EXCHANGE, exchangeName);
         }
         RabbitMQUtils.bindQueueToExchange(channel, queueName, exchangeName, rabbitMQProperties);
 
@@ -133,20 +133,22 @@ public class RabbitMQMessageSender {
         return response;
     }
 
-    private void checkAndIgnoreInEquivalentParamException(IOException ex, String entity,
-                                                          String queueOrExchangeName) throws Exception {
+    private Channel checkAndIgnoreInEquivalentParamException(IOException ex, String entity,
+                                                             String queueOrExchangeName) throws Exception {
 
         String cause = ex.getCause() != null ? ex.getCause().getMessage() : null;
         if (cause != null && cause.contains(RabbitMQConstants.IN_EQUIVALENT_ARGUMENT_ERROR)) {
             // borrowing a new channel as the existing one is closed due to exception
+            Channel newChannel;
             if (senderType == RabbitMQSender.SenderType.PUBLISHER_CONFIRMS) {
-                channel = rabbitMQConfirmChannelPool.borrowObject(factoryName);
+                newChannel = rabbitMQConfirmChannelPool.borrowObject(factoryName);
             } else {
-                channel = rabbitMQChannelPool.borrowObject(factoryName);
+                newChannel = rabbitMQChannelPool.borrowObject(factoryName);
             }
             log.info("Declaration failed for " + entity + " named " + queueOrExchangeName
                     + " due to in equivalent arguments. Using the existing one.");
             log.debug(ex);
+            return newChannel;
         } else {
             throw ex;
         }
