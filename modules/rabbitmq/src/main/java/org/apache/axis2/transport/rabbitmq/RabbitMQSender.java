@@ -128,7 +128,8 @@ public class RabbitMQSender extends AbstractTransportSender {
                 } else {
                     channel = rabbitMQChannelPool.borrowObject(factoryName);
                 }
-                RabbitMQMessageSender sender = new RabbitMQMessageSender(channel, factoryName, senderType);
+                RabbitMQMessageSender sender = new RabbitMQMessageSender(channel, factoryName, senderType,
+                        rabbitMQChannelPool, rabbitMQConfirmChannelPool);
                 response = sender.send(routingKey, msgCtx, epProperties);
             } catch (Exception e) {
                 channel = null;
@@ -165,7 +166,8 @@ public class RabbitMQSender extends AbstractTransportSender {
 
                 // send the message to the replyTo queue
                 channel = rabbitMQChannelPool.borrowObject(factoryName);
-                RabbitMQMessageSender sender = new RabbitMQMessageSender(channel, factoryName, SenderType.DEFAULT);
+                RabbitMQMessageSender sender = new RabbitMQMessageSender(channel, factoryName, SenderType.DEFAULT,
+                        rabbitMQChannelPool, rabbitMQConfirmChannelPool);
                 sender.send(replyTo, msgCtx, rabbitMQProperties);
             } catch (Exception e) {
                 log.error("Error occurred while sending message out.", e);

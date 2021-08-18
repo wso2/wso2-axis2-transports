@@ -49,18 +49,26 @@ public class RabbitMQMessageSender {
     private Channel channel;
     private String factoryName;
     private RabbitMQSender.SenderType senderType;
+    private final RabbitMQChannelPool rabbitMQChannelPool;
+    private final RabbitMQChannelPool rabbitMQConfirmChannelPool;
 
     /**
-     * Create a RabbitMQSender using a ConnectionFactory and target EPR
+     * Create a RabbitMQSender using a ConnectionFactory and target EPR.
      *
-     * @param channel     the {@link Channel} object
-     * @param factoryName the connection factory name
-     * @param senderType  the type of the sender to execute the different logic
+     * @param channel                    the {@link Channel} object
+     * @param factoryName                the connection factory name
+     * @param senderType                 the type of the sender to execute the different logic
+     * @param rabbitMQChannelPool        rabbitmq channel  pool
+     * @param rabbitMQConfirmChannelPool rabbitmq confirm channel  pool
      */
-    public RabbitMQMessageSender(Channel channel, String factoryName, RabbitMQSender.SenderType senderType) {
+    public RabbitMQMessageSender(Channel channel, String factoryName, RabbitMQSender.SenderType senderType,
+                                 RabbitMQChannelPool rabbitMQChannelPool,
+                                 RabbitMQChannelPool rabbitMQConfirmChannelPool) {
         this.channel = channel;
         this.senderType = senderType;
         this.factoryName = factoryName;
+        this.rabbitMQChannelPool = rabbitMQChannelPool;
+        this.rabbitMQConfirmChannelPool = rabbitMQConfirmChannelPool;
     }
 
     /**
@@ -75,15 +83,25 @@ public class RabbitMQMessageSender {
      * @throws InterruptedException
      */
     // TODO: handle x-consistent-hash
-    public Delivery send(String routingKey, MessageContext msgContext, Map<String, String> rabbitMQProperties)
-            throws IOException, AxisRabbitMQException {
+    public Delivery send(String routingKey, MessageContext msgContext,
+                         Map<String, String> rabbitMQProperties) throws Exception {
+
         Delivery response = null;
-
-
         // declaring queue if given
         String queueName = rabbitMQProperties.get(RabbitMQConstants.QUEUE_NAME);
         String exchangeName = rabbitMQProperties.get(RabbitMQConstants.EXCHANGE_NAME);
-        RabbitMQUtils.declareQueuesExchangesAndBindings(channel, queueName, exchangeName, rabbitMQProperties);
+
+        try {
+            RabbitMQUtils.declareQueue(channel, queueName, rabbitMQProperties);
+        } catch (IOException ex) {
+            channel = checkAndIgnoreInEquivalentParamException(ex, RabbitMQConstants.QUEUE, queueName);
+        }
+        try {
+            RabbitMQUtils.declareExchange(channel, exchangeName, rabbitMQProperties);
+        } catch (IOException ex) {
+            channel = checkAndIgnoreInEquivalentParamException(ex, RabbitMQConstants.EXCHANGE, exchangeName);
+        }
+        RabbitMQUtils.bindQueueToExchange(channel, queueName, exchangeName, rabbitMQProperties);
 
         AMQP.BasicProperties.Builder builder = buildBasicProperties(msgContext);
 
@@ -113,6 +131,29 @@ public class RabbitMQMessageSender {
         }
 
         return response;
+    }
+
+    private Channel checkAndIgnoreInEquivalentParamException(IOException ex, String entity,
+                                                             String queueOrExchangeName) throws Exception {
+
+        String cause = ex.getCause() != null ? ex.getCause().getMessage() : null;
+        if (cause != null && cause.contains(RabbitMQConstants.IN_EQUIVALENT_ARGUMENT_ERROR)) {
+            // borrowing a new channel as the existing one is closed due to exception
+            Channel newChannel;
+            if (senderType == RabbitMQSender.SenderType.PUBLISHER_CONFIRMS) {
+                newChannel = rabbitMQConfirmChannelPool.borrowObject(factoryName);
+            } else {
+                newChannel = rabbitMQChannelPool.borrowObject(factoryName);
+            }
+            if (log.isDebugEnabled()) {
+                log.debug("Declaration failed for " + entity + " named " + queueOrExchangeName
+                        + " due to in equivalent arguments. Using the existing one.");
+                log.debug(ex);
+            }
+            return newChannel;
+        } else {
+            throw ex;
+        }
     }
 
     /**

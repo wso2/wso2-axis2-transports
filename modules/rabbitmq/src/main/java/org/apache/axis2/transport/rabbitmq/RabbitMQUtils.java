@@ -231,11 +231,29 @@ public class RabbitMQUtils {
      * @throws IOException if any error occurs during the declaration/binding
      */
     public static void declareQueuesExchangesAndBindings(Channel channel, String queueName, String exchangeName,
-            Map<String, String> properties) throws IOException {
+                                                         Map<String, String> properties) throws IOException {
 
         declareQueue(channel, queueName, properties);
         declareExchange(channel, exchangeName, properties);
         bindQueueToExchange(channel, queueName, exchangeName, properties);
+    }
+
+    public static Channel checkAndIgnoreInEquivalentParamException(Connection connection, IOException ex, String entity,
+                                                            String queueOrExchangeName) throws IOException {
+        String cause = ex.getCause() != null ? ex.getCause().getMessage() : null;
+        if (cause != null && cause.contains(RabbitMQConstants.IN_EQUIVALENT_ARGUMENT_ERROR)) {
+            // creating a new channel as the existing one is closed due to exception
+            Channel newChannel = connection.createChannel();
+            if (log.isDebugEnabled()) {
+                log.debug("Declaration failed for " + entity + " named " + queueOrExchangeName
+                        + " due to in equivalent arguments. Using the existing one.");
+                log.debug(ex);
+            }
+            ((com.rabbitmq.client.Recoverable) newChannel).addRecoveryListener(new RabbitMQRecoveryListener());
+            return newChannel;
+        } else {
+            throw ex;
+        }
     }
 
     /**
@@ -246,7 +264,7 @@ public class RabbitMQUtils {
      * @param properties queue declaration properties
      * @throws IOException
      */
-    private static void declareQueue(Channel channel, String queueName,
+    public static void declareQueue(Channel channel, String queueName,
                                     Map<String, String> properties) throws IOException {
         boolean autoDeclare = BooleanUtils.toBooleanDefaultIfNull(
                 BooleanUtils.toBooleanObject(properties.get(RabbitMQConstants.QUEUE_AUTODECLARE)), true);
@@ -263,7 +281,7 @@ public class RabbitMQUtils {
      * @param exchangeName the exchange exchangeName
      * @param properties   RabbitMQ properties
      */
-    private static void declareExchange(Channel channel, String exchangeName, Map<String, String> properties) throws IOException {
+    public static void declareExchange(Channel channel, String exchangeName, Map<String, String> properties) throws IOException {
         boolean autoDeclare = BooleanUtils.toBooleanDefaultIfNull(
                 BooleanUtils.toBooleanObject(properties.get(RabbitMQConstants.EXCHANGE_AUTODECLARE)), true);
         if (StringUtils.isNotEmpty(exchangeName) && autoDeclare && !exchangeName.startsWith(RabbitMQConstants.AMQ_PREFIX)) {
@@ -284,7 +302,7 @@ public class RabbitMQUtils {
      * @param properties   optional RabbitMQ properties for the binding creation
      * @throws IOException if an error occurs while creating the binding
      */
-    private static void bindQueueToExchange(Channel channel, String queueName, String exchangeName,
+    public static void bindQueueToExchange(Channel channel, String queueName, String exchangeName,
             Map<String, String> properties) throws IOException {
         if (StringUtils.isNotEmpty(exchangeName)) {
             String routingKey = properties.get(RabbitMQConstants.QUEUE_ROUTING_KEY);
