@@ -244,9 +244,11 @@ public class RabbitMQUtils {
         if (cause != null && cause.contains(RabbitMQConstants.IN_EQUIVALENT_ARGUMENT_ERROR)) {
             // creating a new channel as the existing one is closed due to exception
             Channel newChannel = connection.createChannel();
-            log.info("Declaration failed for " + entity + " named " + queueOrExchangeName
-                    + " due to in equivalent arguments. Using the existing one.");
-            log.debug(ex);
+            if (log.isDebugEnabled()) {
+                log.debug("Declaration failed for " + entity + " named " + queueOrExchangeName
+                        + " due to in equivalent arguments. Using the existing one.");
+                log.debug(ex);
+            }
             ((com.rabbitmq.client.Recoverable) newChannel).addRecoveryListener(new RabbitMQRecoveryListener());
             return newChannel;
         } else {

@@ -145,9 +145,11 @@ public class RabbitMQMessageSender {
             } else {
                 newChannel = rabbitMQChannelPool.borrowObject(factoryName);
             }
-            log.info("Declaration failed for " + entity + " named " + queueOrExchangeName
-                    + " due to in equivalent arguments. Using the existing one.");
-            log.debug(ex);
+            if (log.isDebugEnabled()) {
+                log.debug("Declaration failed for " + entity + " named " + queueOrExchangeName
+                        + " due to in equivalent arguments. Using the existing one.");
+                log.debug(ex);
+            }
             return newChannel;
         } else {
             throw ex;
