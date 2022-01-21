@@ -180,11 +180,11 @@ public class JMSUtils extends BaseUtils {
      */
     public static void setSOAPEnvelope(Message message, MessageContext msgContext, String contentType)
         throws AxisFault, JMSException {
-
         if (contentType == null) {
             if (message instanceof TextMessage) {
                 contentType = "text/plain";
                 msgContext.setProperty(org.apache.axis2.Constants.Configuration.CONTENT_TYPE, "text/plain");
+                msgContext.setProperty(Constants.Configuration.MESSAGE_TYPE, "text/plain");
             } else {
                 contentType = "application/octet-stream";
             }
