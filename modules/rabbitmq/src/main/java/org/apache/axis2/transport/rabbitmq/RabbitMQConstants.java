@@ -60,6 +60,9 @@ public class RabbitMQConstants {
     public static final String QUEUE_AUTODECLARE = "rabbitmq.queue.autodeclare";
     public static final String EXCHANGE_AUTODECLARE = "rabbitmq.exchange.autodeclare";
 
+    // Authentication Mechanisms auth_mechanisms
+    public static final String EXTERNAL_AUTH_MECHANISM = "rabbitmq.auth.mechanism.external";
+
     //SSL related properties
     public static final String SSL_ENABLED = "rabbitmq.connection.ssl.enabled";
     public static final String SSL_KEYSTORE_LOCATION = "rabbitmq.connection.ssl.keystore.location";
