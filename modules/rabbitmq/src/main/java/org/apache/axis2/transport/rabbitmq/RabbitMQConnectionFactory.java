@@ -21,6 +21,7 @@ package org.apache.axis2.transport.rabbitmq;
 import com.rabbitmq.client.Address;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
+import com.rabbitmq.client.DefaultSaslConfig;
 import org.apache.commons.lang.BooleanUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.math.NumberUtils;
@@ -201,6 +202,8 @@ public class RabbitMQConnectionFactory extends BaseKeyedPooledObjectFactory<Stri
                 parameters.get(RabbitMQConstants.RETRY_COUNT), RabbitMQConstants.DEFAULT_RETRY_COUNT);
         boolean sslEnabled = BooleanUtils.toBooleanDefaultIfNull(
                 BooleanUtils.toBoolean(parameters.get(RabbitMQConstants.SSL_ENABLED)), false);
+        boolean externalAuthEnabled = BooleanUtils.toBooleanDefaultIfNull(
+                BooleanUtils.toBoolean(parameters.get(RabbitMQConstants.EXTERNAL_AUTH_MECHANISM)), false);
 
         String[] hostnameArray = hostnames.split(",");
         String[] portArray = ports.split(",");
@@ -226,6 +229,9 @@ public class RabbitMQConnectionFactory extends BaseKeyedPooledObjectFactory<Stri
         connectionFactory.setNetworkRecoveryInterval(networkRecoveryInterval);
         connectionFactory.setAutomaticRecoveryEnabled(true);
         connectionFactory.setTopologyRecoveryEnabled(true);
+        if (externalAuthEnabled) {
+            connectionFactory.setSaslConfig(DefaultSaslConfig.EXTERNAL);
+        }
         setSSL(parameters, sslEnabled, connectionFactory);
         return connectionFactory;
     }
