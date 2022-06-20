@@ -512,8 +512,8 @@
                     <artifactId>maven-compiler-plugin</artifactId>
                     <version>${maven.compiler.plugin.version}</version>
                     <configuration>
-                        <source>1.8</source>
-                        <target>1.8</target>
+                        <source>11</source>
+                        <target>11</target>
                     </configuration>
                 </plugin>
                 <plugin>
@@ -626,7 +626,7 @@
         <maven.javadoc.plugin.version>2.1</maven.javadoc.plugin.version>
         <wagon.ssh.version>2.12</wagon.ssh.version>
         <maven.surefire.plugin.version>2.4</maven.surefire.plugin.version>
-        <maven.bundle.plugin.version>2.5.3</maven.bundle.plugin.version>
+        <maven.bundle.plugin.version>4.2.1</maven.bundle.plugin.version>
         <maven.dependency.plugin.version>2.0</maven.dependency.plugin.version>
         <maven.compiler.plugin.version>3.8.0</maven.compiler.plugin.version>
         <maven.surefire.plugin.version>2.3</maven.surefire.plugin.version>
