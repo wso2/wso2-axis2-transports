@@ -56,6 +56,7 @@ public class RabbitMQConstants {
     public static final String APP_ID = "rabbitmq.message.app.id";
     public static final String CLUSTER_ID = "rabbitmq.message.cluster.id";
     public static final String MSG_PRIORITY = "rabbitmq.message.priority";
+    public static final String MESSAGE_TYPE = "rabbitmq.message.type";
 
     public static final String QUEUE_AUTODECLARE = "rabbitmq.queue.autodeclare";
     public static final String EXCHANGE_AUTODECLARE = "rabbitmq.exchange.autodeclare";

@@ -105,6 +105,11 @@ public class RabbitMQMessageSender {
 
         AMQP.BasicProperties.Builder builder = buildBasicProperties(msgContext);
 
+        String messageType = rabbitMQProperties.get(RabbitMQConstants.MESSAGE_TYPE);
+        if (messageType != null) {
+            builder.type(messageType);
+        }
+
         int deliveryMode = NumberUtils.toInt(rabbitMQProperties.get(RabbitMQConstants.QUEUE_DELIVERY_MODE),
                 RabbitMQConstants.DEFAULT_DELIVERY_MODE);
         builder.deliveryMode(deliveryMode);
