@@ -159,7 +159,10 @@
             </plugin>
             <plugin>
                 <artifactId>maven-javadoc-plugin</artifactId>
-                <version>2.7</version>
+                <version>3.4.1</version>
+                <configuration>
+                    <source>1.8</source>
+                </configuration>
                 <executions>
                     <execution>
                         <id>extract-resource-info</id>
@@ -190,8 +193,9 @@
         <plugins>
             <plugin>
                 <artifactId>maven-javadoc-plugin</artifactId>
-                <version>2.7</version>
+                <version>3.4.1</version>
                 <configuration>
+                    <source>1.8</source>
                     <docletArtifacts>
                         <docletArtifact>
                             <groupId>org.apache.axis2</groupId>
