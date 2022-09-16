@@ -422,16 +422,6 @@
                 <enabled>false</enabled>
             </releases>
         </repository>
-        <repository>
-            <id>smslib.releases</id>
-            <name>smslib Repository</name>
-            <url>http://smslib.org/maven2/v3/</url>
-            <releases>
-                <enabled>true</enabled>
-                <updatePolicy>daily</updatePolicy>
-                <checksumPolicy>ignore</checksumPolicy>
-            </releases>
-        </repository>
     </repositories>
     <pluginRepositories>
         <pluginRepository>
