@@ -158,6 +158,7 @@
                 </executions>
             </plugin>
             <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-javadoc-plugin</artifactId>
                 <version>${maven.javadoc.plugin.version}</version>
                 <configuration>
@@ -165,57 +166,17 @@
                 </configuration>
                 <executions>
                     <execution>
-                        <id>extract-resource-info</id>
-                        <phase>pre-site</phase>
+                        <id>attach-javadocs</id>
                         <goals>
-                            <goal>javadoc</goal>
+                            <goal>jar</goal>
                         </goals>
                         <configuration>
-                            <docletArtifacts>
-                                <docletArtifact>
-                                    <groupId>org.apache.axis2</groupId>
-                                    <artifactId>${project.artifactId}</artifactId>
-                                    <version>${axis2.transports.version}</version>
-                                </docletArtifact>
-                            </docletArtifacts>
-                            <doclet>org.apache.axis2.transport.testkit.doclet.ResourceInfoDoclet</doclet>
-                            <useStandardDocletOptions>false</useStandardDocletOptions>
-                            <show>private</show>
-                            <additionalparam>-out ${project.build.directory}/resource-info.dat</additionalparam>
+                            <!--This parameter disables doclint-->
+                            <doclint>none</doclint>
                         </configuration>
                     </execution>
                 </executions>
             </plugin>
         </plugins>
     </build>
-
-    <reporting>
-        <plugins>
-            <plugin>
-                <artifactId>maven-javadoc-plugin</artifactId>
-                <version>${maven.javadoc.plugin.version}</version>
-                <configuration>
-                    <source>1.8</source>
-                    <docletArtifacts>
-                        <docletArtifact>
-                            <groupId>org.apache.axis2</groupId>
-                            <artifactId>${project.artifactId}</artifactId>
-                            <version>${axis2.transports.version}</version>
-                        </docletArtifact>
-                    </docletArtifacts>
-                    <doclet>org.apache.axis2.transport.testkit.doclet.TestkitJavadocDoclet</doclet>
-                    <useStandardDocletOptions>true</useStandardDocletOptions>
-                    <additionalparam>
-                        -resource-info ${project.build.directory}/resource-info.dat
-                        -link http://java.sun.com/j2se/1.5.0/docs/api/
-                        -link http://java.sun.com/j2ee/1.4/docs/api/
-                        -link http://ws.apache.org/axis2/1_4_1/api/
-                        -link http://ws.apache.org/commons/axiom/apidocs/
-                        -link http://junit.org/junit/javadoc/3.8.1/
-                        -link http://www.eclipse.org/aspectj/doc/released/runtime-api/
-                    </additionalparam>
-                </configuration>
-            </plugin>
-        </plugins>
-    </reporting>
 </project>
