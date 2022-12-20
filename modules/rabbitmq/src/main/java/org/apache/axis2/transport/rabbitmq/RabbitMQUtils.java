@@ -47,6 +47,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.wso2.securevault.SecretResolver;
 import org.wso2.securevault.SecureVaultException;
+import org.wso2.securevault.commons.MiscellaneousUtil;
 
 import javax.mail.internet.ContentType;
 import javax.mail.internet.ParseException;
@@ -363,6 +364,10 @@ public class RabbitMQUtils {
                             }
                             if (secretResolver.isTokenProtected(attribute.getAttributeValue())) {
                                 propertyValue = secretResolver.resolve(attribute.getAttributeValue());
+                            }
+                        } else {
+                            if (secretResolver != null) {
+                                propertyValue = MiscellaneousUtil.resolve(paramElement, secretResolver);
                             }
                         }
                     }
