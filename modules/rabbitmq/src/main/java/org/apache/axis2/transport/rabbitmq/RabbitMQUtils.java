@@ -328,8 +328,25 @@ public class RabbitMQUtils {
      * @param rabbitMQConnectionFactory a rabbitmq connection factory
      * @return pool size for connection and channel pooling
      */
+    public  static int resolveTransportDescription(ParameterInclude trpDesc, SecretResolver secretResolver,
+                                                   RabbitMQConnectionFactory rabbitMQConnectionFactory)
+            throws AxisRabbitMQException {
+        return resolveTransportDescription(trpDesc, secretResolver, rabbitMQConnectionFactory,
+                new ParameterIncludeImpl());
+    }
+
+    /**
+     * Resolve transport parameters
+     *
+     * @param trpDesc                   axis2 transport parameters
+     * @param secretResolver            secure vault encryption resolver
+     * @param rabbitMQConnectionFactory a rabbitmq connection factory
+     * @param parameterIncludeImpl      a parameter include implementation
+     * @return pool size for connection and channel pooling
+     */
     public static int resolveTransportDescription(ParameterInclude trpDesc, SecretResolver secretResolver,
-                                                  RabbitMQConnectionFactory rabbitMQConnectionFactory)
+                                                  RabbitMQConnectionFactory rabbitMQConnectionFactory,
+                                                  ParameterIncludeImpl parameterIncludeImpl)
             throws AxisRabbitMQException {
         int poolSize = RabbitMQConstants.DEFAULT_POOL_SIZE;
         for (Parameter parameter : trpDesc.getParameters()) {
@@ -342,14 +359,13 @@ public class RabbitMQUtils {
                 }
             } else {
                 Map<String, String> parameters = new HashMap<>();
-                ParameterIncludeImpl pi = new ParameterIncludeImpl();
                 try {
-                    pi.deserializeParameters((OMElement) parameter.getValue());
+                    parameterIncludeImpl.deserializeParameters((OMElement) parameter.getValue());
                 } catch (AxisFault axisFault) {
                     throw new AxisRabbitMQException("Error reading parameters for RabbitMQ connection factory " + name,
                             axisFault);
                 }
-                for (Parameter p : pi.getParameters()) {
+                for (Parameter p : parameterIncludeImpl.getParameters()) {
                     OMElement paramElement = p.getParameterElement();
                     String propertyValue = p.getValue().toString();
                     if (paramElement != null) {
