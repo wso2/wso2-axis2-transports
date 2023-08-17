@@ -253,6 +253,7 @@ public class JMSEndpoint extends ProtocolEndpoint {
         
         serviceTaskManager = ServiceTaskManagerFactory.createTaskManagerForService(cf, service, workerPool);
         serviceTaskManager.setJmsMessageReceiver(new JMSMessageReceiver(listener, cf, this));
+        serviceTaskManager.setDefaultClassloader(Thread.currentThread().getContextClassLoader());
 
         // Fix for ESBJAVA-3687, retrieve JMS transport property transport.jms.MessagePropertyHyphens and set this
         // into the msgCtx
