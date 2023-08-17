@@ -200,6 +200,8 @@ public class ServiceTaskManager {
 
     private String dynamicThrottlePropertyName = null;
 
+    // The default classloader to be used for loading the default class loader on JMS Exception handling
+    private ClassLoader defaultClassloader = null;
      /**
      * Start or re-start the Task Manager by shutting down any existing worker tasks and
      * re-creating them. However, if this is STM is PAUSED, a start request is ignored.
@@ -826,6 +828,8 @@ public class ServiceTaskManager {
          */
         public void onException(JMSException j) {
 
+            //Since onException is called from a JMS provider thread, we need to set the default classloader
+            Thread.currentThread().setContextClassLoader(defaultClassloader);
             isOnExceptionError = true;
 
             if (!isSTMActive()) {
@@ -1521,7 +1525,7 @@ public class ServiceTaskManager {
     public void setMaxReconnectDuration(long maxReconnectDuration) {
         this.maxReconnectDuration = maxReconnectDuration;
     }
-    
+
 	public Long getReconnectDuration() {
 		return reconnectDuration;
 	}
@@ -1748,5 +1752,13 @@ public class ServiceTaskManager {
 
     public String getDynamicThrottlePropertyName() {
         return dynamicThrottlePropertyName;
+    }
+
+    public ClassLoader getDefaultClassloader() {
+        return defaultClassloader;
+    }
+
+    public void setDefaultClassloader(ClassLoader defaultClassloader) {
+        this.defaultClassloader = defaultClassloader;
     }
 }
