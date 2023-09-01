@@ -80,7 +80,9 @@ public class RabbitMQUtils {
         try {
             connection = factory.newConnection(addresses);
         } catch (TimeoutException e) {
-            log.error("Error occurred while creating a connection", e);
+            //Since we are throwing a IOException, the createConnection method in RMQConnectionFactory will log error
+            //Hence omitting logging the error here
+            throw new IOException("Timeout occurred when creating the new connection", e);
         }
         return connection;
     }
