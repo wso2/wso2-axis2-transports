@@ -835,7 +835,7 @@ public class JMSUtils extends BaseUtils {
         Connection connection = null;
         if (log.isDebugEnabled()) {
             log.debug("Creating a " + (isQueue == null ? "Generic" : isQueue ? "Queue" : "Topic") +
-                "Connection using credentials : (" + user + "/" + pass + ")");
+                    "Connection using username : " + user );
         }
 
         try {
