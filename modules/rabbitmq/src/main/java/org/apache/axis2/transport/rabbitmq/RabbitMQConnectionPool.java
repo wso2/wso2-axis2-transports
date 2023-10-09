@@ -36,6 +36,7 @@ public class RabbitMQConnectionPool extends GenericKeyedObjectPool<String, Conne
         super(factory);
         this.setTestOnBorrow(true);
         this.setMaxTotal(poolSize);
+        this.setMaxTotalPerKey(poolSize);
     }
 
     /**

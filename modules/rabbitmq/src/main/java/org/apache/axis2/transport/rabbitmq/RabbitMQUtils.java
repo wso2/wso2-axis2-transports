@@ -351,6 +351,13 @@ public class RabbitMQUtils {
                 for (Parameter p : pi.getParameters()) {
                     OMElement paramElement = p.getParameterElement();
                     String propertyValue = p.getValue().toString();
+                    if (StringUtils.equals(p.getName(), RabbitMQConstants.PARAM_POOL_SIZE)) {
+                        try {
+                            poolSize = Integer.parseInt(propertyValue);
+                        } catch (NumberFormatException e) {
+                            throw new AxisRabbitMQException("Pool size must be an integer value.");
+                        }
+                    }
                     if (paramElement != null) {
                         OMAttribute attribute = paramElement.getAttribute(
                                 new QName(RabbitMQConstants.SECURE_VAULT_NAMESPACE,
