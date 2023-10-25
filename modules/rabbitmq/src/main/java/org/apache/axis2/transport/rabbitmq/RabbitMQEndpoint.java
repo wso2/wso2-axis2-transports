@@ -109,11 +109,10 @@ public class RabbitMQEndpoint extends ProtocolEndpoint {
     private ServiceTaskManager createServiceTaskManager(String factoryName, AxisService service, WorkerPool workerPool) {
 
         RabbitMQConnectionFactory rabbitMQConnectionFactory = rabbitMQListener.getRabbitMQConnectionFactory();
-        RabbitMQConnectionPool rabbitMQConnectionPool = rabbitMQListener.getRabbitMQConnectionPool();
         String serviceName = service.getName();
         Map<String, String> serviceParameters = getServiceStringParameters(service.getParameters());
         Map<String, String> cfParameters = rabbitMQConnectionFactory.getConnectionFactoryConfiguration(factoryName);
-        ServiceTaskManager taskManager = new ServiceTaskManager(rabbitMQConnectionPool, factoryName);
+        ServiceTaskManager taskManager = new ServiceTaskManager(rabbitMQConnectionFactory, factoryName);
 
         taskManager.setServiceName(serviceName);
         taskManager.addRabbitMQProperties(cfParameters);
