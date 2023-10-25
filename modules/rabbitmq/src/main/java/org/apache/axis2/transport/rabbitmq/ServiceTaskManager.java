@@ -31,7 +31,7 @@ public class ServiceTaskManager {
     private final Map<String, String> unmodifiableRabbitMQProperties = Collections.unmodifiableMap(rabbitMQProperties);
     private final List<ServiceTaskManager.MessageListenerTask> pollingTasks =
             Collections.synchronizedList(new ArrayList<>());
-    private final RabbitMQConnectionPool rabbitMQConnectionPool;
+    private final RabbitMQConnectionFactory rabbitMQConnectionFactory;
     private volatile RabbitMQMessageReceiver rabbitMQMessageReceiver;
     private volatile String serviceName;
     private WorkerPool workerPool = null;
@@ -41,11 +41,11 @@ public class ServiceTaskManager {
     /**
      * Constructor of service task manager.
      *
-     * @param rabbitMQConnectionPool {@link RabbitMQConnectionPool} object
+     * @param rabbitMQConnectionFactory {@link RabbitMQConnectionFactory} object
      * @param factoryName            connection factory name configured in the axis2.xml
      */
-    public ServiceTaskManager(RabbitMQConnectionPool rabbitMQConnectionPool, String factoryName) {
-        this.rabbitMQConnectionPool = rabbitMQConnectionPool;
+    public ServiceTaskManager(RabbitMQConnectionFactory rabbitMQConnectionFactory, String factoryName) {
+        this.rabbitMQConnectionFactory = rabbitMQConnectionFactory;
         this.factoryName = factoryName;
     }
 
@@ -57,7 +57,8 @@ public class ServiceTaskManager {
         // set the concurrentConsumer value so that, serviceTask manager will start that number of message listeners
         int concurrentConsumers = NumberUtils.toInt(rabbitMQProperties.get(RabbitMQConstants.CONCURRENT_CONSUMER_COUNT),
                 RabbitMQConstants.CONCURRENT_CONSUMER_COUNT_DEFAULT);
-        connection = rabbitMQConnectionPool.borrowObject(factoryName);
+        connection = rabbitMQConnectionFactory.create(factoryName);
+        ((Recoverable) this.connection).addRecoveryListener(new RabbitMQRecoveryListener());
         for (int i = 0; i < concurrentConsumers; i++) {
             workerPool.execute(new ServiceTaskManager.MessageListenerTask());
         }
@@ -316,12 +317,8 @@ public class ServiceTaskManager {
             }
         }
 
-        /**
-         * Return connection back to the pool when undeploying the listener proxy
-         */
         public void close() {
             connection.abort();
-            rabbitMQConnectionPool.returnObject(factoryName, connection);
             channel = null;
             connection = null;
         }
