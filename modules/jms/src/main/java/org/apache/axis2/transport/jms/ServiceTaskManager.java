@@ -715,8 +715,18 @@ public class ServiceTaskManager {
                     consumerRetryCount = 0;
                     return msg;
                 }
-            } catch (IllegalStateException ignore) {
+            } catch (IllegalStateException e) {
                 // probably the consumer (shared) was closed.. which is still ok.. as we didn't read
+                connectionReceivedError = true;
+                consumerRetryCount++;
+                if (consumerRetryCount <= maxConsumeErrorRetryBeforeDelay) {
+                    log.warn("Could not consume message from: " +
+                            serviceName + ". Expect " + (maxConsumeErrorRetryBeforeDelay - consumerRetryCount) + " more " +
+                            "retries before exponential sleep!");
+                }
+                if (log.isDebugEnabled()) {
+                    log.debug("Error receiving message for service : " + serviceName, e);
+                }
             } catch (JMSException e) {
                 connectionReceivedError  = true;
                 consumerRetryCount++;
