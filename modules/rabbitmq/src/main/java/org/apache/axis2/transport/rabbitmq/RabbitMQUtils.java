@@ -502,11 +502,12 @@ public class RabbitMQUtils {
     private static void processReplyToHeader(MessageContext msgContext, AMQP.BasicProperties msgProperties,
                                              String contentType) {
         String replyTo = msgProperties.getReplyTo();
-        if (replyTo != null) {
+        if (replyTo != null && msgProperties.getHeaders() != null &&
+                msgProperties.getHeaders().containsKey(RabbitMQConstants.RABBITMQ_CON_FAC)) {
             String connectionFactoryName =
                     msgProperties.getHeaders().get(RabbitMQConstants.RABBITMQ_CON_FAC).toString();
             msgContext.setProperty(Constants.OUT_TRANSPORT_INFO,
-                                   new RabbitMQOutTransportInfo(connectionFactoryName, contentType));
+                    new RabbitMQOutTransportInfo(connectionFactoryName, contentType));
         }
     }
 
