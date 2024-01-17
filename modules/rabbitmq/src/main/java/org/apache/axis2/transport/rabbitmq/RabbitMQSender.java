@@ -29,6 +29,7 @@ import org.apache.axis2.transport.base.AbstractTransportSender;
 import org.apache.axis2.transport.base.BaseUtils;
 import org.apache.commons.lang.BooleanUtils;
 import org.apache.commons.lang.StringUtils;
+import org.apache.commons.pool2.impl.GenericKeyedObjectPoolConfig;
 import org.wso2.securevault.SecretResolver;
 
 import java.util.HashMap;
@@ -64,14 +65,28 @@ public class RabbitMQSender extends AbstractTransportSender {
             rabbitMQConnectionFactory = new RabbitMQConnectionFactory();
             int poolSize =
                     RabbitMQUtils.resolveTransportDescription(transportOut, secretResolver, rabbitMQConnectionFactory);
-            RabbitMQConnectionPool rabbitMQConnectionPool = new RabbitMQConnectionPool(rabbitMQConnectionFactory, poolSize);
+
+            Map<String, String> evictionParams = rabbitMQConnectionFactory.getConnectionFactoryConfiguration
+                    (RabbitMQConstants.EVICTION_STRATEGY_PARAMETERS);
+            if (evictionParams != null && evictionParams.get(RabbitMQConstants.CONNECTION_POOL_SIZE) != null) {
+                try {
+                    poolSize = Integer.parseInt(evictionParams.get(RabbitMQConstants.CONNECTION_POOL_SIZE));
+                } catch (NumberFormatException e) {
+                    log.warn("Invalid value for connection pool size. Using default value : " + poolSize);
+                }
+            }
+            RabbitMQConnectionPool rabbitMQConnectionPool =
+                    new RabbitMQConnectionPool(rabbitMQConnectionFactory, poolSize);
             // initialize channel factory and pool
             RabbitMQChannelFactory rabbitMQChannelFactory = new RabbitMQChannelFactory(rabbitMQConnectionPool);
-            rabbitMQChannelPool = new RabbitMQChannelPool(rabbitMQChannelFactory, poolSize);
+            rabbitMQChannelPool = new RabbitMQChannelPool(rabbitMQChannelFactory, poolSize, rabbitMQConnectionFactory);
             // initialize confirm channel factory and pool
             RabbitMQConfirmChannelFactory rabbitMQConfirmChannelFactory =
                     new RabbitMQConfirmChannelFactory(rabbitMQConnectionPool);
-            rabbitMQConfirmChannelPool = new RabbitMQChannelPool(rabbitMQConfirmChannelFactory, poolSize);
+            rabbitMQConfirmChannelPool = new RabbitMQChannelPool(rabbitMQConfirmChannelFactory, poolSize,
+                    rabbitMQConnectionFactory);
+            rabbitMQConnectionFactory
+                    .removeConnectionFactoryConfiguration(RabbitMQConstants.EVICTION_STRATEGY_PARAMETERS);
             log.info("RabbitMQ AMQP Transport Sender initialized...");
         } catch (AxisRabbitMQException e) {
             throw new AxisFault("Error occurred while initializing the RabbitMQ AMQP Transport Sender.", e);
@@ -132,10 +147,13 @@ public class RabbitMQSender extends AbstractTransportSender {
                         rabbitMQChannelPool, rabbitMQConfirmChannelPool);
                 response = sender.send(routingKey, msgCtx, epProperties);
             } catch (Exception e) {
+                invalidateChannel(senderType, factoryName, channel);
                 channel = null;
                 handleException("Error occurred while sending message out.", e);
             } finally {
-                returnToPool(factoryName, channel, senderType);
+                if (channel != null) {
+                    returnToPool(factoryName, channel, senderType);
+                }
             }
 
             // inject message to the axis engine if a response received
@@ -170,11 +188,28 @@ public class RabbitMQSender extends AbstractTransportSender {
                         rabbitMQChannelPool, rabbitMQConfirmChannelPool);
                 sender.send(replyTo, msgCtx, rabbitMQProperties);
             } catch (Exception e) {
+                invalidateChannel(SenderType.DEFAULT, factoryName, channel);
                 log.error("Error occurred while sending message out.", e);
                 channel = null;
             } finally {
-                returnToPool(factoryName, channel, SenderType.DEFAULT);
+                if (channel != null) {
+                    returnToPool(factoryName, channel, SenderType.DEFAULT);
+                }
             }
+        }
+    }
+
+    private void invalidateChannel(SenderType senderType, String factoryName, Channel channel) {
+        try {
+            log.warn("Channel returned to the pool is invalid. Hence, destroying the channel : " + channel);
+            if (senderType == SenderType.PUBLISHER_CONFIRMS) {
+                rabbitMQConfirmChannelPool.invalidateObject(factoryName, channel);
+            } else {
+                rabbitMQChannelPool.invalidateObject(factoryName, channel);
+            }
+
+        } catch (Exception ex) {
+            log.error("Error occurred while returning a channel of " + factoryName + " back to the pool", ex);
         }
     }
 

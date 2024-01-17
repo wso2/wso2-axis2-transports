@@ -48,6 +48,7 @@ public class RabbitMQMessageSender {
 
     private Channel channel;
     private String factoryName;
+    private boolean channelChanged = false;
     private RabbitMQSender.SenderType senderType;
     private final RabbitMQChannelPool rabbitMQChannelPool;
     private final RabbitMQChannelPool rabbitMQConfirmChannelPool;
@@ -92,20 +93,21 @@ public class RabbitMQMessageSender {
         String exchangeName = rabbitMQProperties.get(RabbitMQConstants.EXCHANGE_NAME);
 
         try {
-            RabbitMQUtils.declareQueue(channel, queueName, rabbitMQProperties);
-        } catch (IOException ex) {
-            channel = checkAndIgnoreInEquivalentParamException(ex, RabbitMQConstants.QUEUE, queueName);
-        }
-        try {
-            RabbitMQUtils.declareExchange(channel, exchangeName, rabbitMQProperties);
-        } catch (IOException ex) {
-            channel = checkAndIgnoreInEquivalentParamException(ex, RabbitMQConstants.EXCHANGE, exchangeName);
-        }
-        RabbitMQUtils.bindQueueToExchange(channel, queueName, exchangeName, rabbitMQProperties);
+            try {
+                RabbitMQUtils.declareQueue(channel, queueName, rabbitMQProperties);
+            } catch (IOException ex) {
+                channel = checkAndIgnoreInEquivalentParamException(ex, RabbitMQConstants.QUEUE, queueName);
+            }
+            try {
+                RabbitMQUtils.declareExchange(channel, exchangeName, rabbitMQProperties);
+            } catch (IOException ex) {
+                channel = checkAndIgnoreInEquivalentParamException(ex, RabbitMQConstants.EXCHANGE, exchangeName);
+            }
+            RabbitMQUtils.bindQueueToExchange(channel, queueName, exchangeName, rabbitMQProperties);
 
-        AMQP.BasicProperties.Builder builder = buildBasicProperties(msgContext);
+            AMQP.BasicProperties.Builder builder = buildBasicProperties(msgContext);
 
-        String messageType = rabbitMQProperties.get(RabbitMQConstants.MESSAGE_TYPE);
+            String messageType = rabbitMQProperties.get(RabbitMQConstants.MESSAGE_TYPE);
         if (messageType != null) {
             builder.type(messageType);
         }
@@ -114,28 +116,55 @@ public class RabbitMQMessageSender {
                 RabbitMQConstants.DEFAULT_DELIVERY_MODE);
         builder.deliveryMode(deliveryMode);
 
-        long replyTimeout = NumberUtils.toLong((String) msgContext.getProperty(RabbitMQConstants.RABBITMQ_WAIT_REPLY),
-                RabbitMQConstants.DEFAULT_RABBITMQ_TIMEOUT);
+            long replyTimeout = NumberUtils.toLong((String) msgContext.getProperty(RabbitMQConstants.RABBITMQ_WAIT_REPLY),
+                    RabbitMQConstants.DEFAULT_RABBITMQ_TIMEOUT);
 
-        long confirmTimeout = NumberUtils.toLong((String) msgContext.getProperty(RabbitMQConstants.RABBITMQ_WAIT_CONFIRMS),
-                RabbitMQConstants.DEFAULT_RABBITMQ_TIMEOUT);
+            long confirmTimeout = NumberUtils.toLong((String) msgContext.getProperty(RabbitMQConstants.RABBITMQ_WAIT_CONFIRMS),
+                    RabbitMQConstants.DEFAULT_RABBITMQ_TIMEOUT);
 
-        AMQP.BasicProperties basicProperties = builder.build();
-        byte[] messageBody = RabbitMQUtils.getMessageBody(msgContext);
+            AMQP.BasicProperties basicProperties = builder.build();
+            byte[] messageBody = RabbitMQUtils.getMessageBody(msgContext);
 
-        switch (senderType) {
-            case RPC:
-                response = sendRPC(exchangeName, routingKey, basicProperties, messageBody, replyTimeout);
-                break;
-            case PUBLISHER_CONFIRMS:
-                sendPublisherConfirms(exchangeName, routingKey, basicProperties, messageBody, confirmTimeout);
-                break;
-            default:
-                publishMessage(exchangeName, routingKey, basicProperties, messageBody);
-                break;
+            switch (senderType) {
+                case RPC:
+                    response = sendRPC(exchangeName, routingKey, basicProperties, messageBody, replyTimeout);
+                    break;
+                case PUBLISHER_CONFIRMS:
+                    sendPublisherConfirms(exchangeName, routingKey, basicProperties, messageBody, confirmTimeout);
+                    break;
+                default:
+                    publishMessage(exchangeName, routingKey, basicProperties, messageBody);
+                    break;
+            }
+
+            return response;
+
+        } catch (Exception e) {
+            if (channelChanged) {
+                invalidateChannel(senderType, factoryName, channel);
+                channel = null;
+            }
+            throw e;
+        } finally {
+            if (channelChanged && channel != null) {
+                returnToPool(factoryName, channel, senderType);
+            }
         }
+    }
 
-        return response;
+    /**
+     * The channel will return to pool or destroy
+     *
+     * @param factoryName pool key
+     * @param channel     instance to return to the keyed pool
+     * @param senderType  the type of the sender to select the relevant pool
+     */
+    private void returnToPool(String factoryName, Channel channel, RabbitMQSender.SenderType senderType) {
+        if (senderType == RabbitMQSender.SenderType.PUBLISHER_CONFIRMS) {
+            rabbitMQConfirmChannelPool.returnObject(factoryName, channel);
+        } else {
+            rabbitMQChannelPool.returnObject(factoryName, channel);
+        }
     }
 
     private Channel checkAndIgnoreInEquivalentParamException(IOException ex, String entity,
@@ -143,6 +172,13 @@ public class RabbitMQMessageSender {
 
         String cause = ex.getCause() != null ? ex.getCause().getMessage() : null;
         if (cause != null && cause.contains(RabbitMQConstants.IN_EQUIVALENT_ARGUMENT_ERROR)) {
+            // if already assigned a new channel then we need to invalidate that as well.
+            //So new one will be either returned or destroyed ath the finally block of the send method
+            //The oldest reference will be destroyed or returned to the pool by RabbitMq Sender
+            if (channelChanged) {
+                invalidateChannel(senderType, factoryName, channel);
+                channel = null;
+            }
             // borrowing a new channel as the existing one is closed due to exception
             Channel newChannel;
             if (senderType == RabbitMQSender.SenderType.PUBLISHER_CONFIRMS) {
@@ -150,6 +186,7 @@ public class RabbitMQMessageSender {
             } else {
                 newChannel = rabbitMQChannelPool.borrowObject(factoryName);
             }
+            channelChanged = true;
             if (log.isDebugEnabled()) {
                 log.debug("Declaration failed for " + entity + " named " + queueOrExchangeName
                         + " due to in equivalent arguments. Using the existing one.");
@@ -329,6 +366,20 @@ public class RabbitMQMessageSender {
 
         builder.headers(headers);
         return builder;
+    }
+
+    private void invalidateChannel(RabbitMQSender.SenderType senderType, String factoryName, Channel channel) {
+        try {
+            log.warn("Channel returned to the pool is invalid. Hence, destroying the channel : " + channel);
+            if (senderType == RabbitMQSender.SenderType.PUBLISHER_CONFIRMS) {
+                rabbitMQConfirmChannelPool.invalidateObject(factoryName, channel);
+            } else {
+                rabbitMQChannelPool.invalidateObject(factoryName, channel);
+            }
+
+        } catch (Exception ex) {
+            log.warn("Error occurred while returning a channel of " + factoryName + " back to the pool", ex);
+        }
     }
 
 

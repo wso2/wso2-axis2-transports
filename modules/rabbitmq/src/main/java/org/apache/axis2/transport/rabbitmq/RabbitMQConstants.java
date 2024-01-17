@@ -115,6 +115,14 @@ public class RabbitMQConstants {
     public static final String SECRET_ALIAS_ATTRIBUTE = "secretAlias";
     public static final String PARAM_POOL_SIZE = "poolSize";
 
+    public static final String EVICTION_STRATEGY_PARAMETERS = "EVICTION_STRATEGY_PARAMETERS";
+
+    public static final String MIN_EVICTABLE_IDLE_TIME = "rabbitmq.min.evictable.idle.time";
+    public static final String TIME_BETWEEN_EVICTION_RUNS = "rabbitmq.time.between.eviction.runs";
+    public static final String MAX_IDLE_PER_KEY = "rabbitmq.max.idle.per.key";
+    public static final String MAX_WAIT_MILLIS = "rabbitmq.max.wait.millis";
+    public static final String CONNECTION_POOL_SIZE = "rabbitmq.connection.pool.size";
+
     public static final String EXCHANGE_TYPE_DEFAULT = BuiltinExchangeType.DIRECT.getType();
     public static final String EXCHANGE_DURABLE_DEFAULT = "true";
     public static final String QUEUE_DURABLE_DEFAULT = "true";

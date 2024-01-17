@@ -164,6 +164,16 @@ public class RabbitMQConnectionFactory extends BaseKeyedPooledObjectFactory<Stri
     }
 
     /**
+     * Remove configuration parameters by the factory name
+     *
+     * @param factoryName factory name to get the parameters
+     * @return map of parameters of the connection factory
+     */
+    public Map<String, String> removeConnectionFactoryConfiguration(String factoryName) {
+        return connectionFactoryConfigurations.remove(factoryName);
+    }
+
+    /**
      * Add connection factory parameters by the connection factory name
      *
      * @param name       connection factory name
