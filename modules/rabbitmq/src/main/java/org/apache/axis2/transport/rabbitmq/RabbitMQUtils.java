@@ -112,11 +112,15 @@ public class RabbitMQUtils {
         }
 
         // any other transport properties / headers
-        Map<String, Object> headers = properties.getHeaders();
-        if (headers != null && !headers.isEmpty()) {
-            for (Map.Entry<String, Object> headerEntry : headers.entrySet()) {
-                if (!BaseConstants.INTERNAL_TRANSACTION_COUNTED.equals(headerEntry.getKey())) {
-                    map.put(headerEntry.getKey(), headerEntry.getValue().toString());
+        if (properties.getHeaders() != null) {
+            Map<String, Object> headers = properties.getHeaders();
+            if (headers != null && !headers.isEmpty()) {
+                for (Map.Entry<String, Object> headerEntry : headers.entrySet()) {
+                    if ((headerEntry.getKey() != null && headerEntry.getValue() != null)){
+                        if (!BaseConstants.INTERNAL_TRANSACTION_COUNTED.equals(headerEntry.getKey())) {
+                            map.put(headerEntry.getKey(), headerEntry.getValue().toString());
+                        }
+                    }
                 }
             }
         }
