@@ -282,7 +282,7 @@ public class ServiceTaskManager {
                 break;
             }
             try {
-                Thread.sleep(1000);
+                Thread.sleep(getReceiveTimeout());
             } catch (InterruptedException ignore) {}
         }
 
@@ -408,6 +408,9 @@ public class ServiceTaskManager {
         private volatile boolean listenerPaused = false;
 
         private boolean connectionReceivedError = false;
+
+        // The number of threads that have entered onException
+        private AtomicInteger onExceptionThreadCount = new AtomicInteger(0);
 
         /** As soon as we create a new polling task, add it to the STM for control later */
         MessageListenerTask(int listenerState) {
@@ -842,6 +845,15 @@ public class ServiceTaskManager {
             Thread.currentThread().setContextClassLoader(defaultClassloader);
             isOnExceptionError = true;
 
+            // only allow the first thread to handle the exception
+            if (onExceptionThreadCount.getAndIncrement() == 0) {
+                pause();
+                closeConsumer(true);
+                closeSession(true);
+            } else {
+                return;
+            }
+
             if (!isSTMActive()) {
                 requestShutdown();
                 return;
@@ -917,6 +929,7 @@ public class ServiceTaskManager {
 
                 }
             } while (isSTMActive() && !connected);
+            onExceptionThreadCount.set(0);
         }
 
         protected void requestShutdown() {
