@@ -23,7 +23,9 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.commons.pool2.impl.GenericKeyedObjectPool;
 
+import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.function.Consumer;
 
 /**
  * Pool implementation for the rabbitmq connections associating with the connection factory name
@@ -36,6 +38,46 @@ public class RabbitMQConnectionPool extends GenericKeyedObjectPool<String, Conne
         super(factory);
         this.setTestOnBorrow(true);
         this.setMaxTotal(poolSize);
+        Map<String, String> evictionParams = factory.getConnectionFactoryConfiguration
+                (RabbitMQConstants.EVICTION_STRATEGY_PARAMETERS);
+        if (evictionParams != null) {
+            // For int values
+            trySetIntParam(evictionParams, RabbitMQConstants.MAX_IDLE_PER_KEY, this::setMaxIdlePerKey);
+            trySetIntParam(evictionParams, RabbitMQConstants.MAX_IDLE_PER_KEY, this::setMaxTotalPerKey);
+
+            // For long values
+            trySetLongParam(evictionParams, RabbitMQConstants.MAX_WAIT_MILLIS, this::setMaxWaitMillis);
+            trySetLongParam(evictionParams, RabbitMQConstants.MIN_EVICTABLE_IDLE_TIME,
+                    this::setMinEvictableIdleTimeMillis);
+            trySetLongParam(evictionParams, RabbitMQConstants.TIME_BETWEEN_EVICTION_RUNS
+                    , this::setTimeBetweenEvictionRunsMillis);
+            this.setTestWhileIdle(true); // Optionally, test objects for validity while idle
+        }
+
+    }
+
+    // Helper method for int parameters
+    private void trySetIntParam(Map<String, String> params, String key, Consumer<Integer> setter) {
+        String value = params.get(key);
+        if (value != null) {
+            try {
+                setter.accept(Integer.parseInt(value));
+            } catch (NumberFormatException e) {
+                log.warn("Invalid value for " + key + " : " + value);
+            }
+        }
+    }
+
+    // Helper method for long parameters
+    private void trySetLongParam(Map<String, String> params, String key, Consumer<Long> setter) {
+        String value = params.get(key);
+        if (value != null) {
+            try {
+                setter.accept(Long.parseLong(value));
+            } catch (NumberFormatException e) {
+                log.warn("Invalid value for " + key + " : " + value);
+            }
+        }
     }
 
     /**

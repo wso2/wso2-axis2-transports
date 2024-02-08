@@ -55,9 +55,12 @@ import javax.xml.namespace.QName;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.TimeoutException;
 
 /**
@@ -355,6 +358,7 @@ public class RabbitMQUtils {
                                                   ParameterIncludeImpl parameterIncludeImpl)
             throws AxisRabbitMQException {
         int poolSize = RabbitMQConstants.DEFAULT_POOL_SIZE;
+        boolean evictionStrategyConfigured = false;
         for (Parameter parameter : trpDesc.getParameters()) {
             String name = parameter.getName();
             if (StringUtils.equals(name, RabbitMQConstants.PARAM_POOL_SIZE)) {
@@ -365,6 +369,16 @@ public class RabbitMQUtils {
                 }
             } else {
                 Map<String, String> parameters = new HashMap<>();
+                Map<String, String> evictionParameters = new HashMap<>();
+                // Define the property names we are interested in using RabbitMqConstants
+                Set<String> keysOfInterest = new HashSet<>();
+                keysOfInterest.add(RabbitMQConstants.MIN_EVICTABLE_IDLE_TIME);
+                keysOfInterest.add(RabbitMQConstants.TIME_BETWEEN_EVICTION_RUNS);
+                keysOfInterest.add(RabbitMQConstants.MAX_IDLE_PER_KEY);
+                keysOfInterest.add(RabbitMQConstants.MAX_WAIT_MILLIS);
+                keysOfInterest.add(RabbitMQConstants.CONNECTION_POOL_SIZE);
+
+                ParameterIncludeImpl pi = new ParameterIncludeImpl();
                 try {
                     parameterIncludeImpl.deserializeParameters((OMElement) parameter.getValue());
                 } catch (AxisFault axisFault) {
@@ -393,7 +407,17 @@ public class RabbitMQUtils {
                             }
                         }
                     }
+                    // Check if the current property is one of the keys of interest
+                    if (!evictionStrategyConfigured && keysOfInterest.contains(p.getName())) {
+                        // Add the property to the evictionParameters map
+                        evictionParameters.put(p.getName(), propertyValue);
+                    }
                     parameters.put(p.getName(), propertyValue);
+                }
+                if (!evictionParameters.isEmpty()) {
+                    evictionStrategyConfigured = true;
+                    rabbitMQConnectionFactory.addConnectionFactoryConfiguration
+                            (RabbitMQConstants.EVICTION_STRATEGY_PARAMETERS, evictionParameters);
                 }
                 rabbitMQConnectionFactory.addConnectionFactoryConfiguration(name, parameters);
             }
