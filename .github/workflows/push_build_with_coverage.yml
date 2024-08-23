@@ -2,6 +2,8 @@ name: CI Ubuntu build with Code coverage (codecov)
 
 on:
   push:
+    branches:
+      - master
 
 permissions:
   contents: read # to fetch code (actions/checkout)
