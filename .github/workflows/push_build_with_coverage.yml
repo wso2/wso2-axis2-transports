@@ -1,9 +1,9 @@
-name: Code coverage upload workflow (codecov)
+name: CI Ubuntu build with Code coverage (codecov)
 
 on:
-  schedule:
-    - cron:  '0 20 * * *'
-  workflow_dispatch:
+  push:
+    branches:
+      - master
 
 permissions:
   contents: read # to fetch code (actions/checkout)
