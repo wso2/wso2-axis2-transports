@@ -603,7 +603,6 @@
                             </goals>
                             <configuration>
                                 <propertyName>argLine</propertyName>
-                                <destFile>${project.build.directory}/jacoco.exec</destFile>
                             </configuration>
                         </execution>
                         <execution>
