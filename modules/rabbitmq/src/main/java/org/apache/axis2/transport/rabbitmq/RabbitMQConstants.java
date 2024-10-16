@@ -131,4 +131,45 @@ public class RabbitMQConstants {
     public static final String QUEUE = "queue";
     public static final String EXCHANGE = "exchange";
 
+    /**
+     * Throttling related constants
+     */
+    public static final String RABBITMQ_PROXY_THROTTLE_ENABLED = "rabbitmq.proxy.throttle.enabled";
+    public static final String RABBITMQ_PROXY_THROTTLE_MODE = "rabbitmq.proxy.throttle.mode";
+    public static final String RABBITMQ_PROXY_THROTTLE_TIME_UNIT = "rabbitmq.proxy.throttle.timeUnit";
+    public static final String RABBITMQ_PROXY_THROTTLE_COUNT = "rabbitmq.proxy.throttle.count";
+    public static final int RABBITMQ_PROXY_DEFAULT_THROTTLE_LIMIT = 60;
+
+    /**
+     * Throttle mode
+     */
+    public enum ThrottleMode {
+        FIXED_INTERVAL,
+        BATCH;
+
+        public static ThrottleMode fromString(String mode) {
+            try {
+                return ThrottleMode.valueOf(mode.toUpperCase());
+            } catch (IllegalArgumentException e) {
+                return null;
+            }
+        }
+    }
+    /**
+     * Throttle time unit
+     */
+    public enum ThrottleTimeUnit {
+        MINUTE,
+        HOUR,
+        DAY;
+
+        public static ThrottleTimeUnit fromString(String unit) {
+            try {
+                return ThrottleTimeUnit.valueOf(unit.toUpperCase());
+            } catch (IllegalArgumentException e) {
+                return null;
+            }
+        }
+    }
+
 }
