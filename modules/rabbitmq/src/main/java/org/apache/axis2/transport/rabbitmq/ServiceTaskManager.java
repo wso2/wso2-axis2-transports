@@ -11,6 +11,7 @@ import org.apache.axis2.transport.base.threads.WorkerPool;
 import org.apache.commons.lang.BooleanUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.math.NumberUtils;
+import org.apache.commons.lang.time.DateUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -90,6 +91,14 @@ public class ServiceTaskManager {
         private long maxDeadLetteredCount;
         private long requeueDelay;
 
+        // Throttling variables
+        private boolean isThrottlingEnabled;
+        private RabbitMQConstants.ThrottleMode throttleMode;
+        private RabbitMQConstants.ThrottleTimeUnit throttleTimeUnit;
+        private int throttleCount;
+        private long consumptionStartedTime;
+        private int consumedMessageCount = 0;
+
         private MessageListenerTask() throws IOException {
             this.channel = connection.createChannel();
             ((Recoverable) this.channel).addRecoveryListener(new RabbitMQRecoveryListener());
@@ -138,6 +147,15 @@ public class ServiceTaskManager {
 
             autoAck = BooleanUtils.toBooleanDefaultIfNull(BooleanUtils.toBooleanObject(rabbitMQProperties
                     .get(RabbitMQConstants.QUEUE_AUTO_ACK)), true);
+
+            // Get throttle configurations if throttling is enabled
+            isThrottlingEnabled = Boolean.parseBoolean(rabbitMQProperties.getOrDefault(
+                    RabbitMQConstants.RABBITMQ_PROXY_THROTTLE_ENABLED, "false"));
+            if (isThrottlingEnabled) {
+                this.throttleMode = RabbitMQConfigUtils.getThrottleMode(rabbitMQProperties);
+                this.throttleTimeUnit = RabbitMQConfigUtils.getThrottleTimeUnit(rabbitMQProperties);
+                this.throttleCount = RabbitMQConfigUtils.getThrottleCount(rabbitMQProperties);
+            }
 
             if (StringUtils.isNotEmpty(consumerTag)) {
                 channel.basicConsume(queueName, autoAck, consumerTag, this);
@@ -227,6 +245,61 @@ public class ServiceTaskManager {
                 throws IOException {
             AcknowledgementMode acknowledgementMode =
                     rabbitMQMessageReceiver.processThroughAxisEngine(properties, body);
+
+            if (isThrottlingEnabled) {
+                try {
+                    switch (throttleMode) {
+                        case FIXED_INTERVAL: {
+                            long throttleSleepDelay = getSleepDelay();
+                            if (log.isDebugEnabled()) {
+                                log.debug("Sleeping " + throttleSleepDelay
+                                        + " ms with Fixed-Interval throttling for service :" + serviceName);
+                            }
+                            Thread.sleep(throttleSleepDelay);
+                            break;
+                        }
+                        case BATCH: {
+                            if (consumedMessageCount == 0) {
+                                consumptionStartedTime = System.currentTimeMillis();
+                                if (log.isDebugEnabled()) {
+                                    log.debug("Batch throttling started at " + consumptionStartedTime
+                                            + " for service :" + serviceName);
+                                }
+                            }
+
+                            consumedMessageCount++;
+                            if (consumedMessageCount >= throttleCount) {
+                                long consumptionDuration = System.currentTimeMillis() - consumptionStartedTime;
+                                // consumed messages have exceeded the defined count
+                                long remainingDuration = getRemainingDuration(consumptionDuration);
+                                if (remainingDuration >= 0) {
+                                    // if time is remaining, we need to sleep while it exceeds
+                                    if (log.isDebugEnabled()) {
+                                        log.debug("Sleeping " + remainingDuration
+                                                + " ms with Batch throttling for service :" + serviceName);
+                                    }
+                                    Thread.sleep(remainingDuration);
+                                }
+                                consumedMessageCount = 0;
+                            }
+                            if (log.isDebugEnabled()) {
+                                log.debug("Consumed Message Count per min:  " + consumedMessageCount);
+                            }
+                            break;
+                        }
+                        default:
+                            throw new AxisRabbitMQException("Invalid Throttling mode " + throttleMode
+                                    + " specified for service : " + serviceName);
+                    }
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    log.error("Error in sleeping with " + throttleMode + " throttling", e);
+                } catch (AxisRabbitMQException e) {
+                    log.error("Invalid Throttling mode " + throttleMode + " specified for service : " + serviceName,
+                            e);
+                }
+            }
+
             switch (acknowledgementMode) {
                 case REQUEUE_TRUE:
                     try {
@@ -321,6 +394,46 @@ public class ServiceTaskManager {
             connection.abort();
             channel = null;
             connection = null;
+        }
+
+        private long getSleepDelay() {
+            long sleepDelay;
+            switch (throttleTimeUnit) {
+                case MINUTE:
+                    sleepDelay = DateUtils.MILLIS_PER_MINUTE / throttleCount;
+                    break;
+                case HOUR:
+                    sleepDelay = DateUtils.MILLIS_PER_HOUR / throttleCount;
+                    break;
+                case DAY:
+                    sleepDelay = DateUtils.MILLIS_PER_DAY / throttleCount;
+                    break;
+                default:
+                    log.error("Unrecognized throttle time unit, defaulting to MINUTE.");
+                    sleepDelay = DateUtils.MILLIS_PER_MINUTE / throttleCount;
+                    break;
+            }
+            return sleepDelay;
+        }
+
+        private long getRemainingDuration(long consumptionDuration) {
+            long remainingDuration;
+
+            switch (throttleTimeUnit) {
+                case HOUR:
+                    remainingDuration = DateUtils.MILLIS_PER_HOUR - consumptionDuration;
+                    break;
+                case MINUTE:
+                    remainingDuration = DateUtils.MILLIS_PER_MINUTE - consumptionDuration;
+                    break;
+                case DAY:
+                    remainingDuration = DateUtils.MILLIS_PER_DAY - consumptionDuration;
+                    break;
+                default:
+                    log.error("Unrecognized throttle time unit, defaulting to MINUTE.");
+                    remainingDuration = DateUtils.MILLIS_PER_MINUTE - consumptionDuration;
+            }
+            return remainingDuration;
         }
     }
 
