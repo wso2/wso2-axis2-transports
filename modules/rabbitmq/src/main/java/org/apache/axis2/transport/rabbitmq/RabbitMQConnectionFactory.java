@@ -214,6 +214,7 @@ public class RabbitMQConnectionFactory extends BaseKeyedPooledObjectFactory<Stri
                 BooleanUtils.toBoolean(parameters.get(RabbitMQConstants.SSL_ENABLED)), false);
         boolean externalAuthEnabled = BooleanUtils.toBooleanDefaultIfNull(
                 BooleanUtils.toBoolean(parameters.get(RabbitMQConstants.EXTERNAL_AUTH_MECHANISM)), false);
+        String maxInboundMessageSize = parameters.get(RabbitMQConstants.MAX_INBOUND_MESSAGE_BODY_SIZE);
 
         String[] hostnameArray = hostnames.split(",");
         String[] portArray = ports.split(",");
@@ -239,6 +240,10 @@ public class RabbitMQConnectionFactory extends BaseKeyedPooledObjectFactory<Stri
         connectionFactory.setNetworkRecoveryInterval(networkRecoveryInterval);
         connectionFactory.setAutomaticRecoveryEnabled(true);
         connectionFactory.setTopologyRecoveryEnabled(true);
+        if (StringUtils.isNotEmpty(maxInboundMessageSize)) {
+            int maxInboundMessageSizeInt = NumberUtils.toInt(maxInboundMessageSize);
+            connectionFactory.setMaxInboundMessageBodySize(maxInboundMessageSizeInt);
+        }
         if (externalAuthEnabled) {
             connectionFactory.setSaslConfig(DefaultSaslConfig.EXTERNAL);
         }
