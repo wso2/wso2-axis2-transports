@@ -21,6 +21,9 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * An instance of this class will create when AMQP listener proxy is being deployed.
@@ -99,6 +102,10 @@ public class ServiceTaskManager {
         private long consumptionStartedTime;
         private int consumedMessageCount = 0;
 
+        private String consumerTag;
+        private final AtomicBoolean isShuttingDown = new AtomicBoolean(false);
+        private final AtomicInteger inflightMessages = new AtomicInteger(0);
+
         private MessageListenerTask() throws IOException {
             this.channel = connection.createChannel();
             ((Recoverable) this.channel).addRecoveryListener(new RabbitMQRecoveryListener());
@@ -158,9 +165,9 @@ public class ServiceTaskManager {
             }
 
             if (StringUtils.isNotEmpty(consumerTag)) {
-                channel.basicConsume(queueName, autoAck, consumerTag, this);
+                this.consumerTag = channel.basicConsume(queueName, autoAck, consumerTag, this);
             } else {
-                channel.basicConsume(queueName, autoAck, this);
+                this.consumerTag = channel.basicConsume(queueName, autoAck, this);
             }
         }
 
@@ -243,100 +250,113 @@ public class ServiceTaskManager {
         @Override
         public void handleDelivery(String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body)
                 throws IOException {
+            if (isShuttingDown.get()) {
+                log.info("The rejected message with message id: " + properties.getMessageId() + " and " +
+                        "delivery tag: " + envelope.getDeliveryTag() + " on the queue: " +
+                        queueName + " Since the consumer is shutting down.");
+                channel.basicReject(envelope.getDeliveryTag(), true);
+                return;
+            }
+            inflightMessages.incrementAndGet();
             AcknowledgementMode acknowledgementMode =
                     rabbitMQMessageReceiver.processThroughAxisEngine(properties, body);
 
-            if (isThrottlingEnabled) {
-                try {
-                    switch (throttleMode) {
-                        case FIXED_INTERVAL: {
-                            long throttleSleepDelay = getSleepDelay();
-                            if (log.isDebugEnabled()) {
-                                log.debug("Sleeping " + throttleSleepDelay
-                                        + " ms with Fixed-Interval throttling for service :" + serviceName);
-                            }
-                            Thread.sleep(throttleSleepDelay);
-                            break;
-                        }
-                        case BATCH: {
-                            if (consumedMessageCount == 0) {
-                                consumptionStartedTime = System.currentTimeMillis();
-                                if (log.isDebugEnabled()) {
-                                    log.debug("Batch throttling started at " + consumptionStartedTime
-                                            + " for service :" + serviceName);
-                                }
-                            }
-
-                            consumedMessageCount++;
-                            if (consumedMessageCount >= throttleCount) {
-                                long consumptionDuration = System.currentTimeMillis() - consumptionStartedTime;
-                                // consumed messages have exceeded the defined count
-                                long remainingDuration = getRemainingDuration(consumptionDuration);
-                                if (remainingDuration >= 0) {
-                                    // if time is remaining, we need to sleep while it exceeds
-                                    if (log.isDebugEnabled()) {
-                                        log.debug("Sleeping " + remainingDuration
-                                                + " ms with Batch throttling for service :" + serviceName);
-                                    }
-                                    Thread.sleep(remainingDuration);
-                                }
-                                consumedMessageCount = 0;
-                            }
-                            if (log.isDebugEnabled()) {
-                                log.debug("Consumed Message Count per min:  " + consumedMessageCount);
-                            }
-                            break;
-                        }
-                        default:
-                            throw new AxisRabbitMQException("Invalid Throttling mode " + throttleMode
-                                    + " specified for service : " + serviceName);
-                    }
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    log.error("Error in sleeping with " + throttleMode + " throttling", e);
-                } catch (AxisRabbitMQException e) {
-                    log.error("Invalid Throttling mode " + throttleMode + " specified for service : " + serviceName,
-                            e);
-                }
-            }
-
-            switch (acknowledgementMode) {
-                case REQUEUE_TRUE:
+            try {
+                if (isThrottlingEnabled) {
                     try {
-                        Thread.sleep(requeueDelay);
+                        switch (throttleMode) {
+                            case FIXED_INTERVAL: {
+                                long throttleSleepDelay = getSleepDelay();
+                                if (log.isDebugEnabled()) {
+                                    log.debug("Sleeping " + throttleSleepDelay
+                                            + " ms with Fixed-Interval throttling for service :" + serviceName);
+                                }
+                                Thread.sleep(throttleSleepDelay);
+                                break;
+                            }
+                            case BATCH: {
+                                if (consumedMessageCount == 0) {
+                                    consumptionStartedTime = System.currentTimeMillis();
+                                    if (log.isDebugEnabled()) {
+                                        log.debug("Batch throttling started at " + consumptionStartedTime
+                                                + " for service :" + serviceName);
+                                    }
+                                }
+
+                                consumedMessageCount++;
+                                if (consumedMessageCount >= throttleCount) {
+                                    long consumptionDuration = System.currentTimeMillis() - consumptionStartedTime;
+                                    // consumed messages have exceeded the defined count
+                                    long remainingDuration = getRemainingDuration(consumptionDuration);
+                                    if (remainingDuration >= 0) {
+                                        // if time is remaining, we need to sleep while it exceeds
+                                        if (log.isDebugEnabled()) {
+                                            log.debug("Sleeping " + remainingDuration
+                                                    + " ms with Batch throttling for service :" + serviceName);
+                                        }
+                                        Thread.sleep(remainingDuration);
+                                    }
+                                    consumedMessageCount = 0;
+                                }
+                                if (log.isDebugEnabled()) {
+                                    log.debug("Consumed Message Count per min:  " + consumedMessageCount);
+                                }
+                                break;
+                            }
+                            default:
+                                throw new AxisRabbitMQException("Invalid Throttling mode " + throttleMode
+                                        + " specified for service : " + serviceName);
+                        }
                     } catch (InterruptedException e) {
                         Thread.currentThread().interrupt();
+                        log.error("Error in sleeping with " + throttleMode + " throttling", e);
+                    } catch (AxisRabbitMQException e) {
+                        log.error("Invalid Throttling mode " + throttleMode + " specified for service : " + serviceName,
+                                e);
                     }
-                    channel.basicReject(envelope.getDeliveryTag(), true);
-                    break;
-                case REQUEUE_FALSE:
-                    List<HashMap<String, Object>> xDeathHeader =
-                            (ArrayList<HashMap<String, Object>>) properties.getHeaders().get("x-death");
-                    // check if message has been already dead-lettered
-                    if (xDeathHeader != null && xDeathHeader.size() > 0 && maxDeadLetteredCount != -1) {
-                        Long count = (Long) xDeathHeader.get(0).get("count");
-                        if (count <= maxDeadLetteredCount) {
+                }
+
+                switch (acknowledgementMode) {
+                    case REQUEUE_TRUE:
+                        try {
+                            Thread.sleep(requeueDelay);
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                        }
+                        channel.basicReject(envelope.getDeliveryTag(), true);
+                        break;
+                    case REQUEUE_FALSE:
+                        List<HashMap<String, Object>> xDeathHeader =
+                                (ArrayList<HashMap<String, Object>>) properties.getHeaders().get("x-death");
+                        // check if message has been already dead-lettered
+                        if (xDeathHeader != null && xDeathHeader.size() > 0 && maxDeadLetteredCount != -1) {
+                            Long count = (Long) xDeathHeader.get(0).get("count");
+                            if (count <= maxDeadLetteredCount) {
+                                channel.basicReject(envelope.getDeliveryTag(), false);
+                                log.info("The rejected message with message id: " + properties.getMessageId() + " and " +
+                                        "delivery tag: " + envelope.getDeliveryTag() + " on the queue: " +
+                                        queueName + " is dead-lettered " + count + " time(s).");
+                            } else {
+                                // handle the message after exceeding the max dead-lettered count
+                                proceedAfterMaxDeadLetteredCount(envelope, properties, body);
+                            }
+                        } else {
+                            // the message might be dead-lettered or discard if an error occurred in the mediation flow
                             channel.basicReject(envelope.getDeliveryTag(), false);
                             log.info("The rejected message with message id: " + properties.getMessageId() + " and " +
                                     "delivery tag: " + envelope.getDeliveryTag() + " on the queue: " +
-                                    queueName + " is dead-lettered " + count + " time(s).");
-                        } else {
-                            // handle the message after exceeding the max dead-lettered count
-                            proceedAfterMaxDeadLetteredCount(envelope, properties, body);
+                                    queueName + " will discard or dead-lettered.");
                         }
-                    } else {
-                        // the message might be dead-lettered or discard if an error occurred in the mediation flow
-                        channel.basicReject(envelope.getDeliveryTag(), false);
-                        log.info("The rejected message with message id: " + properties.getMessageId() + " and " +
-                                "delivery tag: " + envelope.getDeliveryTag() + " on the queue: " +
-                                queueName + " will discard or dead-lettered.");
-                    }
-                    break;
-                default:
-                    if (!autoAck) {
-                        channel.basicAck(envelope.getDeliveryTag(), false);
-                    }
-                    break;
+                        break;
+                    default:
+                        if (!autoAck) {
+                            channel.basicAck(envelope.getDeliveryTag(), false);
+                        }
+                        break;
+                }
+
+            } finally {
+                inflightMessages.decrementAndGet();
             }
         }
 
@@ -391,9 +411,44 @@ public class ServiceTaskManager {
         }
 
         public void close() {
-            connection.abort();
-            channel = null;
-            connection = null;
+            if (!isShuttingDown.compareAndSet(false, true)) {
+                return; // only shutdown once
+            }
+            log.info("Shutdown hook triggered. Initiating graceful shutdown of RABBITMQ Listener for service : "
+                    + serviceName);
+            try {
+                if (channel != null && channel.isOpen() && consumerTag != null) {
+                    try {
+                        channel.basicCancel(consumerTag);
+                        log.info("Successfully cancelled consumer: " + consumerTag);
+                    } catch (IOException e) {
+                        log.warn("Failed to cancel consumer cleanly, proceeding to shutdown.", e);
+                    }
+                }
+
+                long waitUntil = System.currentTimeMillis()
+                        + (RabbitMQConstants.DEFAULT_RABBITMQ_TIMEOUT * 3);
+                while (inflightMessages.get() > 0 && System.currentTimeMillis() < waitUntil) {
+                    Thread.sleep(100); // wait until all in-flight messages are done
+                }
+
+                if (channel != null && channel.isOpen()) {
+                    channel.close();
+                }
+                if (connection != null && connection.isOpen()) {
+                    connection.close();
+                }
+
+                log.info("Shutdown completed gracefully.");
+            } catch (Exception e) {
+                log.error("Error during shutdown. Forcing abort.", e);
+                if (connection != null) {
+                    connection.abort();
+                }
+            } finally {
+                channel = null;
+                connection = null;
+            }
         }
 
         private long getSleepDelay() {
