@@ -63,8 +63,8 @@ public class RabbitMQMessageReceiver {
             listener.handleIncomingMessage(msgContext, RabbitMQUtils.getTransportHeaders(messageProperties),
                                            RabbitMQUtils.getSoapAction(messageProperties), contentType);
             return getAcknowledgementMode(msgContext);
-        } catch (AxisFault axisFault) {
-            log.error("Error when trying to read incoming message.", axisFault);
+        } catch (Throwable fault) {
+            log.error("Error when trying to read incoming message.", fault);
             return AcknowledgementMode.REQUEUE_FALSE;
         }
     }
