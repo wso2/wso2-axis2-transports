@@ -74,8 +74,15 @@ public class TCPWorker implements Runnable {
 			int recordLength = endpoint.getRecordLength();
 			String inputType = endpoint.getInputType();
 			String delimiterType = endpoint.getRecordDelimiterType();
-			outInfo.setDelimiter(delimiter);
-			outInfo.setDelimiterType(delimiterType);
+			String responseDelimiter = endpoint.getResponseDelimiter();
+			String responseDelimiterType = endpoint.getResponseDelimiterType();
+			if (responseDelimiter == null) {
+				outInfo.setDelimiter(delimiter);
+				outInfo.setDelimiterType(delimiterType);
+			} else {
+				outInfo.setDelimiter(responseDelimiter);
+				outInfo.setDelimiterType(responseDelimiterType);
+			}
 			msgContext.setProperty(Constants.OUT_TRANSPORT_INFO, outInfo);
 			// create the SOAP Envelope
 			InputStream input = socket.getInputStream();

@@ -27,6 +27,8 @@ public class TCPConstants {
     public static final String PARAM_CONTENT_TYPE = "transport.tcp.contentType";
     public static final String PARAM_RECORD_DELIMITER = "transport.tcp.recordDelimiter";
     public static final String PARAM_RECORD_DELIMITER_TYPE = "transport.tcp.recordDelimiterType";
+    public static final String PARAM_RESPONSE_DELIMITER = "transport.tcp.responseDelimiter";
+    public static final String PARAM_RESPONSE_DELIMITER_TYPE = "transport.tcp.responseDelimiterType";
     public static final String PARAM_RECORD_LENGTH = "transport.tcp.recordLength";
     public static final String PARAM_RESPONSE_CLIENT = "transport.tcp.responseClient";
     public static final String PARAM_RESPONSE_INPUT_TYPE = "transport.tcp.inputType";
