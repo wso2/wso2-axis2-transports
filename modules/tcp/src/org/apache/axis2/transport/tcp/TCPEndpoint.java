@@ -38,6 +38,8 @@ public class TCPEndpoint extends ProtocolEndpoint {
     private String contentType;
     private String recordDelimiter;
     private String recordDelimiterType;
+    private String responseDelimiter;
+    private String responseDelimiterType;
     private Integer recordLength;
     private boolean clientResponseRequired;
     private String inputType;
@@ -115,7 +117,13 @@ public class TCPEndpoint extends ProtocolEndpoint {
         if (recordDelimiter == null) {
         	recordDelimiter = "";
         }
-        
+
+        responseDelimiter = ParamUtils.getOptionalParam(params, TCPConstants.PARAM_RESPONSE_DELIMITER);
+        responseDelimiterType = ParamUtils.getOptionalParam(params, TCPConstants.PARAM_RESPONSE_DELIMITER_TYPE);
+        if (responseDelimiterType == null || responseDelimiterType.isEmpty()) {
+            responseDelimiterType = TCPConstants.CHARACTER_DELIMITER_TYPE;
+        }
+
         recordLength =  ParamUtils.getOptionalParamInt(params, TCPConstants.PARAM_RECORD_LENGTH);
         if(recordLength == null){
         	recordLength = -1;
@@ -161,4 +169,11 @@ public class TCPEndpoint extends ProtocolEndpoint {
         return new EndpointReference[] { new EndpointReference(url) };
     }
 
+    public String getResponseDelimiterType() {
+        return responseDelimiterType;
+    }
+
+    public String getResponseDelimiter() {
+        return responseDelimiter;
+    }
 }
