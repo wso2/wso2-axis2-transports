@@ -53,14 +53,19 @@ public class JMSEndpoint extends ProtocolEndpoint {
     private final WorkerPool workerPool;
     
     private JMSConnectionFactory cf;
+    private org.apache.axis2.transport.jms.jakarta.JMSConnectionFactory jakartaCf;
     private String jndiDestinationName;
     private int destinationType = JMSConstants.GENERIC;
     private String jndiReplyDestinationName;
     private String replyDestinationType = JMSConstants.DESTINATION_TYPE_GENERIC;
     private Set<EndpointReference> endpointReferences = new HashSet<EndpointReference>();
     private ContentTypeRuleSet contentTypeRuleSet;
+    private org.apache.axis2.transport.jms.jakarta.ctype.ContentTypeRuleSet jakartaContentTypeRuleSet;
     private ServiceTaskManager serviceTaskManager;
+    private org.apache.axis2.transport.jms.jakarta.ServiceTaskManager jakartaServiceTaskManager;
     private String hyphenSupport = JMSConstants.DEFAULT_HYPHEN_SUPPORT;
+
+    private boolean isJMSSpec31;
 
     public JMSEndpoint(JMSListener listener, WorkerPool workerPool) {
         this.listener = listener;
@@ -143,26 +148,47 @@ public class JMSEndpoint extends ProtocolEndpoint {
             append(JMSConstants.PARAM_DEST_TYPE).append("=").append(
             destinationType == JMSConstants.TOPIC ?
                 JMSConstants.DESTINATION_TYPE_TOPIC : JMSConstants.DESTINATION_TYPE_QUEUE);
-
-        if (contentTypeRuleSet != null) {
-            String contentTypeProperty = contentTypeRuleSet.getDefaultContentTypeProperty();
-            if (contentTypeProperty != null) {
-                sb.append("&");
-                sb.append(JMSConstants.CONTENT_TYPE_PROPERTY_PARAM);
-                sb.append("=");
-                sb.append(contentTypeProperty);
+        if (isJMSSpec31()) {
+            if (jakartaContentTypeRuleSet != null) {
+                String contentTypeProperty = jakartaContentTypeRuleSet.getDefaultContentTypeProperty();
+                if (contentTypeProperty != null) {
+                    sb.append("&");
+                    sb.append(JMSConstants.CONTENT_TYPE_PROPERTY_PARAM);
+                    sb.append("=");
+                    sb.append(contentTypeProperty);
+                }
+            }
+            for (Map.Entry<String,String> entry : jakartaCf.getParameters().entrySet()) {
+                if (!Context.SECURITY_PRINCIPAL.equalsIgnoreCase(entry.getKey()) &&
+                        !Context.SECURITY_CREDENTIALS.equalsIgnoreCase(entry.getKey()) &&
+                        !JMSConstants.PARAM_JMS_USERNAME.equalsIgnoreCase(entry.getKey()) &&
+                        !JMSConstants.PARAM_JMS_PASSWORD.equalsIgnoreCase(entry.getKey())) {
+                    sb.append("&").append(
+                            entry.getKey()).append("=").append(entry.getValue());
+                }
+            }
+        } else {
+            if (contentTypeRuleSet != null) {
+                String contentTypeProperty = contentTypeRuleSet.getDefaultContentTypeProperty();
+                if (contentTypeProperty != null) {
+                    sb.append("&");
+                    sb.append(JMSConstants.CONTENT_TYPE_PROPERTY_PARAM);
+                    sb.append("=");
+                    sb.append(contentTypeProperty);
+                }
+            }
+            for (Map.Entry<String,String> entry : cf.getParameters().entrySet()) {
+                if (!Context.SECURITY_PRINCIPAL.equalsIgnoreCase(entry.getKey()) &&
+                        !Context.SECURITY_CREDENTIALS.equalsIgnoreCase(entry.getKey()) &&
+                        !JMSConstants.PARAM_JMS_USERNAME.equalsIgnoreCase(entry.getKey()) &&
+                        !JMSConstants.PARAM_JMS_PASSWORD.equalsIgnoreCase(entry.getKey())) {
+                    sb.append("&").append(
+                            entry.getKey()).append("=").append(entry.getValue());
+                }
             }
         }
 
-        for (Map.Entry<String,String> entry : cf.getParameters().entrySet()) {
-            if (!Context.SECURITY_PRINCIPAL.equalsIgnoreCase(entry.getKey()) &&
-                !Context.SECURITY_CREDENTIALS.equalsIgnoreCase(entry.getKey()) &&
-                !JMSConstants.PARAM_JMS_USERNAME.equalsIgnoreCase(entry.getKey()) &&
-                !JMSConstants.PARAM_JMS_PASSWORD.equalsIgnoreCase(entry.getKey())) {
-                sb.append("&").append(
-                    entry.getKey()).append("=").append(entry.getValue());
-            }
-        }
+
         return sb.toString();
     }
 
@@ -170,8 +196,16 @@ public class JMSEndpoint extends ProtocolEndpoint {
         return contentTypeRuleSet;
     }
 
+    public org.apache.axis2.transport.jms.jakarta.ctype.ContentTypeRuleSet getJakartaContentTypeRuleSet() {
+        return jakartaContentTypeRuleSet;
+    }
+
     public JMSConnectionFactory getCf() {
         return cf;
+    }
+
+    public org.apache.axis2.transport.jms.jakarta.JMSConnectionFactory getJakartaCf() {
+        return jakartaCf;
     }
 
     public ServiceTaskManager getServiceTaskManager() {
@@ -180,6 +214,14 @@ public class JMSEndpoint extends ProtocolEndpoint {
 
     public void setServiceTaskManager(ServiceTaskManager serviceTaskManager) {
         this.serviceTaskManager = serviceTaskManager;
+    }
+
+    public org.apache.axis2.transport.jms.jakarta.ServiceTaskManager getJakartaServiceTaskManager() {
+        return jakartaServiceTaskManager;
+    }
+
+    public void setJakartaServiceTaskManager(org.apache.axis2.transport.jms.jakarta.ServiceTaskManager serviceTaskManager) {
+        this.jakartaServiceTaskManager = serviceTaskManager;
     }
 
     public String getHyphenSupport() {
@@ -194,10 +236,20 @@ public class JMSEndpoint extends ProtocolEndpoint {
         }
         
         AxisService service = (AxisService)params;
-        
-        cf = listener.getConnectionFactory(service);
-        if (cf == null) {
-            return false;
+        if (service.getParameter(JMSConstants.PARAM_JMS_SPEC_VER) != null) {
+            isJMSSpec31 = (JMSConstants.JMS_SPEC_VERSION_3_1.equals(service.getParameter(
+                    JMSConstants.PARAM_JMS_SPEC_VER).getValue()));
+        }
+        if (isJMSSpec31) {
+            jakartaCf = listener.getJakartaConnectionFactory(service);
+            if (jakartaCf == null) {
+                return false;
+            }
+        } else {
+            cf = listener.getConnectionFactory(service);
+            if (cf == null) {
+                return false;
+            }
         }
 
         Parameter destParam = service.getParameter(JMSConstants.PARAM_DESTINATION);
@@ -240,20 +292,41 @@ public class JMSEndpoint extends ProtocolEndpoint {
                 JMSConstants.PARAM_REPLY_DESTINATION);
         
         Parameter contentTypeParam = service.getParameter(JMSConstants.CONTENT_TYPE_PARAM);
-        if (contentTypeParam == null) {
-            contentTypeRuleSet = new ContentTypeRuleSet();
-            contentTypeRuleSet.addRule(new PropertyRule(BaseConstants.CONTENT_TYPE));
-            contentTypeRuleSet.addRule(new MessageTypeRule(BytesMessage.class, "application/octet-stream"));
-            contentTypeRuleSet.addRule(new MessageTypeRule(TextMessage.class, "text/plain"));
+        if (isJMSSpec31()) {
+            if (contentTypeParam == null) {
+                jakartaContentTypeRuleSet = new org.apache.axis2.transport.jms.jakarta.ctype.ContentTypeRuleSet();
+                jakartaContentTypeRuleSet.addRule(new org.apache.axis2.transport.jms.jakarta.ctype.PropertyRule(
+                        BaseConstants.CONTENT_TYPE));
+                jakartaContentTypeRuleSet.addRule(new org.apache.axis2.transport.jms.jakarta.ctype.MessageTypeRule(
+                        jakarta.jms.BytesMessage.class, "application/octet-stream"));
+                jakartaContentTypeRuleSet.addRule(new org.apache.axis2.transport.jms.jakarta.ctype.MessageTypeRule(
+                        jakarta.jms.TextMessage.class, "text/plain"));
+            } else {
+                jakartaContentTypeRuleSet = org.apache.axis2.transport.jms.jakarta.ctype.ContentTypeRuleFactory.parse(
+                        contentTypeParam);
+            }
         } else {
-            contentTypeRuleSet = ContentTypeRuleFactory.parse(contentTypeParam);
+            if (contentTypeParam == null) {
+                contentTypeRuleSet = new ContentTypeRuleSet();
+                contentTypeRuleSet.addRule(new PropertyRule(BaseConstants.CONTENT_TYPE));
+                contentTypeRuleSet.addRule(new MessageTypeRule(BytesMessage.class, "application/octet-stream"));
+                contentTypeRuleSet.addRule(new MessageTypeRule(TextMessage.class, "text/plain"));
+            } else {
+                contentTypeRuleSet = ContentTypeRuleFactory.parse(contentTypeParam);
+            }
         }
 
         computeEPRs(); // compute service EPR and keep for later use        
-        
-        serviceTaskManager = ServiceTaskManagerFactory.createTaskManagerForService(cf, service, workerPool);
-        serviceTaskManager.setJmsMessageReceiver(new JMSMessageReceiver(listener, cf, this));
-        serviceTaskManager.setDefaultClassloader(Thread.currentThread().getContextClassLoader());
+
+        if (isJMSSpec31()) {
+            jakartaServiceTaskManager = org.apache.axis2.transport.jms.jakarta.ServiceTaskManagerFactory.createTaskManagerForService(jakartaCf, service, workerPool);
+            jakartaServiceTaskManager.setJmsMessageReceiver(new org.apache.axis2.transport.jms.jakarta.JMSMessageReceiver(listener, jakartaCf, this));
+            jakartaServiceTaskManager.setDefaultClassloader(Thread.currentThread().getContextClassLoader());
+        } else {
+            serviceTaskManager = ServiceTaskManagerFactory.createTaskManagerForService(cf, service, workerPool);
+            serviceTaskManager.setJmsMessageReceiver(new JMSMessageReceiver(listener, cf, this));
+            serviceTaskManager.setDefaultClassloader(Thread.currentThread().getContextClassLoader());
+        }
 
         // Fix for ESBJAVA-3687, retrieve JMS transport property transport.jms.MessagePropertyHyphens and set this
         // into the msgCtx
@@ -268,4 +341,9 @@ public class JMSEndpoint extends ProtocolEndpoint {
 
         return true;
     }
+
+    public boolean isJMSSpec31() {
+        return isJMSSpec31;
+    }
+
 }

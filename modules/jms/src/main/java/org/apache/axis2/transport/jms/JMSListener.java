@@ -83,57 +83,117 @@ public class JMSListener extends AbstractTransportListenerEx<JMSEndpoint> implem
      */
     @Override
     protected void startEndpoint(JMSEndpoint endpoint) throws AxisFault {
-        ServiceTaskManager stm = endpoint.getServiceTaskManager();
-        boolean connected = false;
+        if (endpoint.isJMSSpec31()) {
+            org.apache.axis2.transport.jms.jakarta.ServiceTaskManager stm = endpoint.getJakartaServiceTaskManager();
+            boolean connected = false;
 
-        /* The following parameters are used when trying to connect with the JMS provider at the start up*/
-        int r = 1;
-        long retryDuration = 10000;
-        double reconnectionProgressionFactor = 2.0;
-        long maxReconnectDuration = stm.getMaxReconnectDuration(); // default 1 min
-        Hashtable<String, String> jmsProperties = stm.getJmsProperties();
+            /* The following parameters are used when trying to connect with the JMS provider at the start up*/
+            int r = 1;
+            long retryDuration = 10000;
+            double reconnectionProgressionFactor = 2.0;
+            long maxReconnectDuration = stm.getMaxReconnectDuration(); // default 1 min
+            Hashtable<String, String> jmsProperties = stm.getJmsProperties();
 
-        // First we will check whether jms provider is started or not, as if not it will throw a continuous error log
-        // If jms provider not started we will wait for exponentially increasing time intervals, till the provider is started
-        while (!connected) {
-            boolean jmsProviderStarted = checkJMSConnection(stm);
-            if (jmsProviderStarted) {
-                log.info("Connection attempt: " + r + " for JMS Provider for service: "+ stm.getServiceName()+ " was successful!");
-                connected = true;
-                stm.start();
+            // First we will check whether jms provider is started or not, as if not it will throw a continuous error log
+            // If jms provider not started we will wait for exponentially increasing time intervals, till the provider is started
+            while (!connected) {
+                boolean jmsProviderStarted = checkJMSJakartaConnection(stm);
+                if (jmsProviderStarted) {
+                    log.info("Connection attempt: " + r + " for JMS Provider for service: " +
+                            stm.getServiceName() + " was successful!");
+                    connected = true;
+                    stm.start();
 
-                for (int i = 0; i < 3; i++) {
-                    // Check the consumer count rather than the active task count. Reason: if the
-                    // destination is of type topic, then the transport is only ready to receive
-                    // messages if at least one consumer exists. This is of not much importance,
-                    // except for automated tests.
-                    if (stm.getConsumerCount() > 0) {
-                        log.info("Started to listen on destination : " + stm.getDestinationJNDIName() +
-                                " of type " + JMSUtils.getDestinationTypeAsString(stm.getDestinationType()) +
-                                " for service " + stm.getServiceName());
-                        return;
+                    for (int i = 0; i < 3; i++) {
+                        // Check the consumer count rather than the active task count. Reason: if the
+                        // destination is of type topic, then the transport is only ready to receive
+                        // messages if at least one consumer exists. This is of not much importance,
+                        // except for automated tests.
+                        if (stm.getConsumerCount() > 0) {
+                            log.info("Started to listen on destination : " + stm.getDestinationJNDIName() +
+                                    " of type " + org.apache.axis2.transport.jms.jakarta.JMSUtils.
+                                    getDestinationTypeAsString(stm.getDestinationType()) +
+                                    " for service " + stm.getServiceName());
+                            return;
+                        }
+                        try {
+                            Thread.sleep(1000);
+                        } catch (InterruptedException ignore) {
+                        }
+                    }
+
+                    log.warn("Polling tasks on destination : " + stm.getDestinationJNDIName() +
+                            " of type " + org.apache.axis2.transport.jms.jakarta.JMSUtils.
+                            getDestinationTypeAsString(stm.getDestinationType()) +
+                            " for service " + stm.getServiceName() + " have not yet started after 3 seconds ..");
+                } else {
+                    log.error("Unable to continue server startup as it seems the JMS Provider is not yet started. Please start the JMS provider now.");
+                    retryDuration = (long) (retryDuration * reconnectionProgressionFactor);
+                    log.error("Connection attempt : " + (r++) + " for JMS Provider failed. Next retry in " + (retryDuration / 1000) + " seconds");
+                    if (retryDuration > maxReconnectDuration) {
+                        retryDuration = maxReconnectDuration;
+                        stm.start();
+                        break;
                     }
                     try {
-                        Thread.sleep(1000);
+                        Thread.sleep(retryDuration);
                     } catch (InterruptedException ignore) {
                     }
                 }
+            }
+        } else {
+            ServiceTaskManager stm = endpoint.getServiceTaskManager();
+            boolean connected = false;
 
-                log.warn("Polling tasks on destination : " + stm.getDestinationJNDIName() +
-                        " of type " + JMSUtils.getDestinationTypeAsString(stm.getDestinationType()) +
-                        " for service " + stm.getServiceName() + " have not yet started after 3 seconds ..");
-            } else {
-                log.error("Unable to continue server startup as it seems the JMS Provider is not yet started. Please start the JMS provider now.");
-                retryDuration = (long) (retryDuration * reconnectionProgressionFactor);
-                log.error("Connection attempt : " + (r++) + " for JMS Provider failed. Next retry in " + (retryDuration / 1000) + " seconds");
-                if (retryDuration > maxReconnectDuration) {
-                    retryDuration = maxReconnectDuration;
+            /* The following parameters are used when trying to connect with the JMS provider at the start up*/
+            int r = 1;
+            long retryDuration = 10000;
+            double reconnectionProgressionFactor = 2.0;
+            long maxReconnectDuration = stm.getMaxReconnectDuration(); // default 1 min
+            Hashtable<String, String> jmsProperties = stm.getJmsProperties();
+
+            // First we will check whether jms provider is started or not, as if not it will throw a continuous error log
+            // If jms provider not started we will wait for exponentially increasing time intervals, till the provider is started
+            while (!connected) {
+                boolean jmsProviderStarted = checkJMSConnection(stm);
+                if (jmsProviderStarted) {
+                    log.info("Connection attempt: " + r + " for JMS Provider for service: " + stm.getServiceName() + " was successful!");
+                    connected = true;
                     stm.start();
-                    break;
-                }
-                try {
-                    Thread.sleep(retryDuration);
-                } catch (InterruptedException ignore) {
+
+                    for (int i = 0; i < 3; i++) {
+                        // Check the consumer count rather than the active task count. Reason: if the
+                        // destination is of type topic, then the transport is only ready to receive
+                        // messages if at least one consumer exists. This is of not much importance,
+                        // except for automated tests.
+                        if (stm.getConsumerCount() > 0) {
+                            log.info("Started to listen on destination : " + stm.getDestinationJNDIName() +
+                                    " of type " + JMSUtils.getDestinationTypeAsString(stm.getDestinationType()) +
+                                    " for service " + stm.getServiceName());
+                            return;
+                        }
+                        try {
+                            Thread.sleep(1000);
+                        } catch (InterruptedException ignore) {
+                        }
+                    }
+
+                    log.warn("Polling tasks on destination : " + stm.getDestinationJNDIName() +
+                            " of type " + JMSUtils.getDestinationTypeAsString(stm.getDestinationType()) +
+                            " for service " + stm.getServiceName() + " have not yet started after 3 seconds ..");
+                } else {
+                    log.error("Unable to continue server startup as it seems the JMS Provider is not yet started. Please start the JMS provider now.");
+                    retryDuration = (long) (retryDuration * reconnectionProgressionFactor);
+                    log.error("Connection attempt : " + (r++) + " for JMS Provider failed. Next retry in " + (retryDuration / 1000) + " seconds");
+                    if (retryDuration > maxReconnectDuration) {
+                        retryDuration = maxReconnectDuration;
+                        stm.start();
+                        break;
+                    }
+                    try {
+                        Thread.sleep(retryDuration);
+                    } catch (InterruptedException ignore) {
+                    }
                 }
             }
         }
@@ -181,6 +241,51 @@ public class JMSListener extends AbstractTransportListenerEx<JMSEndpoint> implem
         return connectionStatus;
     }
 
+    private boolean checkJMSJakartaConnection(org.apache.axis2.transport.jms.jakarta.ServiceTaskManager stm) {
+
+        jakarta.jms.Connection connection = null;
+        Hashtable<String, String> jmsProperties = stm.getJmsProperties();
+        try {
+            jakarta.jms.ConnectionFactory jmsConFactory = null;
+            try {
+                jmsConFactory = org.apache.axis2.transport.jms.jakarta.JMSUtils.lookup(
+                        new InitialContext(stm.getJmsProperties()), jakarta.jms.ConnectionFactory.class,
+                        stm.getConnFactoryJNDIName());
+            } catch (NamingException e) {
+                log.error("Error looking up connection factory : " + stm.getConnFactoryJNDIName() +
+                        "using JNDI properties : " + org.apache.axis2.transport.jms.jakarta.JMSUtils.
+                        maskAxis2ConfigSensitiveParameters(jmsProperties), e);
+            }
+            connection = org.apache.axis2.transport.jms.jakarta.JMSUtils.createConnection(
+                    jmsConFactory,
+                    jmsProperties.get(JMSConstants.PARAM_JMS_USERNAME),
+                    jmsProperties.get(JMSConstants.PARAM_JMS_PASSWORD), stm.getJmsSpec(), null,
+                    false, "", false);
+        } catch (jakarta.jms.JMSException ignore){
+            Throwable innerException = ignore.getLinkedException();
+            if(innerException != null){
+                log.warn("Error connecting to JMS.", innerException);
+            }else{
+                log.warn("Error connecting to JMS.", ignore);
+            }
+        }
+
+        // Get the connection status
+        boolean connectionStatus = (connection != null);
+
+        try {
+            //Closing the opened jms connection
+            if (connectionStatus) {
+                log.debug("Closing the opened Jms connection");
+                connection.close();
+            }
+        } catch (jakarta.jms.JMSException e) {
+            log.error("Error Closing JMS Connection", e);
+        }
+
+        return connectionStatus;
+    }
+
     /**
      * Stops listening for messages for the service thats undeployed or stopped
      *
@@ -188,15 +293,27 @@ public class JMSListener extends AbstractTransportListenerEx<JMSEndpoint> implem
      */
     @Override
     protected void stopEndpoint(JMSEndpoint endpoint) {
-        ServiceTaskManager stm = endpoint.getServiceTaskManager();
-        if (log.isDebugEnabled()) {
-            log.debug("Stopping listening on destination : " + stm.getDestinationJNDIName() +
-                " for service : " + stm.getServiceName());
+        if (endpoint.isJMSSpec31()) {
+            org.apache.axis2.transport.jms.jakarta.ServiceTaskManager stm = endpoint.getJakartaServiceTaskManager();
+            if (log.isDebugEnabled()) {
+                log.debug("Stopping listening on destination : " + stm.getDestinationJNDIName() +
+                        " for service : " + stm.getServiceName());
+            }
+
+            stm.stop();
+
+            log.info("Stopped listening for JMS messages to service : " + endpoint.getServiceName());
+        } else {
+            ServiceTaskManager stm = endpoint.getServiceTaskManager();
+            if (log.isDebugEnabled()) {
+                log.debug("Stopping listening on destination : " + stm.getDestinationJNDIName() +
+                        " for service : " + stm.getServiceName());
+            }
+
+            stm.stop();
+
+            log.info("Stopped listening for JMS messages to service : " + endpoint.getServiceName());
         }
-
-        stm.stop();
-
-        log.info("Stopped listening for JMS messages to service : " + endpoint.getServiceName());
     }
 
     /**
@@ -218,6 +335,25 @@ public class JMSListener extends AbstractTransportListenerEx<JMSEndpoint> implem
         }
     }
 
+    /**
+     * Return the connection factory name for this service. If this service
+     * refers to an invalid factory or defaults to a non-existent default
+     * factory, this returns null
+     *
+     * @param service the AxisService
+     * @return the JMSConnectionFactory to be used, or null if reference is invalid
+     */
+    public org.apache.axis2.transport.jms.jakarta.JMSConnectionFactory getJakartaConnectionFactory(AxisService service) {
+
+        Parameter conFacParam = service.getParameter(JMSConstants.PARAM_JMS_CONFAC);
+        // validate connection factory name (specified or default)
+        if (conFacParam != null) {
+            return connFacManager.getJakartaConnectionFactory((String) conFacParam.getValue());
+        } else {
+            return connFacManager.getJakartaConnectionFactory(JMSConstants.DEFAULT_CONFAC_NAME);
+        }
+    }
+
     // -- jmx/management methods--
     /**
      * Pause the listener - Stop accepting/processing new messages, but continues processing existing
@@ -229,7 +365,11 @@ public class JMSListener extends AbstractTransportListenerEx<JMSEndpoint> implem
         if (state != BaseConstants.STARTED) return;
         try {
             for (JMSEndpoint endpoint : getEndpoints()) {
-                endpoint.getServiceTaskManager().pause();
+                if (endpoint.isJMSSpec31()) {
+                    endpoint.getJakartaServiceTaskManager().pause();
+                } else {
+                    endpoint.getServiceTaskManager().pause();
+                }
             }
             state = BaseConstants.PAUSED;
             log.info("Listener paused");
@@ -248,9 +388,15 @@ public class JMSListener extends AbstractTransportListenerEx<JMSEndpoint> implem
         try {
             state = BaseConstants.STARTED;
             for (JMSEndpoint endpoint : getEndpoints()) {
-                Thread.currentThread().setContextClassLoader(getClass().getClassLoader());
-                endpoint.getServiceTaskManager().scheduleNewTaskIfAppropriate();
-                endpoint.getServiceTaskManager().resume();
+                if (endpoint.isJMSSpec31()) {
+                    Thread.currentThread().setContextClassLoader(getClass().getClassLoader());
+                    endpoint.getJakartaServiceTaskManager().scheduleNewTaskIfAppropriate();
+                    endpoint.getJakartaServiceTaskManager().resume();
+                } else {
+                    Thread.currentThread().setContextClassLoader(getClass().getClassLoader());
+                    endpoint.getServiceTaskManager().scheduleNewTaskIfAppropriate();
+                    endpoint.getServiceTaskManager().resume();
+                }
             }
             log.info("Listener resumed");
         } catch (AxisJMSException e) {
@@ -294,7 +440,7 @@ public class JMSListener extends AbstractTransportListenerEx<JMSEndpoint> implem
     	log.error("Not Implemented.");
     }
 
-    protected int getState() {
+    public int getState() {
         return this.state;
     }
 }

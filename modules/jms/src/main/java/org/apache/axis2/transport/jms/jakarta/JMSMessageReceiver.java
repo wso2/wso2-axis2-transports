@@ -1,34 +1,39 @@
 /*
-* Copyright 2004,2005 The Apache Software Foundation.
-*
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-*      http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*/
-package org.apache.axis2.transport.jms;
+ * Copyright (c) 2025, WSO2 LLC. (http://www.wso2.org) All Rights Reserved.
+ *
+ * WSO2 Inc. licenses this file to you under the Apache License,
+ * Version 2.0 (the "License"); you may not use this file except
+ * in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+package org.apache.axis2.transport.jms.jakarta;
 
 import org.apache.axis2.AxisFault;
 import org.apache.axis2.Constants;
 import org.apache.axis2.context.MessageContext;
 import org.apache.axis2.transport.base.BaseConstants;
 import org.apache.axis2.transport.base.MetricsCollector;
-import org.apache.axis2.transport.jms.ctype.ContentTypeInfo;
+import org.apache.axis2.transport.jms.JMSConstants;
+import org.apache.axis2.transport.jms.JMSListener;
+import org.apache.axis2.transport.jms.jakarta.ctype.ContentTypeInfo;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import javax.jms.DeliveryMode;
-import javax.jms.Destination;
-import javax.jms.JMSException;
-import javax.jms.Message;
-import javax.jms.TextMessage;
+import jakarta.jms.DeliveryMode;
+import jakarta.jms.Destination;
+import jakarta.jms.JMSException;
+import jakarta.jms.Message;
+import jakarta.jms.TextMessage;
 import javax.transaction.UserTransaction;
 
 import static org.apache.axis2.transport.jms.JMSConstants.JMS_MESSAGE_DELIVERY_COUNT_HEADER;
@@ -49,7 +54,7 @@ public class JMSMessageReceiver {
     /** The JMS metrics collector */
     private MetricsCollector metrics = null;
     /** The endpoint this message receiver is bound to */
-    final JMSEndpoint endpoint;
+    final org.apache.axis2.transport.jms.JMSEndpoint endpoint;
 
     /**
      * Create a new JMSMessage receiver
@@ -58,7 +63,7 @@ public class JMSMessageReceiver {
      * @param jmsConFac   the JMS connection factory we are associated with
      * @param endpoint    the JMSEndpoint definition to be used
      */
-    JMSMessageReceiver(JMSListener jmsListener, JMSConnectionFactory jmsConFac, JMSEndpoint endpoint) {
+    public JMSMessageReceiver(JMSListener jmsListener, JMSConnectionFactory jmsConFac, org.apache.axis2.transport.jms.JMSEndpoint endpoint) {
         this.jmsListener = jmsListener;
         this.jmsConnectionFactory = jmsConFac;
         this.endpoint = endpoint;
@@ -173,7 +178,7 @@ public class JMSMessageReceiver {
         String soapAction = JMSUtils.getProperty(message, BaseConstants.SOAPACTION);
 
         ContentTypeInfo contentTypeInfo =
-            endpoint.getContentTypeRuleSet().getContentTypeInfo(message);
+            endpoint.getJakartaContentTypeRuleSet().getContentTypeInfo(message);
         if (contentTypeInfo == null) {
             throw new AxisFault("Unable to determine content type for message " +
                 msgContext.getMessageID());

@@ -1,38 +1,36 @@
 /*
-* Copyright 2004,2005 The Apache Software Foundation.
-*
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-*      http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*/
-package org.apache.axis2.transport.jms;
+ * Copyright (c) 2025, WSO2 LLC. (http://www.wso2.org) All Rights Reserved.
+ *
+ * WSO2 Inc. licenses this file to you under the Apache License,
+ * Version 2.0 (the "License"); you may not use this file except
+ * in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 
-import org.apache.axiom.om.OMElement;
-import org.apache.axis2.AxisFault;
-import org.apache.axis2.description.Parameter;
-import org.apache.axis2.description.ParameterIncludeImpl;
+package org.apache.axis2.transport.jms.jakarta;
+
 import org.apache.axis2.transport.base.BaseUtils;
+import org.apache.axis2.transport.jms.AxisJMSException;
+import org.apache.axis2.transport.jms.JMSConstants;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.wso2.securevault.SecretResolver;
-import org.wso2.securevault.SecureVaultException;
-import org.wso2.securevault.commons.MiscellaneousUtil;
 
-import javax.jms.Connection;
-import javax.jms.ConnectionFactory;
-import javax.jms.Destination;
-import javax.jms.ExceptionListener;
-import javax.jms.JMSException;
-import javax.jms.MessageProducer;
-import javax.jms.Session;
+import jakarta.jms.Connection;
+import jakarta.jms.ConnectionFactory;
+import jakarta.jms.Destination;
+import jakarta.jms.ExceptionListener;
+import jakarta.jms.JMSException;
+import jakarta.jms.MessageProducer;
+import jakarta.jms.Session;
 import javax.naming.Context;
 import javax.naming.InitialContext;
 import javax.naming.NamingException;
@@ -83,84 +81,8 @@ public class JMSConnectionFactory {
 
     /**
      * Digest a JMS CF definition from an axis2.xml 'Parameter' and construct.
-     * @param parameter the axis2.xml 'Parameter' that defined the JMS CF
-     */
-    @Deprecated
-    public JMSConnectionFactory(Parameter parameter) {
-
-        this.name = parameter.getName();
-        ParameterIncludeImpl pi = new ParameterIncludeImpl();
-
-        try {
-            pi.deserializeParameters((OMElement) parameter.getValue());
-        } catch (AxisFault axisFault) {
-            handleException("Error reading parameters for JMS connection factory "
-                    + JMSUtils.maskURLPasswordAndCredentials(name), axisFault);
-        }
-
-        for (Object o : pi.getParameters()) {
-            Parameter p = (Parameter) o;
-            parameters.put(p.getName(), (String) p.getValue());
-        }
-
-        digestCacheLevel();
-        try {
-            context = new InitialContext(parameters);
-            conFactory = JMSUtils.lookup(context, ConnectionFactory.class,
-                    parameters.get(JMSConstants.PARAM_CONFAC_JNDI_NAME));
-            if (parameters.get(JMSConstants.PARAM_DESTINATION) != null) {
-                sharedDestination = JMSUtils.lookup(context, Destination.class,
-                        parameters.get(JMSConstants.PARAM_DESTINATION));
-            }
-            log.info("JMS ConnectionFactory : " + JMSUtils.maskURLPasswordAndCredentials(name) + " initialized");
-
-        } catch (NamingException e) {
-            throw new AxisJMSException("Cannot acquire JNDI context, JMS Connection factory : "
-                    + parameters.get(JMSConstants.PARAM_CONFAC_JNDI_NAME)
-                    + " or default destination : " + parameters.get(JMSConstants.PARAM_DESTINATION)
-                    + " for JMS CF : " + JMSUtils.maskURLPasswordAndCredentials(name) + " using : "
-                    + JMSUtils.maskAxis2ConfigSensitiveParameters(parameters), e);
-        }
-        setMaxSharedJMSConnectionsCount();
-    }
-
-    /**
-     * Digest a JMS CF definition from an axis2.xml 'Parameter' and construct.
-     * @param parameter the axis2.xml 'Parameter' that defined the JMS CF
-     * @param secretResolver the SecretResolver to use to resolve secrets such as passwords
-     */
-    public JMSConnectionFactory(Parameter parameter, SecretResolver secretResolver) {
-        this.name = parameter.getName();
-        ParameterIncludeImpl pi = new ParameterIncludeImpl();
-
-        try {
-            pi.deserializeParameters((OMElement) parameter.getValue());
-        } catch (AxisFault axisFault) {
-            handleException("Error reading parameters for JMS connection factory "
-                    + JMSUtils.maskURLPasswordAndCredentials(name), axisFault);
-        }
-
-        for (Parameter param : pi.getParameters()) {
-            OMElement paramElement = param.getParameterElement();
-            String propertyValue = param.getValue().toString();
-            if (paramElement != null) {
-                if (secretResolver == null) {
-                    throw new SecureVaultException("Cannot resolve secret password because axis2 secret resolver " +
-                                                   "is null");
-                }
-                propertyValue = MiscellaneousUtil.resolve(paramElement, secretResolver);
-            }
-            parameters.put(param.getName(), propertyValue);
-        }
-        digestCacheLevel();
-        initJMSConnectionFactory();
-        setMaxSharedJMSConnectionsCount();
-    }
-
-    /**
-     * Digest a JMS CF definition from an axis2.xml 'Parameter' and construct.
-     * @param parameter the axis2.xml 'Parameter' that defined the JMS CF
-     * @param secretResolver the SecretResolver to use to resolve secrets such as passwords
+     * @param parameters the axis2.xml 'Parameter' that defined the JMS CF
+     * @param name factory name
      */
     public JMSConnectionFactory(Hashtable<String, String> parameters, String name) {
         this.name = name;
@@ -171,7 +93,7 @@ public class JMSConnectionFactory {
     }
 
     /**
-     Create a JMS CF definition from target endpoint reference
+     * Create a JMS CF definition from target endpoint reference
      *
      * @param targetEndpoint the JMS target address contains transport definitions
      */
@@ -469,7 +391,7 @@ public class JMSConnectionFactory {
     }
 
     /**
-     * Create a new SessionWrapper object for {@link javax.jms.Session}
+     * Create a new SessionWrapper object for {@link Session}
      * @param connection Connection to use
      * @return A new Session
      */
@@ -603,7 +525,7 @@ public class JMSConnectionFactory {
     }
 
     /**
-     * Get a SessionWrapper object which has {@link javax.jms.Session}
+     * Get a SessionWrapper object which has {@link Session}
      *
      * @return shared SessionWrapper object
      */
