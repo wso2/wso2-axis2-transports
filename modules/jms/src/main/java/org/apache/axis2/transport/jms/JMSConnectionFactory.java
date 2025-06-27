@@ -160,7 +160,7 @@ public class JMSConnectionFactory {
     /**
      * Digest a JMS CF definition from an axis2.xml 'Parameter' and construct.
      * @param parameter the axis2.xml 'Parameter' that defined the JMS CF
-     * @param secretResolver the SecretResolver to use to resolve secrets such as passwords
+     * @param name the connection factory name
      */
     public JMSConnectionFactory(Hashtable<String, String> parameters, String name) {
         this.name = name;
