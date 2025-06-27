@@ -1,19 +1,22 @@
 /*
-* Copyright 2004,2005 The Apache Software Foundation.
-*
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-*      http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*/
-package org.apache.axis2.transport.jms;
+ * Copyright (c) 2025, WSO2 LLC. (http://www.wso2.org) All Rights Reserved.
+ *
+ * WSO2 Inc. licenses this file to you under the Apache License,
+ * Version 2.0 (the "License"); you may not use this file except
+ * in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+package org.apache.axis2.transport.jms.jakarta;
 
 import org.apache.axiom.om.OMAbstractFactory;
 import org.apache.axiom.om.OMElement;
@@ -32,11 +35,39 @@ import org.apache.axis2.format.TextMessageBuilderAdapter;
 import org.apache.axis2.transport.TransportUtils;
 import org.apache.axis2.transport.base.BaseConstants;
 import org.apache.axis2.transport.base.BaseUtils;
-import org.apache.axis2.transport.jms.iowrappers.BytesMessageDataSource;
-import org.apache.axis2.transport.jms.iowrappers.BytesMessageInputStream;
+import org.apache.axis2.transport.jms.JMSConstants;
+import org.apache.axis2.transport.jms.JMSListener;
+import org.apache.axis2.transport.jms.jakarta.iowrappers.BytesMessageDataSource;
+import org.apache.axis2.transport.jms.jakarta.iowrappers.BytesMessageInputStream;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import jakarta.jms.BytesMessage;
+import jakarta.jms.Connection;
+import jakarta.jms.ConnectionFactory;
+import jakarta.jms.Destination;
+import jakarta.jms.JMSException;
+import jakarta.jms.MapMessage;
+import jakarta.jms.Message;
+import jakarta.jms.MessageConsumer;
+import jakarta.jms.MessageProducer;
+import jakarta.jms.Queue;
+import jakarta.jms.QueueConnection;
+import jakarta.jms.QueueConnectionFactory;
+import jakarta.jms.QueueSession;
+import jakarta.jms.Session;
+import jakarta.jms.TextMessage;
+import jakarta.jms.Topic;
+import jakarta.jms.TopicConnection;
+import jakarta.jms.TopicConnectionFactory;
+import jakarta.jms.TopicSession;
+import javax.mail.internet.ContentType;
+import javax.mail.internet.ParseException;
+import javax.naming.Context;
+import javax.naming.InitialContext;
+import javax.naming.NameNotFoundException;
+import javax.naming.NamingException;
+import javax.naming.Reference;
 import java.lang.reflect.Method;
 import java.util.Enumeration;
 import java.util.HashMap;
@@ -46,32 +77,6 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import javax.jms.BytesMessage;
-import javax.jms.Connection;
-import javax.jms.ConnectionFactory;
-import javax.jms.Destination;
-import javax.jms.JMSException;
-import javax.jms.MapMessage;
-import javax.jms.Message;
-import javax.jms.MessageConsumer;
-import javax.jms.MessageProducer;
-import javax.jms.Queue;
-import javax.jms.QueueConnection;
-import javax.jms.QueueConnectionFactory;
-import javax.jms.QueueSession;
-import javax.jms.Session;
-import javax.jms.TextMessage;
-import javax.jms.Topic;
-import javax.jms.TopicConnection;
-import javax.jms.TopicConnectionFactory;
-import javax.jms.TopicSession;
-import javax.mail.internet.ContentType;
-import javax.mail.internet.ParseException;
-import javax.naming.Context;
-import javax.naming.InitialContext;
-import javax.naming.NameNotFoundException;
-import javax.naming.NamingException;
-import javax.naming.Reference;
 
 /**
  * Miscallaneous methods used for the JMS transport
@@ -183,7 +188,7 @@ public class JMSUtils extends BaseUtils {
         if (contentType == null) {
             if (message instanceof TextMessage) {
                 contentType = "text/plain";
-                msgContext.setProperty(org.apache.axis2.Constants.Configuration.CONTENT_TYPE, "text/plain");
+                msgContext.setProperty(Constants.Configuration.CONTENT_TYPE, "text/plain");
                 msgContext.setProperty(Constants.Configuration.MESSAGE_TYPE, "text/plain");
             } else {
                 contentType = "application/octet-stream";
@@ -1105,9 +1110,5 @@ public class JMSUtils extends BaseUtils {
         }
 
         return maskedParamsTable;
-    }
-
-    public static boolean isJmsSpec31(Hashtable<String, String> parameters) {
-        return JMSConstants.JMS_SPEC_VERSION_3_1.equals(parameters.get(JMSConstants.PARAM_JMS_SPEC_VER));
     }
 }
