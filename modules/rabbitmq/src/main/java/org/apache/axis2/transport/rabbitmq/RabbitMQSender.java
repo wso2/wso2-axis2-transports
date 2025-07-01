@@ -163,6 +163,15 @@ public class RabbitMQSender extends AbstractTransportSender {
                         response.getProperties(), response.getBody(), responseMsgCtx);
                 handleIncomingMessage(responseMsgCtx, RabbitMQUtils.getTransportHeaders(response.getProperties()),
                                       RabbitMQUtils.getSoapAction(response.getProperties()), contentType);
+            } else if (senderType == SenderType.PUBLISHER_CONFIRMS) {
+                MessageContext responseMsgCtx = createResponseMessageContext(msgCtx);
+                responseMsgCtx.setProperty(RabbitMQConstants.CORRELATION_ID,
+                        msgCtx.getProperty(RabbitMQConstants.CORRELATION_ID));
+                responseMsgCtx.setEnvelope(msgCtx.getEnvelope());
+                Map<String, Object> transportHeaders =
+                        (Map<String, Object>) msgCtx.getProperty(msgCtx.TRANSPORT_HEADERS);
+
+                handleIncomingMessage(responseMsgCtx, transportHeaders, null, null);
             }
         } else if (outTransportInfo instanceof RabbitMQOutTransportInfo) {
             // execute when publishing a message to the replyTo queue in request-response flow
@@ -247,9 +256,11 @@ public class RabbitMQSender extends AbstractTransportSender {
     private SenderType getSenderType(MessageContext messageContext, Map<String, String> epProperties) {
         SenderType type;
         if (waitForSynchronousResponse(messageContext)) {
-            type = SenderType.RPC;
-        } else if (BooleanUtils.toBoolean(epProperties.get(RabbitMQConstants.PUBLISHER_CONFIRMS_ENABLED))) {
-            type = SenderType.PUBLISHER_CONFIRMS;
+            if (BooleanUtils.toBoolean(epProperties.get(RabbitMQConstants.PUBLISHER_CONFIRMS_ENABLED))) {
+                type = SenderType.PUBLISHER_CONFIRMS;
+            } else {
+                type = SenderType.RPC;
+            }
         } else {
             type = SenderType.DEFAULT;
         }
