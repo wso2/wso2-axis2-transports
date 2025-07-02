@@ -253,11 +253,21 @@ public class RabbitMQSender extends AbstractTransportSender {
      * @param epProperties   the endpoint properties
      * @return the {@link SenderType}
      */
-    private SenderType getSenderType(MessageContext messageContext, Map<String, String> epProperties) {
+    private SenderType getSenderType(MessageContext messageContext, Map<String, String> epProperties) throws AxisFault {
         SenderType type;
         if (waitForSynchronousResponse(messageContext)) {
-            if (BooleanUtils.toBoolean(epProperties.get(RabbitMQConstants.PUBLISHER_CONFIRMS_ENABLED))) {
-                type = SenderType.PUBLISHER_CONFIRMS;
+            if (epProperties.containsKey(RabbitMQConstants.PUBLISHER_CONFIRMS_ENABLED)) {
+                String publisherConfirmsEnabled =
+                        epProperties.get(RabbitMQConstants.PUBLISHER_CONFIRMS_ENABLED);
+                if ("true".equalsIgnoreCase(publisherConfirmsEnabled)) {
+                    type = SenderType.PUBLISHER_CONFIRMS;
+                } else if ("false".equalsIgnoreCase(publisherConfirmsEnabled)) {
+                    type = SenderType.RPC;
+                } else {
+                    throw new AxisFault(
+                            "Invalid value for " + RabbitMQConstants.PUBLISHER_CONFIRMS_ENABLED
+                                    + " property. Expected a boolean value (true/false).");
+                }
             } else {
                 type = SenderType.RPC;
             }
