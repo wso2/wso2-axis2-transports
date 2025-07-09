@@ -121,20 +121,28 @@ public class RabbitMQMessageSender {
                 builder.replyTo(replyTo);
             }
 
-            long replyTimeout = NumberUtils.toLong((String) msgContext.getProperty(RabbitMQConstants.RABBITMQ_WAIT_REPLY),
-                    RabbitMQConstants.DEFAULT_RABBITMQ_TIMEOUT);
-
-            long confirmTimeout = NumberUtils.toLong((String) msgContext.getProperty(RabbitMQConstants.RABBITMQ_WAIT_CONFIRMS),
-                    RabbitMQConstants.DEFAULT_RABBITMQ_TIMEOUT);
-
             AMQP.BasicProperties basicProperties = builder.build();
             byte[] messageBody = RabbitMQUtils.getMessageBody(msgContext);
 
             switch (senderType) {
                 case RPC:
+                    long replyTimeout = NumberUtils
+                            .toLong((String) msgContext.getProperty(RabbitMQConstants.RABBITMQ_WAIT_REPLY));
+                    if (replyTimeout <= 0) {
+                        replyTimeout = NumberUtils
+                                .toLong(rabbitMQProperties.get(RabbitMQConstants.RABBITMQ_WAIT_REPLY_TIMEOUT),
+                                        RabbitMQConstants.DEFAULT_RABBITMQ_TIMEOUT);
+                    }
                     response = sendRPC(exchangeName, routingKey, basicProperties, messageBody, replyTimeout);
                     break;
                 case PUBLISHER_CONFIRMS:
+                    long confirmTimeout = NumberUtils
+                            .toLong((String) msgContext.getProperty(RabbitMQConstants.RABBITMQ_WAIT_CONFIRMS));
+                    if (confirmTimeout <= 0) {
+                        confirmTimeout = NumberUtils.toLong(rabbitMQProperties
+                                        .get(RabbitMQConstants.RABBITMQ_PUBLISHER_CONFIRMS_WAIT_TIMEOUT),
+                                RabbitMQConstants.DEFAULT_RABBITMQ_TIMEOUT);
+                    }
                     sendPublisherConfirms(exchangeName, routingKey, basicProperties, messageBody, confirmTimeout);
                     break;
                 default:

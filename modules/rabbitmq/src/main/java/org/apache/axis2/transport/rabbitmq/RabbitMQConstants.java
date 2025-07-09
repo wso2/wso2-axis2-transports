@@ -28,7 +28,9 @@ public class RabbitMQConstants {
     public static final String CONTENT_TYPE_PROPERTY_PARAM = "rabbitmq.transport.ContentTypeProperty";
     public static final String RABBITMQ_REPLY_TO = "RABBITMQ_REPLY_TO";
     public static final String RABBITMQ_WAIT_REPLY = "RABBITMQ_WAIT_REPLY";
+    public static final String RABBITMQ_WAIT_REPLY_TIMEOUT = "rabbitmq.wait.reply.timeout";
     public static final String RABBITMQ_WAIT_CONFIRMS = "RABBITMQ_WAIT_CONFIRMS";
+    public static final String RABBITMQ_PUBLISHER_CONFIRMS_WAIT_TIMEOUT = "rabbitmq.publisher.confirms.wait.timeout";
     public static final String SOAP_ACTION = "SOAP_ACTION";
     public static final String SET_REQUEUE_ON_ROLLBACK = "SET_REQUEUE_ON_ROLLBACK";
 
