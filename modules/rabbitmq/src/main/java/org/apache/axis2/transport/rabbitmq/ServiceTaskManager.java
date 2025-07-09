@@ -251,10 +251,25 @@ public class ServiceTaskManager {
         public void handleDelivery(String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body)
                 throws IOException {
             if (isShuttingDown.get()) {
-                log.info("The rejected message with message id: " + properties.getMessageId() + " and " +
-                        "delivery tag: " + envelope.getDeliveryTag() + " on the queue: " +
-                        queueName + " Since the consumer is shutting down.");
-                channel.basicReject(envelope.getDeliveryTag(), true);
+                /*
+                 * The server is shutting down. We attempt to reject the message with requeue=true
+                 * so that it goes back to the queue for redelivery.
+                 *
+                 * However, if the channel is already closed or closing due to shutdown,
+                 * basicReject may throw an exception (e.g., NullPointerException or AlreadyClosedException).
+                 *
+                 * This is safe to ignore because:
+                 * - The message is still unacked.
+                 * - RabbitMQ will automatically requeue it once the consumer connection is closed.
+                 */
+                try {
+                    channel.basicReject(envelope.getDeliveryTag(), true);
+                    log.info("The rejected message with message id: " + properties.getMessageId() + " and " +
+                            "delivery tag: " + envelope.getDeliveryTag() + " on the queue: " +
+                            queueName + " since the consumer is shutting down.");
+                } catch (Exception e) {
+                    log.debug("Failed to reject message during shutdown (likely due to closed channel).", e);
+                }
                 return;
             }
             inflightMessages.incrementAndGet();
