@@ -42,6 +42,7 @@ public class RabbitMQConstants {
 
     public static final String HEARTBEAT = "rabbitmq.connection.factory.heartbeat";
     public static final String CONNECTION_TIMEOUT = "rabbitmq.connection.factory.timeout";
+    public static final String HANDSHAKE_TIMEOUT = "rabbitmq.connection.factory.handshake.timeout";
     public static final String NETWORK_RECOVERY_INTERVAL = "rabbitmq.connection.factory.network.recovery.interval";
     public static final String RETRY_INTERVAL = "rabbitmq.connection.retry.interval";
     public static final String RETRY_COUNT = "rabbitmq.connection.retry.count";
