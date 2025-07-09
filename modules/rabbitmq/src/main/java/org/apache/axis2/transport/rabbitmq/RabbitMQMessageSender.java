@@ -116,6 +116,11 @@ public class RabbitMQMessageSender {
                 RabbitMQConstants.DEFAULT_DELIVERY_MODE);
         builder.deliveryMode(deliveryMode);
 
+            String replyTo = rabbitMQProperties.get(RabbitMQConstants.REPLY_TO_QUEUE_NAME);
+            if (StringUtils.isEmpty(replyTo)) {
+                builder.replyTo(replyTo);
+            }
+
             long replyTimeout = NumberUtils.toLong((String) msgContext.getProperty(RabbitMQConstants.RABBITMQ_WAIT_REPLY),
                     RabbitMQConstants.DEFAULT_RABBITMQ_TIMEOUT);
 
@@ -140,7 +145,7 @@ public class RabbitMQMessageSender {
             return response;
 
         } catch (Exception e) {
-            if (channelChanged) {
+            if (channelChanged && channel != null) {
                 invalidateChannel(senderType, factoryName, channel);
                 channel = null;
             }
@@ -175,7 +180,7 @@ public class RabbitMQMessageSender {
             // if already assigned a new channel then we need to invalidate that as well.
             //So new one will be either returned or destroyed ath the finally block of the send method
             //The oldest reference will be destroyed or returned to the pool by RabbitMq Sender
-            if (channelChanged) {
+            if (channelChanged && channel != null) {
                 invalidateChannel(senderType, factoryName, channel);
                 channel = null;
             }

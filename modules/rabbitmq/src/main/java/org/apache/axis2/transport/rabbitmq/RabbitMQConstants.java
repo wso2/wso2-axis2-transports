@@ -50,6 +50,7 @@ public class RabbitMQConstants {
 
     public static final String CORRELATION_ID = "rabbitmq.message.correlation.id";
     public static final String MESSAGE_ID = "rabbitmq.message.id";
+    public static final String REPLY_TO_QUEUE_NAME = "rabbitmq.replyto.name";
     public static final String CONTENT_TYPE = "rabbitmq.message.content.type";
     public static final String CONTENT_ENCODING = "rabbitmq.message.content.encoding";
     public static final String EXPIRATION = "rabbitmq.message.expiration";

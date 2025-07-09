@@ -26,6 +26,7 @@ import org.apache.axis2.context.MessageContext;
 import org.apache.axis2.description.TransportOutDescription;
 import org.apache.axis2.transport.OutTransportInfo;
 import org.apache.axis2.transport.base.AbstractTransportSender;
+import org.apache.axis2.transport.base.BaseConstants;
 import org.apache.axis2.transport.base.BaseUtils;
 import org.apache.commons.lang.BooleanUtils;
 import org.apache.commons.lang.StringUtils;
@@ -147,8 +148,10 @@ public class RabbitMQSender extends AbstractTransportSender {
                         rabbitMQChannelPool, rabbitMQConfirmChannelPool);
                 response = sender.send(routingKey, msgCtx, epProperties);
             } catch (Exception e) {
-                invalidateChannel(senderType, factoryName, channel);
-                channel = null;
+                if (channel != null) {
+                    invalidateChannel(senderType, factoryName, channel);
+                    channel = null;
+                }
                 handleException("Error occurred while sending message out.", e);
             } finally {
                 if (channel != null) {
@@ -168,6 +171,10 @@ public class RabbitMQSender extends AbstractTransportSender {
                 responseMsgCtx.setProperty(RabbitMQConstants.CORRELATION_ID,
                         msgCtx.getProperty(RabbitMQConstants.CORRELATION_ID));
                 responseMsgCtx.setEnvelope(msgCtx.getEnvelope());
+                if (msgCtx.getProperty(BaseConstants.INTERNAL_TRANSACTION_COUNTED) != null) {
+                    responseMsgCtx.setProperty(BaseConstants.INTERNAL_TRANSACTION_COUNTED,
+                            msgCtx.getProperty(BaseConstants.INTERNAL_TRANSACTION_COUNTED));
+                }
                 Map<String, Object> transportHeaders =
                         (Map<String, Object>) msgCtx.getProperty(msgCtx.TRANSPORT_HEADERS);
 
@@ -197,9 +204,10 @@ public class RabbitMQSender extends AbstractTransportSender {
                         rabbitMQChannelPool, rabbitMQConfirmChannelPool);
                 sender.send(replyTo, msgCtx, rabbitMQProperties);
             } catch (Exception e) {
-                invalidateChannel(SenderType.DEFAULT, factoryName, channel);
-                log.error("Error occurred while sending message out.", e);
-                channel = null;
+                if (channel != null) {
+                    invalidateChannel(SenderType.DEFAULT, factoryName, channel);
+                    channel = null;
+                }
             } finally {
                 if (channel != null) {
                     returnToPool(factoryName, channel, SenderType.DEFAULT);
