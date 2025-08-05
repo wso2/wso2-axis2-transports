@@ -28,7 +28,9 @@ public class RabbitMQConstants {
     public static final String CONTENT_TYPE_PROPERTY_PARAM = "rabbitmq.transport.ContentTypeProperty";
     public static final String RABBITMQ_REPLY_TO = "RABBITMQ_REPLY_TO";
     public static final String RABBITMQ_WAIT_REPLY = "RABBITMQ_WAIT_REPLY";
+    public static final String RABBITMQ_WAIT_REPLY_TIMEOUT = "rabbitmq.wait.reply.timeout";
     public static final String RABBITMQ_WAIT_CONFIRMS = "RABBITMQ_WAIT_CONFIRMS";
+    public static final String RABBITMQ_PUBLISHER_CONFIRMS_WAIT_TIMEOUT = "rabbitmq.publisher.confirms.wait.timeout";
     public static final String SOAP_ACTION = "SOAP_ACTION";
     public static final String SET_REQUEUE_ON_ROLLBACK = "SET_REQUEUE_ON_ROLLBACK";
 
@@ -42,6 +44,7 @@ public class RabbitMQConstants {
 
     public static final String HEARTBEAT = "rabbitmq.connection.factory.heartbeat";
     public static final String CONNECTION_TIMEOUT = "rabbitmq.connection.factory.timeout";
+    public static final String HANDSHAKE_TIMEOUT = "rabbitmq.connection.factory.handshake.timeout";
     public static final String NETWORK_RECOVERY_INTERVAL = "rabbitmq.connection.factory.network.recovery.interval";
     public static final String RETRY_INTERVAL = "rabbitmq.connection.retry.interval";
     public static final String RETRY_COUNT = "rabbitmq.connection.retry.count";
@@ -49,6 +52,7 @@ public class RabbitMQConstants {
 
     public static final String CORRELATION_ID = "rabbitmq.message.correlation.id";
     public static final String MESSAGE_ID = "rabbitmq.message.id";
+    public static final String REPLY_TO_QUEUE_NAME = "rabbitmq.replyto.name";
     public static final String CONTENT_TYPE = "rabbitmq.message.content.type";
     public static final String CONTENT_ENCODING = "rabbitmq.message.content.encoding";
     public static final String EXPIRATION = "rabbitmq.message.expiration";

@@ -204,6 +204,8 @@ public class RabbitMQConnectionFactory extends BaseKeyedPooledObjectFactory<Stri
                 parameters.get(RabbitMQConstants.HEARTBEAT), ConnectionFactory.DEFAULT_HEARTBEAT);
         int connectionTimeout = NumberUtils.toInt(
                 parameters.get(RabbitMQConstants.CONNECTION_TIMEOUT), ConnectionFactory.DEFAULT_CONNECTION_TIMEOUT);
+        int handshakeTimeout = NumberUtils.toInt(
+                parameters.get(RabbitMQConstants.HANDSHAKE_TIMEOUT), ConnectionFactory.DEFAULT_HANDSHAKE_TIMEOUT);
         long networkRecoveryInterval = NumberUtils.toLong(
                 parameters.get(RabbitMQConstants.NETWORK_RECOVERY_INTERVAL), ConnectionFactory.DEFAULT_NETWORK_RECOVERY_INTERVAL);
         this.retryInterval = NumberUtils.toInt(
@@ -237,6 +239,7 @@ public class RabbitMQConnectionFactory extends BaseKeyedPooledObjectFactory<Stri
         connectionFactory.setVirtualHost(virtualHost);
         connectionFactory.setRequestedHeartbeat(heartbeat);
         connectionFactory.setConnectionTimeout(connectionTimeout);
+        connectionFactory.setHandshakeTimeout(handshakeTimeout);
         connectionFactory.setNetworkRecoveryInterval(networkRecoveryInterval);
         connectionFactory.setAutomaticRecoveryEnabled(true);
         connectionFactory.setTopologyRecoveryEnabled(true);

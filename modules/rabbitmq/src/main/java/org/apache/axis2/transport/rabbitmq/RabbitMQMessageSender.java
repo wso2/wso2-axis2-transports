@@ -116,20 +116,33 @@ public class RabbitMQMessageSender {
                 RabbitMQConstants.DEFAULT_DELIVERY_MODE);
         builder.deliveryMode(deliveryMode);
 
-            long replyTimeout = NumberUtils.toLong((String) msgContext.getProperty(RabbitMQConstants.RABBITMQ_WAIT_REPLY),
-                    RabbitMQConstants.DEFAULT_RABBITMQ_TIMEOUT);
-
-            long confirmTimeout = NumberUtils.toLong((String) msgContext.getProperty(RabbitMQConstants.RABBITMQ_WAIT_CONFIRMS),
-                    RabbitMQConstants.DEFAULT_RABBITMQ_TIMEOUT);
+            String replyTo = rabbitMQProperties.get(RabbitMQConstants.REPLY_TO_QUEUE_NAME);
+            if (StringUtils.isEmpty(replyTo)) {
+                builder.replyTo(replyTo);
+            }
 
             AMQP.BasicProperties basicProperties = builder.build();
             byte[] messageBody = RabbitMQUtils.getMessageBody(msgContext);
 
             switch (senderType) {
                 case RPC:
+                    long replyTimeout = NumberUtils
+                            .toLong((String) msgContext.getProperty(RabbitMQConstants.RABBITMQ_WAIT_REPLY));
+                    if (replyTimeout <= 0) {
+                        replyTimeout = NumberUtils
+                                .toLong(rabbitMQProperties.get(RabbitMQConstants.RABBITMQ_WAIT_REPLY_TIMEOUT),
+                                        RabbitMQConstants.DEFAULT_RABBITMQ_TIMEOUT);
+                    }
                     response = sendRPC(exchangeName, routingKey, basicProperties, messageBody, replyTimeout);
                     break;
                 case PUBLISHER_CONFIRMS:
+                    long confirmTimeout = NumberUtils
+                            .toLong((String) msgContext.getProperty(RabbitMQConstants.RABBITMQ_WAIT_CONFIRMS));
+                    if (confirmTimeout <= 0) {
+                        confirmTimeout = NumberUtils.toLong(rabbitMQProperties
+                                        .get(RabbitMQConstants.RABBITMQ_PUBLISHER_CONFIRMS_WAIT_TIMEOUT),
+                                RabbitMQConstants.DEFAULT_RABBITMQ_TIMEOUT);
+                    }
                     sendPublisherConfirms(exchangeName, routingKey, basicProperties, messageBody, confirmTimeout);
                     break;
                 default:
@@ -140,7 +153,7 @@ public class RabbitMQMessageSender {
             return response;
 
         } catch (Exception e) {
-            if (channelChanged) {
+            if (channelChanged && channel != null) {
                 invalidateChannel(senderType, factoryName, channel);
                 channel = null;
             }
@@ -175,7 +188,7 @@ public class RabbitMQMessageSender {
             // if already assigned a new channel then we need to invalidate that as well.
             //So new one will be either returned or destroyed ath the finally block of the send method
             //The oldest reference will be destroyed or returned to the pool by RabbitMq Sender
-            if (channelChanged) {
+            if (channelChanged && channel != null) {
                 invalidateChannel(senderType, factoryName, channel);
                 channel = null;
             }
