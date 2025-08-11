@@ -38,6 +38,9 @@ public class RabbitMQConnectionPool extends GenericKeyedObjectPool<String, Conne
         super(factory);
         this.setTestOnBorrow(true);
         this.setMaxTotal(poolSize);
+        this.setMaxIdlePerKey(RabbitMQConstants.DEFAULT_MAX_IDLE_PER_KEY);
+        this.setMaxTotalPerKey(RabbitMQConstants.DEFAULT_MAX_IDLE_PER_KEY);
+        this.setMaxWaitMillis(RabbitMQConstants.DEFAULT_MAX_WAIT_MILLIS);
         Map<String, String> evictionParams = factory.getConnectionFactoryConfiguration
                 (RabbitMQConstants.EVICTION_STRATEGY_PARAMETERS);
         if (evictionParams != null) {
@@ -92,6 +95,10 @@ public class RabbitMQConnectionPool extends GenericKeyedObjectPool<String, Conne
         try {
             return super.borrowObject(factoryName);
         } catch (NoSuchElementException nse) {
+            if (nse.getMessage().contains("Timeout waiting for idle object")) {
+                throw new AxisRabbitMQException("Timeout occurred while waiting for a connection of "
+                    + factoryName + " from the pool. Pool [EXHAUSTED]", nse);
+            }
             // The exception was caused by an exhausted pool
             if (null == nse.getCause()) {
                 throw new AxisRabbitMQException("Error occurred while getting a connection of " + factoryName +

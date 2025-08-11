@@ -208,6 +208,7 @@ public class RabbitMQSender extends AbstractTransportSender {
                     invalidateChannel(SenderType.DEFAULT, factoryName, channel);
                     channel = null;
                 }
+                log.error("Error occurred while sending message out.", e);
             } finally {
                 if (channel != null) {
                     returnToPool(factoryName, channel, SenderType.DEFAULT);
@@ -226,7 +227,17 @@ public class RabbitMQSender extends AbstractTransportSender {
             }
 
         } catch (Exception ex) {
-            log.error("Error occurred while returning a channel of " + factoryName + " back to the pool", ex);
+            if (log.isDebugEnabled()) {
+                log.debug(
+                    "Attempted to invalidate a channel that is not part of the pool for factory: "
+                        + factoryName
+                        + " This may happen if the channel was already removed or closed.", ex);
+            } else {
+                log.warn(
+                    "Attempted to invalidate a channel that is not part of the pool for factory: "
+                        + factoryName
+                        + " This may happen if the channel was already removed or closed.");
+            }
         }
     }
 

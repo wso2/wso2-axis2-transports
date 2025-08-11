@@ -110,7 +110,7 @@ public class RabbitMQConstants {
     public static final int DEFAULT_RETRY_COUNT = 3;
     public static final int DEFAULT_DELIVERY_MODE = 2; //Default is persistent
     public static final int DEFAULT_RABBITMQ_TIMEOUT = 30000;
-    public static final int DEFAULT_POOL_SIZE = 100;
+    public static final int DEFAULT_POOL_SIZE = 200;
     public static final int DEFAULT_CONSUMER_QOS = 0;
 
     /** Default concurrent consumer count */
@@ -125,7 +125,11 @@ public class RabbitMQConstants {
     public static final String MIN_EVICTABLE_IDLE_TIME = "rabbitmq.min.evictable.idle.time";
     public static final String TIME_BETWEEN_EVICTION_RUNS = "rabbitmq.time.between.eviction.runs";
     public static final String MAX_IDLE_PER_KEY = "rabbitmq.max.idle.per.key";
+    public static final int DEFAULT_MAX_IDLE_PER_KEY = 100;
+    public static final String CHANNEL_EXHAUST_WARN_INTERVAL = "rabbitmq.channel.exhaust.warn.interval";
+    public static final int DEFAULT_CHANNEL_EXHAUST_WARN_INTERVAL = 30; // in seconds
     public static final String MAX_WAIT_MILLIS = "rabbitmq.max.wait.millis";
+    public static final int DEFAULT_MAX_WAIT_MILLIS = 180000;
     public static final String CONNECTION_POOL_SIZE = "rabbitmq.connection.pool.size";
 
     public static final String EXCHANGE_TYPE_DEFAULT = BuiltinExchangeType.DIRECT.getType();
