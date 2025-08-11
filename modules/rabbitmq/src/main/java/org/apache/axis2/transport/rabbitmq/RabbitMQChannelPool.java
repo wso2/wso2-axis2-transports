@@ -19,6 +19,10 @@
 package org.apache.axis2.transport.rabbitmq;
 
 import com.rabbitmq.client.Channel;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.commons.pool2.impl.GenericKeyedObjectPool;
@@ -33,12 +37,19 @@ import java.util.function.Consumer;
 public class RabbitMQChannelPool extends GenericKeyedObjectPool<String, Channel> {
 
     private static final Log log = LogFactory.getLog(RabbitMQChannelPool.class);
+    // Map to store the last time a warning was logged for each key
+    private final ConcurrentMap<String, Instant> lastWarningTimeMap = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, Instant> exhaustWarningTimeMap = new ConcurrentHashMap<>();
+    private int exhaustWarnInterval = RabbitMQConstants.DEFAULT_CHANNEL_EXHAUST_WARN_INTERVAL;
 
     public RabbitMQChannelPool(RabbitMQChannelFactory rabbitMQChannelFactory, int poolSize, RabbitMQConnectionFactory
             factory) {
         super(rabbitMQChannelFactory);
         this.setTestOnBorrow(true);
         this.setMaxTotal(poolSize);
+        this.setMaxIdlePerKey(RabbitMQConstants.DEFAULT_MAX_IDLE_PER_KEY);
+        this.setMaxTotalPerKey(RabbitMQConstants.DEFAULT_MAX_IDLE_PER_KEY);
+        this.setMaxWaitMillis(RabbitMQConstants.DEFAULT_MAX_WAIT_MILLIS);
         Map<String, String> evictionParams = factory.getConnectionFactoryConfiguration
                 (RabbitMQConstants.EVICTION_STRATEGY_PARAMETERS);
         if (evictionParams != null) {
@@ -53,6 +64,16 @@ public class RabbitMQChannelPool extends GenericKeyedObjectPool<String, Channel>
             trySetLongParam(evictionParams, RabbitMQConstants.TIME_BETWEEN_EVICTION_RUNS
                     , this::setTimeBetweenEvictionRunsMillis);
             this.setTestWhileIdle(true); // Optionally, test objects for validity while idle
+            if (evictionParams.containsKey(RabbitMQConstants.CHANNEL_EXHAUST_WARN_INTERVAL)) {
+                try {
+                    exhaustWarnInterval = Integer.parseInt(evictionParams.get(
+                        RabbitMQConstants.CHANNEL_EXHAUST_WARN_INTERVAL));
+                } catch (NumberFormatException e) {
+                    log.warn("Invalid value for " + RabbitMQConstants.CHANNEL_EXHAUST_WARN_INTERVAL
+                        + " : " + evictionParams.get(
+                        RabbitMQConstants.CHANNEL_EXHAUST_WARN_INTERVAL));
+                }
+            }
         }
     }
 
@@ -113,8 +134,44 @@ public class RabbitMQChannelPool extends GenericKeyedObjectPool<String, Channel>
     @Override
     public Channel borrowObject(String factoryName) throws Exception {
         try {
+            int maxCapacity = getMaxTotalPerKey();
+            int warningThreshold = (int) (maxCapacity * 0.75);
+            int activeChannels = getNumActive(factoryName);
+            if (activeChannels >= warningThreshold) {
+                lastWarningTimeMap.compute(factoryName, (k, lastWarningTime) -> {
+                    Instant now = Instant.now();
+                    if (lastWarningTime == null ||
+                        lastWarningTime.plus(exhaustWarnInterval, ChronoUnit.SECONDS).isBefore(now)) {
+                        // Log a warning if the number of active channels exceeds 75% of the max capacity
+                        log.warn("RabbitMQ channel pool for key " + factoryName
+                            + " is nearing capacity. Currently at " + activeChannels
+                            + "/" + getMaxIdlePerKey() + " channels. This message will not be "
+                            + "repeated for " + exhaustWarnInterval + " second(s)");
+                        return now;
+                    }
+                    return lastWarningTime; // Return the existing time to not update the map
+                });
+            }
+            if (activeChannels == maxCapacity) {
+                exhaustWarningTimeMap.compute(factoryName, (k, lastExhaustWarningTime) -> {
+                    Instant now = Instant.now();
+                    if (lastExhaustWarningTime == null ||
+                        lastExhaustWarningTime.plus(exhaustWarnInterval, ChronoUnit.SECONDS).isBefore(now)) {
+                        // Log a warning if the pool is exhausted
+                        log.warn("RabbitMQ channel pool for key " + factoryName
+                            + " is [EXHAUSTED]. This message will not be repeated for "
+                            + exhaustWarnInterval + " second(s)");
+                        return now;
+                    }
+                    return lastExhaustWarningTime; // Return the existing time to not update the map
+                });
+            }
             return super.borrowObject(factoryName);
         } catch (NoSuchElementException nse) {
+            if (nse.getMessage().contains("Timeout waiting for idle object")) {
+                throw new AxisRabbitMQException("Timeout occurred while waiting for a channel of "
+                    + factoryName + " from the pool. Pool [EXHAUSTED]", nse);
+            }
             // The exception was caused by an exhausted pool
             if (null == nse.getCause()) {
                 throw new AxisRabbitMQException("Error occurred while getting a channel of " + factoryName +

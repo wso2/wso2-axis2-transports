@@ -377,6 +377,7 @@ public class RabbitMQUtils {
                 keysOfInterest.add(RabbitMQConstants.MAX_IDLE_PER_KEY);
                 keysOfInterest.add(RabbitMQConstants.MAX_WAIT_MILLIS);
                 keysOfInterest.add(RabbitMQConstants.CONNECTION_POOL_SIZE);
+                keysOfInterest.add(RabbitMQConstants.CHANNEL_EXHAUST_WARN_INTERVAL);
 
                 ParameterIncludeImpl pi = new ParameterIncludeImpl();
                 try {
