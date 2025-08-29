@@ -699,12 +699,14 @@ public class JMSConnectionFactory {
      */
     private void removeInvalidSessionOfConnection(Connection connection) {
         SessionWrapper invalid = sharedSessionWrapperMapPerConn.remove(connection);
-        try {
-            invalid.getSession().close();
-        } catch (JMSException e) {
-            log.error("Error occurred while closing the session", e);
+        if (invalid != null) {
+            try {
+                invalid.getSession().close();
+            } catch (JMSException e) {
+                log.error("Error occurred while closing the session", e);
+            }
+            removeInvalidMessageProducer(invalid);
         }
-        removeInvalidMessageProducer(invalid);
     }
 
     /**
