@@ -124,7 +124,7 @@ public class JMSSenderTestCase extends TestCase {
         Mockito.when(factory.getParameters()).thenReturn(paramTable);
 
         JMSOutTransportInfo jmsOutTransportInfo = new JMSOutTransportInfo(factory, null, null);
-        String contentTypePropertyResult = jmsSender.getContentTypeProperty(ctx, jmsOutTransportInfo, factory);
+        String contentTypePropertyResult = jmsSender.getContentTypePropertyForJavax(ctx, jmsOutTransportInfo, factory);
         Assert.assertEquals(contentTypeProperty, contentTypePropertyResult);
     }
 
