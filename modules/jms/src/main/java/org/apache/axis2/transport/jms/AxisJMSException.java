@@ -22,11 +22,11 @@ public class AxisJMSException extends RuntimeException {
         super();
     }
 
-    AxisJMSException(String msg) {
+    public AxisJMSException(String msg) {
         super(msg);
     }
 
-    AxisJMSException(String msg, Exception e) {
+    public AxisJMSException(String msg, Exception e) {
         super(msg, e);
     }
 }
