@@ -400,6 +400,7 @@ public class JMSConstants {
     public static final String JMS_SPEC_VERSION_2_0 = "2.0";
 
     public static final String JMS_SPEC_VERSION_1_0 = "1.0.2b";
+    public static final String JMS_SPEC_VERSION_3_1 = "3.1";
 
     public static final String PARAM_IS_SHARED_SUBSCRIPTION = "transport.jms.SharedSubscription";
 
@@ -449,6 +450,6 @@ public class JMSConstants {
     public static final String JMS_PROXY_FIXED_INTERVAL_THROTTLE = "fixed-interval";
 
     // Error handling properties.
-    static final String SENDING_FAULT = "SENDING_FAULT";
-    static final String ERROR_MESSAGE = "ERROR_MESSAGE";
+    public static final String SENDING_FAULT = "SENDING_FAULT";
+    public static final String ERROR_MESSAGE = "ERROR_MESSAGE";
 }
