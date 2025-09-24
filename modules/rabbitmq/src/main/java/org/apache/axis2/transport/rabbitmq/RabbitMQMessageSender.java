@@ -38,7 +38,6 @@ import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 /**
  * Class that performs the actual sending of a RabbitMQ AMQP message,
@@ -52,6 +51,8 @@ public class RabbitMQMessageSender {
     private RabbitMQSender.SenderType senderType;
     private final RabbitMQChannelPool rabbitMQChannelPool;
     private final RabbitMQChannelPool rabbitMQConfirmChannelPool;
+    private TimeoutRegistry timeoutRegistry = null;
+    private InflightThreads inflightThreads = null;
 
     /**
      * Create a RabbitMQSender using a ConnectionFactory and target EPR.
@@ -73,6 +74,30 @@ public class RabbitMQMessageSender {
     }
 
     /**
+     * Create a RabbitMQSender using a ConnectionFactory and target EPR.
+     *
+     * @param channel                    the {@link Channel} object
+     * @param factoryName                the connection factory name
+     * @param senderType                 the type of the sender to execute the different logic
+     * @param rabbitMQChannelPool        rabbitmq channel  pool
+     * @param rabbitMQConfirmChannelPool rabbitmq confirm channel  pool
+     * @param timeoutRegistry            timeout registry to keep track of timeouts
+     * @param inflightThreads           inflight channels registry to keep track of rpc channels
+     */
+    public RabbitMQMessageSender(Channel channel, String factoryName, RabbitMQSender.SenderType senderType,
+                                 RabbitMQChannelPool rabbitMQChannelPool,
+                                 RabbitMQChannelPool rabbitMQConfirmChannelPool, TimeoutRegistry timeoutRegistry,
+                                 InflightThreads inflightThreads) {
+        this.channel = channel;
+        this.senderType = senderType;
+        this.factoryName = factoryName;
+        this.rabbitMQChannelPool = rabbitMQChannelPool;
+        this.rabbitMQConfirmChannelPool = rabbitMQConfirmChannelPool;
+        this.timeoutRegistry = timeoutRegistry;
+        this.inflightThreads = inflightThreads;
+    }
+
+    /**
      * Publish message to the exchange with the routing key. Execute relevant logic based on the sender type.
      *
      * @param routingKey         the routing key to publish the message
@@ -91,17 +116,20 @@ public class RabbitMQMessageSender {
         // declaring queue if given
         String queueName = rabbitMQProperties.get(RabbitMQConstants.QUEUE_NAME);
         String exchangeName = rabbitMQProperties.get(RabbitMQConstants.EXCHANGE_NAME);
+        String messageId = msgContext.getMessageID();
 
         try {
-            try {
-                RabbitMQUtils.declareQueue(channel, queueName, rabbitMQProperties);
-            } catch (IOException ex) {
-                channel = checkAndIgnoreInEquivalentParamException(ex, RabbitMQConstants.QUEUE, queueName);
-            }
-            try {
-                RabbitMQUtils.declareExchange(channel, exchangeName, rabbitMQProperties);
-            } catch (IOException ex) {
-                channel = checkAndIgnoreInEquivalentParamException(ex, RabbitMQConstants.EXCHANGE, exchangeName);
+            if (!RabbitMQAckConfig.isAvoidDeclaringExchangesQueuesWhenPublishing()) {
+                try {
+                    RabbitMQUtils.declareQueue(channel, queueName, rabbitMQProperties);
+                } catch (IOException ex) {
+                    channel = checkAndIgnoreInEquivalentParamException(ex, RabbitMQConstants.QUEUE, queueName);
+                }
+                try {
+                    RabbitMQUtils.declareExchange(channel, exchangeName, rabbitMQProperties);
+                } catch (IOException ex) {
+                    channel = checkAndIgnoreInEquivalentParamException(ex, RabbitMQConstants.EXCHANGE, exchangeName);
+                }
             }
             RabbitMQUtils.bindQueueToExchange(channel, queueName, exchangeName, rabbitMQProperties);
 
@@ -143,6 +171,21 @@ public class RabbitMQMessageSender {
                                         .get(RabbitMQConstants.RABBITMQ_PUBLISHER_CONFIRMS_WAIT_TIMEOUT),
                                 RabbitMQConstants.DEFAULT_RABBITMQ_TIMEOUT);
                     }
+                    if (RabbitMQAckConfig.isCallbackControlledAckEnabled()) {
+                        confirmTimeout = RabbitMQAckConfig.getDefaultPublisherConfirmsTimeoutWhenCallbackEnabledMs();
+                        // Register BEFORE publish so onAppError can always find/close it
+                        inflightThreads.register(messageId, Thread.currentThread());
+
+                        // Re-check AFTER register to catch timeouts that landed just now
+                        if (timeoutRegistry.isTimedOut(messageId) || Thread.currentThread().isInterrupted()) {
+                            log.warn("Message with ID " + messageId
+                                    + " already Timed Out BEFORE PUBLISH, hence dropping it");
+                            // Already timed out, so throw exception to skip publish & drop it
+                            throw new AxisRabbitMQException("Message with ID " + messageId +
+                                    " already Timed Out BEFORE PUBLISH, hence dropping itt");
+                        }
+
+                    }
                     sendPublisherConfirms(exchangeName, routingKey, basicProperties, messageBody, confirmTimeout);
                     break;
                 default:
@@ -154,6 +197,7 @@ public class RabbitMQMessageSender {
 
         } catch (Exception e) {
             if (channelChanged && channel != null) {
+                log.warn("Invalidating intermediate channel: " + channel + " due to exception: " + e.getMessage());
                 invalidateChannel(senderType, factoryName, channel);
                 channel = null;
             }
@@ -259,7 +303,19 @@ public class RabbitMQMessageSender {
      */
     private void sendPublisherConfirms(String exchangeName, String routingKey, AMQP.BasicProperties basicProperties,
                                        byte[] messageBody, long timeout) throws IOException, AxisRabbitMQException {
+        long start = System.currentTimeMillis();
         publishMessage(exchangeName, routingKey, basicProperties, messageBody);
+        //post-publish guard (rare race where timeout lands right after publish)
+        if (Thread.currentThread().isInterrupted()) {
+            log.warn("Thread Interrupted immediately AFTER publishing/BEFORE wait for confirm to the exchange: "
+                    + exchangeName
+                    + " with the routing key: " + routingKey + " Thread Name : " + Thread.currentThread().getName()
+                    + " Thread Id : " + Thread.currentThread().getId()
+                    + " Thread Group : " + Thread.currentThread().getThreadGroup());
+            throw new AxisRabbitMQException(
+                    "Thread : " + Thread.currentThread().getName() + " was interrupted immediately AFTER publish;" +
+                            " cancelling confirms wait");
+        }
         try {
             boolean success = channel.waitForConfirms(timeout);
             if (!success) {
@@ -267,9 +323,18 @@ public class RabbitMQMessageSender {
                         " with the routing key: " + routingKey + " nack'd by the broker.");
             }
         } catch (InterruptedException e) {
+            log.warn("Thread Interrupted while waiting for publisher confirms  to the exchange: " + exchangeName
+                    + " with the routing key: " + routingKey + " Thread Name : " + Thread.currentThread().getName()
+                    + " Thread Id : " + Thread.currentThread().getId()
+                    + " Thread Group : " + Thread.currentThread().getThreadGroup());
             Thread.currentThread().interrupt();
-        } catch (TimeoutException e) {
-            throw new AxisRabbitMQException("Did not receive a confirmation within " + timeout + "ms for the message " +
+            long elapsed = System.currentTimeMillis() - start;
+            throw new AxisRabbitMQException("Did not receive a confirmation within " + elapsed + "ms for the message " +
+                    "published to the exchange: " + exchangeName + " with the routing key: " + routingKey
+                    + "hence the thread was interrupted by timeout handler");
+        } catch (Exception e) {
+            long elapsed = System.currentTimeMillis() - start;
+            throw new AxisRabbitMQException("Did not receive a confirmation within " + elapsed + "ms for the message " +
                     "published to the exchange: " + exchangeName + " with the routing key: " + routingKey);
         }
     }

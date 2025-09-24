@@ -290,6 +290,11 @@
                 <scope>test</scope>
             </dependency>
             <dependency>
+                <groupId>org.wso2.config.mapper</groupId>
+                <artifactId>config-mapper</artifactId>
+                <version>${config.mapper.version}</version>
+            </dependency>
+            <dependency>
                 <groupId>org.apache.directory.shared</groupId>
                 <artifactId>shared-ldap</artifactId>
                 <version>0.9.11</version>
@@ -670,7 +675,7 @@
     </build>
     <properties>
         <axis2.transports.version>2.0.0-wso2v76-SNAPSHOT</axis2.transports.version>
-        <axis2.version>1.6.1-wso2v108</axis2.version>
+        <axis2.version>1.6.1-wso2v109</axis2.version>
         <carbon.kernel.version>4.6.2</carbon.kernel.version>
         <imp.pkg.version.axis2>[1.6.1, 1.7.0)</imp.pkg.version.axis2>
         <imp.pkg.version.axiom>[1.2.11, 1.3.0)</imp.pkg.version.axiom>
@@ -686,6 +691,7 @@
         <maven.compiler.plugin.version>3.8.0</maven.compiler.plugin.version>
         <maven.surefire.plugin.version>2.3</maven.surefire.plugin.version>
         <maven.jar.plugin.version>2.1</maven.jar.plugin.version>
+        <config.mapper.version>1.0.20</config.mapper.version>
         <jms-1.1-spec.version>1.1</jms-1.1-spec.version>
         <jta-spec.version>1.0</jta-spec.version>
         <rabbitmq.version>5.20.0</rabbitmq.version>
