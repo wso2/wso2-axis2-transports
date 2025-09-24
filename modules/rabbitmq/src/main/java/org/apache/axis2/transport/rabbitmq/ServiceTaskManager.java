@@ -66,6 +66,24 @@ public class ServiceTaskManager {
         connection = rabbitMQConnectionFactory.create(factoryName);
         ((Recoverable) this.connection).addRecoveryListener(new RabbitMQRecoveryListener());
 
+        long tmpInboundAckMaxWaitTime;
+
+        // Inbound ACK max wait time
+        Object inboundAckMaxWaitTime = rabbitMQProperties.get(RabbitMQConstants.INBOUND_ACK_MAX_WAIT_PARAM);
+        if (inboundAckMaxWaitTime != null) {
+            try {
+                tmpInboundAckMaxWaitTime = Long.parseLong(inboundAckMaxWaitTime.toString());
+                RabbitMQAckConfig.setInboundAckMaxWaitTimeMs(tmpInboundAckMaxWaitTime);
+                log.info("Using RabbitMQ Inbound Ack Max Wait Time Configured at Service: " + serviceName
+                        + " value of : " + RabbitMQAckConfig.getInboundAckMaxWaitTimeMs() + " ms");
+            } catch (NumberFormatException e) {
+                log.warn("Invalid value for " + RabbitMQConstants.INBOUND_ACK_MAX_WAIT_PARAM
+                        + " in Service: " + serviceName
+                        + ". Should be a valid long value. Defaulting to "
+                        + RabbitMQAckConfig.getInboundAckMaxWaitTimeMs());
+            }
+        }
+
         for (int i = 0; i < concurrentConsumers; i++) {
             workerPool.execute(new ServiceTaskManager.MessageListenerTask());
         }
@@ -147,6 +165,7 @@ public class ServiceTaskManager {
          * @throws IOException
          */
         private void initConsumer() throws IOException {
+
             // set the qos value
             int qos = NumberUtils.toInt(rabbitMQProperties.get(RabbitMQConstants.CONSUMER_QOS),
                     RabbitMQConstants.DEFAULT_CONSUMER_QOS);
@@ -396,8 +415,13 @@ public class ServiceTaskManager {
                         }
                         break;
                     case REQUEUE_FALSE:
-                        List<HashMap<String, Object>> xDeathHeader =
-                                (ArrayList<HashMap<String, Object>>) properties.getHeaders().get("x-death");
+                        List<HashMap<String, Object>> xDeathHeader = null;
+                        if (properties != null) {
+                            Map<String, Object> headers = properties.getHeaders();
+                            if (headers != null) {
+                                xDeathHeader = (ArrayList<HashMap<String, Object>>) headers.get("x-death");
+                            }
+                        }
                         // check if message has been already dead-lettered
                         if (xDeathHeader != null && xDeathHeader.size() > 0 && maxDeadLetteredCount != -1) {
                             Long count = (Long) xDeathHeader.get(0).get("count");

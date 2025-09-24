@@ -21,7 +21,10 @@ package org.apache.axis2.transport.rabbitmq;
 import com.rabbitmq.client.AMQP;
 import org.apache.axis2.AxisFault;
 import org.apache.axis2.context.MessageContext;
+import org.apache.axis2.transport.base.AckDecision;
+import org.apache.axis2.transport.base.AckDecisionCallback;
 import org.apache.axis2.transport.base.BaseConstants;
+import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -60,12 +63,86 @@ public class RabbitMQMessageReceiver {
             MessageContext msgContext = endpoint.createMessageContext();
             Map<String, String> serviceProperties = endpoint.getServiceTaskManager().getRabbitMQProperties();
             String contentType = RabbitMQUtils.buildMessage(messageProperties, body, msgContext, serviceProperties);
+
+            AckDecisionCallback ackDecisionCallback = null;
+            if (RabbitMQAckConfig.isCallbackControlledAckEnabled()) {
+                // Store an AckDecisionCallback in the MessageContext so downstream mediators can signal
+                // how the message should be acknowledged (ack / requeue) by setting related properties.
+                ackDecisionCallback = new AckDecisionCallback();
+                msgContext.setProperty(RabbitMQConstants.ACKNOWLEDGEMENT_DECISION, ackDecisionCallback);
+            }
             listener.handleIncomingMessage(msgContext, RabbitMQUtils.getTransportHeaders(messageProperties),
                                            RabbitMQUtils.getSoapAction(messageProperties), contentType);
+            if (RabbitMQAckConfig.isCallbackControlledAckEnabled()) {
+                // Wait for mediation to decide how to acknowledge the message.
+                AckDecision ackDecision;
+                try {
+                    ackDecision = ackDecisionCallback.await(RabbitMQAckConfig.getInboundAckMaxWaitTimeMs());
+                } catch (InterruptedException e) {
+                    // POOLED THREAD: do NOT re-set interrupt; handle locally to avoid contaminating pool
+                    log.warn("Thread interrupted while waiting for ACK decision from mediation."
+                            + " Setting to default REQUEUE_ON_ROLLBACK");
+                    ackDecision = AckDecision.SET_REQUEUE_ON_ROLLBACK;
+                }
+                // Fallback if mediation didn't decide in time
+                if (ackDecision == null) {
+                    log.warn("Timeout while waiting for ACK decision from mediation Setting to"
+                            + " default REQUEUE_ON_ROLLBACK");
+                    ackDecision = AckDecision.SET_REQUEUE_ON_ROLLBACK;
+                }
+                boolean isDLQEnabled = isDlqEnabled(serviceProperties);
+                setAckDecisionProperty(ackDecision, msgContext, isDLQEnabled);
+            }
+
             return getAcknowledgementMode(msgContext);
         } catch (Throwable fault) {
             log.error("Error when trying to read incoming message.", fault);
             return AcknowledgementMode.REQUEUE_FALSE;
+        }
+    }
+
+    /**
+     * Check whether DLQ is enabled for the service
+     *
+     * @param serviceProperties the RabbitMQ service properties
+     * @return true if DLQ enabled
+     */
+    private boolean isDlqEnabled(Map<String, String> serviceProperties) {
+        String exchangeName = serviceProperties != null
+                ? serviceProperties.get(RabbitMQConstants.MESSAGE_ERROR_EXCHANGE_NAME)
+                : null;
+        return StringUtils.isNotEmpty(exchangeName);
+    }
+
+    /**
+     * Set the acknowledgement decision property in the message context based on the AckDecision
+     * received from mediation.
+     *
+     * @param ackDecision  the AckDecision received from mediation
+     * @param msgContext   the Axis2 MessageContext
+     * @param isDlqEnabled whether DLQ is enabled for the service
+     */
+    private void setAckDecisionProperty(AckDecision ackDecision, MessageContext msgContext, boolean isDlqEnabled) {
+        String acknowledgementMode = ackDecision.toStringValue();
+        msgContext.removeProperty(RabbitMQConstants.ACKNOWLEDGEMENT_DECISION);
+
+        switch (acknowledgementMode) {
+            case "ACKNOWLEDGE":
+                break;
+            case "SET_ROLLBACK_ONLY":
+                msgContext.setProperty(BaseConstants.SET_ROLLBACK_ONLY, Boolean.TRUE);
+                break;
+            case "SET_REQUEUE_ON_ROLLBACK":
+                if (isDlqEnabled) {
+                    msgContext.setProperty(BaseConstants.SET_ROLLBACK_ONLY, Boolean.TRUE);
+                    log.info("Since DLQ is enabled for the service, setting SET_ROLLBACK_ONLY to true. Overriding"
+                            + " the AckDecision " + ackDecision);
+                } else {
+                    msgContext.setProperty(RabbitMQConstants.SET_REQUEUE_ON_ROLLBACK, Boolean.TRUE);
+                }
+                break;
+            default:
+                // do nothing
         }
     }
 
