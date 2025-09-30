@@ -26,6 +26,8 @@ import org.apache.axis2.builder.BuilderUtil;
 import org.apache.axis2.builder.SOAPBuilder;
 import org.apache.axis2.context.MessageContext;
 import org.apache.axis2.description.AxisService;
+import org.apache.axis2.description.Parameter;
+import org.apache.axis2.description.ParameterIncludeImpl;
 import org.apache.axis2.format.DataSourceMessageBuilder;
 import org.apache.axis2.format.TextMessageBuilder;
 import org.apache.axis2.format.TextMessageBuilderAdapter;
@@ -1109,5 +1111,23 @@ public class JMSUtils extends BaseUtils {
 
     public static boolean isJmsSpec31(Hashtable<String, String> parameters) {
         return JMSConstants.JMS_SPEC_VERSION_3_1.equals(parameters.get(JMSConstants.PARAM_JMS_SPEC_VER));
+    }
+
+    public static boolean isJmsSpec31(Parameter parameter) {
+        ParameterIncludeImpl pi = new ParameterIncludeImpl();
+
+        try {
+            pi.deserializeParameters((OMElement) parameter.getValue());
+        } catch (AxisFault axisFault) {
+            log.error("Error reading parameters for JMS connection factory ", axisFault);
+        }
+
+        for (Parameter param : pi.getParameters()) {
+            String propertyName = param.getName().toString();
+            if (JMSConstants.PARAM_JMS_SPEC_VER.equals(propertyName)) {
+                return JMSConstants.JMS_SPEC_VERSION_3_1.equals(param.getValue().toString());
+            }
+        }
+        return false;
     }
 }

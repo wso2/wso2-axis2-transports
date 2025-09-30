@@ -158,19 +158,6 @@ public class JMSConnectionFactory {
     }
 
     /**
-     * Digest a JMS CF definition from an axis2.xml 'Parameter' and construct.
-     * @param parameter the axis2.xml 'Parameter' that defined the JMS CF
-     * @param secretResolver the SecretResolver to use to resolve secrets such as passwords
-     */
-    public JMSConnectionFactory(Hashtable<String, String> parameters, String name) {
-        this.name = name;
-        this.parameters = parameters;
-        digestCacheLevel();
-        initJMSConnectionFactory();
-        setMaxSharedJMSConnectionsCount();
-    }
-
-    /**
      Create a JMS CF definition from target endpoint reference
      *
      * @param targetEndpoint the JMS target address contains transport definitions

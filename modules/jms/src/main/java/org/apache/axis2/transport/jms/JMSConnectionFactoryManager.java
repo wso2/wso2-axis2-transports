@@ -97,16 +97,15 @@ public class JMSConnectionFactoryManager {
     private void loadConnectionFactoryDefinitions(ParameterInclude trpDesc, SecretResolver secretResolver) {
         for (Parameter parameter : trpDesc.getParameters()) {
             try {
-                String name = parameter.getName();
-                Hashtable<String, String> parameters = resolveParameters(parameter, secretResolver);
-                if (JMSUtils.isJmsSpec31(parameters)) {
-                    org.apache.axis2.transport.jms.jakarta.JMSConnectionFactory jmsConFactory = new org.apache.axis2.transport.jms.jakarta.JMSConnectionFactory(parameters, name);
+                boolean isJMSSpec31 = JMSUtils.isJmsSpec31(parameter);
+                if (isJMSSpec31) {
+                    org.apache.axis2.transport.jms.jakarta.JMSConnectionFactory jmsConFactory = new org.apache.axis2.transport.jms.jakarta.JMSConnectionFactory(parameter, secretResolver);
                     jakartaConnectionFactories.put(jmsConFactory.getName(), jmsConFactory);
                 } else {
-                    JMSConnectionFactory jmsConFactory = new JMSConnectionFactory(parameters, name);
+                    JMSConnectionFactory jmsConFactory = new JMSConnectionFactory(parameter, secretResolver);
                     connectionFactories.put(jmsConFactory.getName(), jmsConFactory);
                 }
-            } catch (AxisFault e) {
+            } catch (AxisJMSException e) {
                 log.error("Error setting up connection factory : " + parameter.getName(), e);
             }
         }

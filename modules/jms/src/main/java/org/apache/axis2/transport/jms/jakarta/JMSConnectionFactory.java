@@ -18,6 +18,10 @@
 
 package org.apache.axis2.transport.jms.jakarta;
 
+import org.apache.axiom.om.OMElement;
+import org.apache.axis2.AxisFault;
+import org.apache.axis2.description.Parameter;
+import org.apache.axis2.description.ParameterIncludeImpl;
 import org.apache.axis2.transport.base.BaseUtils;
 import org.apache.axis2.transport.jms.AxisJMSException;
 import org.apache.axis2.transport.jms.JMSConstants;
@@ -31,6 +35,10 @@ import jakarta.jms.ExceptionListener;
 import jakarta.jms.JMSException;
 import jakarta.jms.MessageProducer;
 import jakarta.jms.Session;
+import org.wso2.securevault.SecretResolver;
+import org.wso2.securevault.SecureVaultException;
+import org.wso2.securevault.commons.MiscellaneousUtil;
+
 import javax.naming.Context;
 import javax.naming.InitialContext;
 import javax.naming.NamingException;
@@ -81,12 +89,32 @@ public class JMSConnectionFactory {
 
     /**
      * Digest a JMS CF definition from an axis2.xml 'Parameter' and construct.
-     * @param parameters the axis2.xml 'Parameter' that defined the JMS CF
-     * @param name factory name
+     * @param parameter the axis2.xml 'Parameter' that defined the JMS CF
+     * @param secretResolver the SecretResolver to use to resolve secrets such as passwords
      */
-    public JMSConnectionFactory(Hashtable<String, String> parameters, String name) {
-        this.name = name;
-        this.parameters = parameters;
+    public JMSConnectionFactory(Parameter parameter, SecretResolver secretResolver) {
+        this.name = parameter.getName();
+        ParameterIncludeImpl pi = new ParameterIncludeImpl();
+
+        try {
+            pi.deserializeParameters((OMElement) parameter.getValue());
+        } catch (AxisFault axisFault) {
+            handleException("Error reading parameters for JMS connection factory "
+                    + org.apache.axis2.transport.jms.JMSUtils.maskURLPasswordAndCredentials(name), axisFault);
+        }
+
+        for (Parameter param : pi.getParameters()) {
+            OMElement paramElement = param.getParameterElement();
+            String propertyValue = param.getValue().toString();
+            if (paramElement != null) {
+                if (secretResolver == null) {
+                    throw new SecureVaultException("Cannot resolve secret password because axis2 secret resolver " +
+                            "is null");
+                }
+                propertyValue = MiscellaneousUtil.resolve(paramElement, secretResolver);
+            }
+            parameters.put(param.getName(), propertyValue);
+        }
         digestCacheLevel();
         initJMSConnectionFactory();
         setMaxSharedJMSConnectionsCount();
