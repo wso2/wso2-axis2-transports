@@ -22,6 +22,7 @@ import org.apache.axis2.transport.base.BaseConstants;
 import org.apache.axis2.transport.base.threads.WorkerPool;
 import org.apache.axis2.transport.jms.AxisJMSException;
 import org.apache.axis2.transport.jms.JMSConstants;
+import org.apache.axis2.util.GracefulShutdownTimer;
 import org.apache.commons.lang.time.DateUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -261,9 +262,16 @@ public class ServiceTaskManager {
     }
 
     /**
-     * Shutdown the tasks and release any shared resources
+     * Shutdown the tasks and release any shared resources.
      */
     public synchronized void stop() {
+        this.stop(false);
+    }
+
+    /**
+     * Shutdown the tasks and release any shared resources.
+     */
+    public synchronized void stop(boolean listenerShuttingDown) {
 
         serviceTaskManagerState = STATE_SHUTTING_DOWN;
 
@@ -277,14 +285,23 @@ public class ServiceTaskManager {
             }
         }
 
-        // try to wait a bit for task shutdown
-        for (int i=0; i<5; i++) {
-            if (activeTaskCount.get() == 0) {
-                break;
+        GracefulShutdownTimer gracefulShutdownTimer = GracefulShutdownTimer.getInstance();
+        if (listenerShuttingDown && gracefulShutdownTimer.isStarted()) {
+            while (activeTaskCount.get() > 0 || !gracefulShutdownTimer.isExpired()) {
+                try {
+                    Thread.sleep(getReceiveTimeout());
+                } catch (InterruptedException ignore) {}
             }
-            try {
-                Thread.sleep(getReceiveTimeout());
-            } catch (InterruptedException ignore) {}
+        } else {
+            // try to wait a bit for task shutdown
+            for (int i = 0; i < 5; i++) {
+                if (activeTaskCount.get() == 0) {
+                    break;
+                }
+                try {
+                    Thread.sleep(getReceiveTimeout());
+                } catch (InterruptedException ignore) {}
+            }
         }
 
         if (sharedConnection != null) {

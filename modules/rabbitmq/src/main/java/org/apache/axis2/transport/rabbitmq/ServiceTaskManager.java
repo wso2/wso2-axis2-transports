@@ -8,6 +8,7 @@ import com.rabbitmq.client.Envelope;
 import com.rabbitmq.client.Recoverable;
 import com.rabbitmq.client.ShutdownSignalException;
 import org.apache.axis2.transport.base.threads.WorkerPool;
+import org.apache.axis2.util.GracefulShutdownTimer;
 import org.apache.commons.lang.BooleanUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.math.NumberUtils;
@@ -69,12 +70,22 @@ public class ServiceTaskManager {
     }
 
     /**
-     * Stop the consumer
+     * Stop the consumer.
      */
     public void stop() {
+        this.stop(false);
+    }
+
+    /**
+     * Stop the consumer.
+     *
+     * @param listenerShuttingDown true if the listener is shutting down, false if an individual service is stopping
+     *                             (service undeploy)
+     */
+    public void stop(boolean listenerShuttingDown) {
         synchronized (pollingTasks) {
             for (MessageListenerTask listenerTask : pollingTasks) {
-                listenerTask.close();
+                listenerTask.close(listenerShuttingDown);
             }
         }
     }
@@ -425,7 +436,7 @@ public class ServiceTaskManager {
             }
         }
 
-        public void close() {
+        public void close(boolean listenerShuttingDown) {
             if (!isShuttingDown.compareAndSet(false, true)) {
                 return; // only shutdown once
             }
@@ -441,10 +452,22 @@ public class ServiceTaskManager {
                     }
                 }
 
-                long waitUntil = System.currentTimeMillis()
-                        + (RabbitMQConstants.DEFAULT_RABBITMQ_TIMEOUT * 3);
-                while (inflightMessages.get() > 0 && System.currentTimeMillis() < waitUntil) {
-                    Thread.sleep(100); // wait until all in-flight messages are done
+                GracefulShutdownTimer gracefulShutdownTimer = GracefulShutdownTimer.getInstance();
+                if (listenerShuttingDown && gracefulShutdownTimer.isStarted()) {
+                    // If the server is shutting down, we wait until either all in-flight messages are done
+                    // or the graceful shutdown timer expires (whichever comes first)
+                    while (inflightMessages.get() > 0 && !gracefulShutdownTimer.isExpired()) {
+                        try {
+                            Thread.sleep(100); // wait until all in-flight messages are done
+                        } catch (InterruptedException e) {}
+                    }
+                } else {
+                    long waitUntil = System.currentTimeMillis() + (RabbitMQConstants.DEFAULT_RABBITMQ_TIMEOUT * 3);
+                    while (inflightMessages.get() > 0 && System.currentTimeMillis() < waitUntil) {
+                        try {
+                            Thread.sleep(100); // wait until all in-flight messages are done
+                        } catch (InterruptedException e) {}
+                    }
                 }
 
                 if (channel != null && channel.isOpen()) {
