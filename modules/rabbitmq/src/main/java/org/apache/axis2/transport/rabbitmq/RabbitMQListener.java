@@ -21,6 +21,7 @@ package org.apache.axis2.transport.rabbitmq;
 
 import org.apache.axis2.AxisFault;
 import org.apache.axis2.transport.base.AbstractTransportListenerEx;
+import org.apache.axis2.transport.base.BaseConstants;
 import org.wso2.securevault.SecretResolver;
 
 /**
@@ -94,7 +95,8 @@ public class RabbitMQListener extends AbstractTransportListenerEx<RabbitMQEndpoi
         if (log.isDebugEnabled()) {
             log.debug("Stopping receiver for for service : " + stm.getServiceName());
         }
-        stm.stop();
+        boolean listenerShuttingDown = (state == BaseConstants.STOPPED);
+        stm.stop(listenerShuttingDown);
         log.info("Stopped listening for AMQP messages to service : " + endpoint.getServiceName());
     }
 
