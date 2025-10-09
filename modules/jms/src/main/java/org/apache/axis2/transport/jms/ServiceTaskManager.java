@@ -21,6 +21,7 @@ package org.apache.axis2.transport.jms;
 
 import org.apache.axis2.transport.base.BaseConstants;
 import org.apache.axis2.transport.base.threads.WorkerPool;
+import org.apache.axis2.util.GracefulShutdownTimer;
 import org.apache.commons.lang.time.DateUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -263,12 +264,17 @@ public class ServiceTaskManager {
      * Shutdown the tasks and release any shared resources
      */
     public synchronized void stop() {
+        this.stop(false);
+    }
+
+    /**
+     * Shutdown the tasks and release any shared resources
+     */
+    public synchronized void stop(boolean listenerShuttingDown) {
 
         serviceTaskManagerState = STATE_SHUTTING_DOWN;
 
-        if (log.isDebugEnabled()) {
-            log.debug("Stopping ServiceTaskManager for service : " + serviceName);
-        }
+        log.info("Stopping the JMS Task Manager for service: " + serviceName);
 
         synchronized(pollingTasks) {
             for (MessageListenerTask lstTask : pollingTasks) {
@@ -276,14 +282,21 @@ public class ServiceTaskManager {
             }
         }
 
-        // try to wait a bit for task shutdown
-        for (int i=0; i<5; i++) {
-            if (activeTaskCount.get() == 0) {
-                break;
+        GracefulShutdownTimer gracefulShutdownTimer = GracefulShutdownTimer.getInstance();
+        if (listenerShuttingDown && gracefulShutdownTimer.isStarted()) {
+            log.info("Awaiting completion of active JMS tasks for service '" + serviceName
+                    + "' during graceful shutdown.");
+            waitForGracefulTaskCompletion(gracefulShutdownTimer);
+        } else {
+            // try to wait a bit for task shutdown
+            for (int i = 0; i < 5; i++) {
+                if (activeTaskCount.get() == 0) {
+                    break;
+                }
+                try {
+                    Thread.sleep(getReceiveTimeout());
+                } catch (InterruptedException ignore) {}
             }
-            try {
-                Thread.sleep(getReceiveTimeout());
-            } catch (InterruptedException ignore) {}
         }
 
         if (sharedConnection != null) {
@@ -296,12 +309,46 @@ public class ServiceTaskManager {
             }
         }
 
-        if (activeTaskCount.get() > 0) {
-            log.warn("Unable to shutdown all polling tasks of service : " + serviceName);
-        }
-
         serviceTaskManagerState = STATE_STOPPED;
-        log.info("Task manager for service : " + serviceName + " shutdown");
+
+        if (activeTaskCount.get() > 0) {
+            log.warn("JMS Task Manager for service: " + serviceName + " stopped with " + activeTaskCount.get()
+                    + " active tasks remaining");
+        } else {
+            log.info("Successfully stopped the JMS Task Manager for service: " + serviceName);
+        }
+    }
+
+    /**
+     * Waits for the completion of all in-flight JMS tasks during a graceful shutdown.
+     * The method blocks until either all in-flight messages are processed or the graceful
+     * shutdown timer expires, whichever comes first. This ensures that message processing
+     * is completed as much as possible before shutting down the consumer. Also, to ensure
+     * the waiting loop doesn't run indefinitely due to unexpected conditions, a fallback
+     * check is also introduced.
+     *
+     * @param gracefulShutdownTimer the {@link GracefulShutdownTimer} instance controlling the shutdown timeout
+     */
+    private void waitForGracefulTaskCompletion(GracefulShutdownTimer gracefulShutdownTimer) {
+        long startTimeMillis = System.currentTimeMillis();
+        long timeoutMillis = gracefulShutdownTimer.getShutdownTimeoutMillis();
+
+        // If the server is shutting down, we wait until either all in-flight messages are done
+        // or the graceful shutdown timer expires (whichever comes first)
+        while (activeTaskCount.get() > 0 && !gracefulShutdownTimer.isExpired()) {
+            try {
+                Thread.sleep(getReceiveTimeout()); // wait until all in-flight messages are done
+            } catch (InterruptedException e) {}
+
+            // Safety check: Ensure the loop doesn't run indefinitely due to unexpected conditions.
+            // This fallback check ensures that if the timer somehow fails to expire as expected,
+            // the loop can still exit gracefully once the configured timeout period has elapsed.
+            if ((System.currentTimeMillis() - startTimeMillis) >= timeoutMillis) {
+                log.warn("Graceful shutdown timer elapsed. Exiting waiting loop to prevent "
+                        + "indefinite blocking.");
+                break;
+            }
+        }
     }
 
     /**

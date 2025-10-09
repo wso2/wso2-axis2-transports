@@ -107,6 +107,7 @@ public class RabbitMQConstants {
     public static final String MESSAGE_REQUEUE_DELAY = "rabbitmq.message.requeue.delay";
 
     public static final String PUBLISHER_CONFIRMS_ENABLED = "rabbitmq.publisher.confirms.enabled";
+    public static final String UNDEPLOYMENT_GRACE_TIMEOUT = "rabbitmq.undeployment.grace.timeout";
 
     public static final String DEFAULT_CONTENT_TYPE = "text/plain";
     public static final int DEFAULT_RETRY_INTERVAL = 30000;
