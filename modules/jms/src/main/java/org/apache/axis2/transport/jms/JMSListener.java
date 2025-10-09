@@ -293,6 +293,7 @@ public class JMSListener extends AbstractTransportListenerEx<JMSEndpoint> implem
      */
     @Override
     protected void stopEndpoint(JMSEndpoint endpoint) {
+        boolean listenerShuttingDown = (state == BaseConstants.STOPPED);
         if (endpoint.isJMSSpec31()) {
             org.apache.axis2.transport.jms.jakarta.ServiceTaskManager stm = endpoint.getJakartaServiceTaskManager();
             if (log.isDebugEnabled()) {
@@ -300,7 +301,7 @@ public class JMSListener extends AbstractTransportListenerEx<JMSEndpoint> implem
                         " for service : " + stm.getServiceName());
             }
 
-            stm.stop();
+            stm.stop(listenerShuttingDown);
 
             log.info("Stopped listening for JMS messages to service : " + endpoint.getServiceName());
         } else {
@@ -310,7 +311,7 @@ public class JMSListener extends AbstractTransportListenerEx<JMSEndpoint> implem
                         " for service : " + stm.getServiceName());
             }
 
-            stm.stop();
+            stm.stop(listenerShuttingDown);
 
             log.info("Stopped listening for JMS messages to service : " + endpoint.getServiceName());
         }

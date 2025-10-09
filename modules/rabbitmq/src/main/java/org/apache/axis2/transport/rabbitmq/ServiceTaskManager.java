@@ -8,6 +8,7 @@ import com.rabbitmq.client.Envelope;
 import com.rabbitmq.client.Recoverable;
 import com.rabbitmq.client.ShutdownSignalException;
 import org.apache.axis2.transport.base.threads.WorkerPool;
+import org.apache.axis2.util.GracefulShutdownTimer;
 import org.apache.commons.lang.BooleanUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.math.NumberUtils;
@@ -24,6 +25,7 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
  * An instance of this class will create when AMQP listener proxy is being deployed.
@@ -69,12 +71,22 @@ public class ServiceTaskManager {
     }
 
     /**
-     * Stop the consumer
+     * Stop the consumer.
      */
     public void stop() {
+        this.stop(false);
+    }
+
+    /**
+     * Stop the consumer.
+     *
+     * @param listenerShuttingDown true if the listener is shutting down, false if an individual service is stopping
+     *                             (service undeploy)
+     */
+    public void stop(boolean listenerShuttingDown) {
         synchronized (pollingTasks) {
             for (MessageListenerTask listenerTask : pollingTasks) {
-                listenerTask.close();
+                listenerTask.close(listenerShuttingDown);
             }
         }
     }
@@ -103,8 +115,12 @@ public class ServiceTaskManager {
         private int consumedMessageCount = 0;
 
         private String consumerTag;
+        private long unDeploymentWaitTimeout;
         private final AtomicBoolean isShuttingDown = new AtomicBoolean(false);
         private final AtomicInteger inflightMessages = new AtomicInteger(0);
+        private final ReentrantReadWriteLock rwLock = new ReentrantReadWriteLock();
+        private final ReentrantReadWriteLock.ReadLock readLock = rwLock.readLock();
+        private final ReentrantReadWriteLock.WriteLock writeLock = rwLock.writeLock();
 
         private MessageListenerTask() throws IOException {
             this.channel = connection.createChannel();
@@ -169,6 +185,9 @@ public class ServiceTaskManager {
             } else {
                 this.consumerTag = channel.basicConsume(queueName, autoAck, this);
             }
+
+            unDeploymentWaitTimeout = NumberUtils.toLong(
+                    rabbitMQProperties.get(RabbitMQConstants.UNDEPLOYMENT_GRACE_TIMEOUT), 0);
         }
 
         /**
@@ -250,29 +269,35 @@ public class ServiceTaskManager {
         @Override
         public void handleDelivery(String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body)
                 throws IOException {
-            if (isShuttingDown.get()) {
-                /*
-                 * The server is shutting down. We attempt to reject the message with requeue=true
-                 * so that it goes back to the queue for redelivery.
-                 *
-                 * However, if the channel is already closed or closing due to shutdown,
-                 * basicReject may throw an exception (e.g., NullPointerException or AlreadyClosedException).
-                 *
-                 * This is safe to ignore because:
-                 * - The message is still unacked.
-                 * - RabbitMQ will automatically requeue it once the consumer connection is closed.
-                 */
-                try {
-                    channel.basicReject(envelope.getDeliveryTag(), true);
-                    log.info("The rejected message with message id: " + properties.getMessageId() + " and " +
-                            "delivery tag: " + envelope.getDeliveryTag() + " on the queue: " +
-                            queueName + " since the consumer is shutting down.");
-                } catch (Exception e) {
-                    log.debug("Failed to reject message during shutdown (likely due to closed channel).", e);
+            readLock.lock();
+            try {
+                if (isShuttingDown.get()) {
+                    /*
+                     * The server is shutting down. We attempt to reject the message with requeue=true
+                     * so that it goes back to the queue for redelivery.
+                     *
+                     * However, if the channel is already closed or closing due to shutdown,
+                     * basicReject may throw an exception (e.g., NullPointerException or AlreadyClosedException).
+                     *
+                     * This is safe to ignore because:
+                     * - The message is still unacked.
+                     * - RabbitMQ will automatically requeue it once the consumer connection is closed.
+                     */
+                    try {
+                        channel.basicReject(envelope.getDeliveryTag(), true);
+                        log.info("The rejected message with message id: " + properties.getMessageId() + " and " +
+                                "delivery tag: " + envelope.getDeliveryTag() + " on the queue: " +
+                                queueName + " since the consumer is shutting down.");
+                    } catch (Exception e) {
+                        log.debug("Failed to reject message during shutdown (likely due to closed channel).", e);
+                    }
+                    return;
                 }
-                return;
+                inflightMessages.incrementAndGet();
+            } finally {
+                readLock.unlock();
             }
-            inflightMessages.incrementAndGet();
+
             AcknowledgementMode acknowledgementMode =
                     rabbitMQMessageReceiver.processThroughAxisEngine(properties, body);
 
@@ -425,12 +450,18 @@ public class ServiceTaskManager {
             }
         }
 
-        public void close() {
-            if (!isShuttingDown.compareAndSet(false, true)) {
-                return; // only shutdown once
+        public void close(boolean listenerShuttingDown) {
+            writeLock.lock();
+            try {
+                if (!isShuttingDown.compareAndSet(false, true)) {
+                    return; // only shutdown once
+                }
+            } finally {
+                writeLock.unlock();
             }
-            log.info("Shutdown hook triggered. Initiating graceful shutdown of RABBITMQ Listener for service : "
-                    + serviceName);
+
+            log.info("Stopping the RABBITMQ Task Manager for service: " + serviceName);
+
             try {
                 if (channel != null && channel.isOpen() && consumerTag != null) {
                     try {
@@ -441,10 +472,20 @@ public class ServiceTaskManager {
                     }
                 }
 
-                long waitUntil = System.currentTimeMillis()
-                        + (RabbitMQConstants.DEFAULT_RABBITMQ_TIMEOUT * 3);
-                while (inflightMessages.get() > 0 && System.currentTimeMillis() < waitUntil) {
-                    Thread.sleep(100); // wait until all in-flight messages are done
+                GracefulShutdownTimer gracefulShutdownTimer = GracefulShutdownTimer.getInstance();
+                if (listenerShuttingDown) {
+                    if (gracefulShutdownTimer.isStarted()) {
+                        log.info("Awaiting completion of active RABBITMQ tasks for service '" + serviceName
+                                + "' during graceful shutdown.");
+                        waitForGracefulTaskCompletion(gracefulShutdownTimer);
+                    }
+                } else {
+                    long waitUntil = System.currentTimeMillis() + unDeploymentWaitTimeout;
+                    while (inflightMessages.get() > 0 && System.currentTimeMillis() < waitUntil) {
+                        try {
+                            Thread.sleep(100); // wait until all in-flight messages are done
+                        } catch (InterruptedException e) {}
+                    }
                 }
 
                 if (channel != null && channel.isOpen()) {
@@ -454,15 +495,53 @@ public class ServiceTaskManager {
                     connection.close();
                 }
 
-                log.info("Shutdown completed gracefully.");
+                if (inflightMessages.get() > 0) {
+                    log.warn("RABBITMQ Task Manager for service: " + serviceName + " stopped with "
+                            + inflightMessages.get() + " active tasks remaining");
+                } else {
+                    log.info("Successfully stopped the RABBITMQ Task Manager for service: " + serviceName);
+                }
             } catch (Exception e) {
-                log.error("Error during shutdown. Forcing abort.", e);
+                log.error("An error occurred while stopping the RABBITMQ Task Manager for service: "
+                                + serviceName + ". Forcing abort.", e);
                 if (connection != null) {
                     connection.abort();
                 }
             } finally {
                 channel = null;
                 connection = null;
+            }
+        }
+
+        /**
+         * Waits for the completion of all in-flight RabbitMQ tasks during a graceful shutdown.
+         * The method blocks until either all in-flight messages are processed or the graceful
+         * shutdown timer expires, whichever comes first. This ensures that message processing
+         * is completed as much as possible before shutting down the consumer. Also, to ensure
+         * the waiting loop doesn't run indefinitely due to unexpected conditions, a fallback
+         * check is also introduced.
+         *
+         * @param gracefulShutdownTimer the {@link GracefulShutdownTimer} instance controlling the shutdown timeout
+         */
+        private void waitForGracefulTaskCompletion(GracefulShutdownTimer gracefulShutdownTimer) {
+            long startTimeMillis = System.currentTimeMillis();
+            long timeoutMillis = gracefulShutdownTimer.getShutdownTimeoutMillis();
+
+            // If the server is shutting down, we wait until either all in-flight messages are done
+            // or the graceful shutdown timer expires (whichever comes first)
+            while (inflightMessages.get() > 0 && !gracefulShutdownTimer.isExpired()) {
+                try {
+                    Thread.sleep(100); // wait until all in-flight messages are done
+                } catch (InterruptedException e) {}
+
+                // Safety check: Ensure the loop doesn't run indefinitely due to unexpected conditions.
+                // This fallback check ensures that if the timer somehow fails to expire as expected,
+                // the loop can still exit gracefully once the configured timeout period has elapsed.
+                if ((System.currentTimeMillis() - startTimeMillis) >= timeoutMillis) {
+                    log.warn("Graceful shutdown timer elapsed. Exiting waiting loop to prevent "
+                            + "indefinite blocking.");
+                    break;
+                }
             }
         }
 
