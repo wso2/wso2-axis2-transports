@@ -21,8 +21,6 @@ package org.apache.axis2.transport.rabbitmq;
 import com.rabbitmq.client.AMQP;
 import org.apache.axis2.AxisFault;
 import org.apache.axis2.context.MessageContext;
-import org.apache.axis2.transport.base.AckDecision;
-import org.apache.axis2.transport.base.AckDecisionCallback;
 import org.apache.axis2.transport.base.BaseConstants;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -62,57 +60,12 @@ public class RabbitMQMessageReceiver {
             MessageContext msgContext = endpoint.createMessageContext();
             Map<String, String> serviceProperties = endpoint.getServiceTaskManager().getRabbitMQProperties();
             String contentType = RabbitMQUtils.buildMessage(messageProperties, body, msgContext, serviceProperties);
-
-            AckDecisionCallback ackDecisionCallback = null;
-            if (RabbitMQAckConfig.isCallbackControlledAckEnabled()) {
-                // Store an AckDecisionCallback in the MessageContext so downstream mediators can signal
-                // how the message should be acknowledged (ack / requeue) by setting related properties.
-                ackDecisionCallback = new AckDecisionCallback();
-                msgContext.setProperty(RabbitMQConstants.ACKNOWLEDGEMENT_DECISION, ackDecisionCallback);
-            }
             listener.handleIncomingMessage(msgContext, RabbitMQUtils.getTransportHeaders(messageProperties),
                                            RabbitMQUtils.getSoapAction(messageProperties), contentType);
-            if (RabbitMQAckConfig.isCallbackControlledAckEnabled()) {
-                // Wait for mediation to decide how to acknowledge the message.
-                AckDecision ackDecision;
-                try {
-                    ackDecision = ackDecisionCallback.await(RabbitMQAckConfig.getInboundAckMaxWaitTimeMs());
-                } catch (InterruptedException e) {
-                    // POOLED THREAD: do NOT re-set interrupt; handle locally to avoid contaminating pool
-                    log.warn("Thread interrupted while waiting for ACK decision from mediation."
-                            + " Setting to default REQUEUE_ON_ROLLBACK");
-                    ackDecision = AckDecision.SET_REQUEUE_ON_ROLLBACK;
-                }
-                // Fallback if mediation didn't decide in time
-                if (ackDecision == null) {
-                    log.warn("Timeout while waiting for ACK decision from mediation Setting to"
-                            + " default REQUEUE_ON_ROLLBACK");
-                    ackDecision = AckDecision.SET_REQUEUE_ON_ROLLBACK;
-                }
-                setAckDecisionProperty(ackDecision, msgContext);
-            }
-
             return getAcknowledgementMode(msgContext);
         } catch (Throwable fault) {
             log.error("Error when trying to read incoming message.", fault);
             return AcknowledgementMode.REQUEUE_FALSE;
-        }
-    }
-
-    private void setAckDecisionProperty(AckDecision ackDecision, MessageContext msgContext) {
-        String acknowledgementMode = ackDecision.toStringValue();
-        msgContext.removeProperty(RabbitMQConstants.ACKNOWLEDGEMENT_DECISION);
-        switch (acknowledgementMode) {
-            case "ACKNOWLEDGE":
-                break;
-            case "SET_ROLLBACK_ONLY":
-                msgContext.setProperty(BaseConstants.SET_ROLLBACK_ONLY, Boolean.TRUE);
-                break;
-            case "SET_REQUEUE_ON_ROLLBACK":
-                msgContext.setProperty(RabbitMQConstants.SET_REQUEUE_ON_ROLLBACK, Boolean.TRUE);
-                break;
-            default:
-                // do nothing
         }
     }
 

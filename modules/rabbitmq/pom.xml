@@ -89,10 +89,6 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.wso2.config.mapper</groupId>
-            <artifactId>config-mapper</artifactId>
-        </dependency>
-        <dependency>
             <groupId>com.rabbitmq</groupId>
             <artifactId>amqp-client</artifactId>
         </dependency>

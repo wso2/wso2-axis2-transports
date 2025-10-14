@@ -28,7 +28,9 @@ import org.apache.axis2.transport.OutTransportInfo;
 import org.apache.axis2.transport.base.AbstractTransportSender;
 import org.apache.axis2.transport.base.BaseConstants;
 import org.apache.axis2.transport.base.BaseUtils;
+import org.apache.commons.lang.BooleanUtils;
 import org.apache.commons.lang.StringUtils;
+import org.apache.commons.pool2.impl.GenericKeyedObjectPoolConfig;
 import org.wso2.securevault.SecretResolver;
 
 import java.util.HashMap;
@@ -45,8 +47,6 @@ public class RabbitMQSender extends AbstractTransportSender {
     private RabbitMQConnectionFactory rabbitMQConnectionFactory;
     private RabbitMQChannelPool rabbitMQChannelPool;
     private RabbitMQChannelPool rabbitMQConfirmChannelPool;
-    private TimeoutRegistry timeoutRegistry = new TimeoutRegistry();
-    private InflightThreads inflightThreads = new InflightThreads();
 
     /**
      * Initialize the transport sender by reading pre-defined connection factories for
@@ -105,25 +105,6 @@ public class RabbitMQSender extends AbstractTransportSender {
     }
 
     /**
-     * Callback invoked by the Axis2 runtime when an application-level error occurs
-     * while processing an outgoing RabbitMQ message.
-     *
-     * Intended forcleanup related to failed send operations.
-     *
-     * @param msgContext the current Axis2 message context associated with the failed operation
-     */
-    @Override
-    public void onAppError(MessageContext msgContext) {
-        log.warn("Endpoint Has Been Timed Out for RabbitMq Outgoing Message."
-                + " Abort sending message with messageId : " + msgContext.getMessageID());
-        String messageId = msgContext.getMessageID();
-        // Mark timed out first
-        timeoutRegistry.markTimedOut(messageId);
-        // Interrupt the waiter thread atomically to break waitForConfirms immediately
-        inflightThreads.interruptRemoveAndReturn(messageId);
-    }
-
-    /**
      * Performs the sending of the AMQP message
      *
      * @param msgCtx           the axis2 message context
@@ -163,49 +144,16 @@ public class RabbitMQSender extends AbstractTransportSender {
                 } else {
                     channel = rabbitMQChannelPool.borrowObject(factoryName);
                 }
-                RabbitMQMessageSender sender;
-                if (RabbitMQAckConfig.isCallbackControlledAckEnabled()) {
-                    sender = new RabbitMQMessageSender(channel, factoryName, senderType,
-                            rabbitMQChannelPool, rabbitMQConfirmChannelPool, timeoutRegistry, inflightThreads);
-                } else {
-                    sender = new RabbitMQMessageSender(channel, factoryName, senderType,
-                            rabbitMQChannelPool, rabbitMQConfirmChannelPool);
-                }
+                RabbitMQMessageSender sender = new RabbitMQMessageSender(channel, factoryName, senderType,
+                        rabbitMQChannelPool, rabbitMQConfirmChannelPool);
                 response = sender.send(routingKey, msgCtx, epProperties);
             } catch (Exception e) {
-                try {
-                    if (channel != null) {
-                        invalidateChannel(senderType, factoryName, channel);
-                    }
-                } finally {
+                if (channel != null) {
+                    invalidateChannel(senderType, factoryName, channel);
                     channel = null;
-                    // If the flow has already timed out, just drop and warn
-                    String messageId = msgCtx.getMessageID();
-                    if (timeoutRegistry.consumeIfTimedOut(messageId)) {
-                        log.warn("Halting the flow for rabbitMq message " + messageId + " since it has already" +
-                                " timed out and executed the relevant fault sequence. Cause : " + e.getMessage());
-                        if (log.isDebugEnabled()) {
-                            log.debug("Dropping the flow for rabbitMq message " + messageId + " since it has already"
-                                    + " timed out.", e);
-                        }
-                        return;
-                    }
                 }
                 handleException("Error occurred while sending message out.", e);
             } finally {
-                //Make sure to remove the messageId from the timeout registry to avoid memory leaks
-                //This is safe even if the messageId was not present
-                String messageId = msgCtx.getMessageID();
-                timeoutRegistry.remove(messageId);
-                inflightThreads.take(messageId);
-                boolean interrupted = Thread.interrupted();
-                if (interrupted) {
-                    log.warn("Finally Clearing the interrupted status of Thread for messageId : "
-                            + messageId + " Thread Name : " + Thread.currentThread().getName() + " Thread Id : "
-                            + Thread.currentThread().getId() + " Thread Group : "
-                            + Thread.currentThread().getThreadGroup()); // clear the interrupted status
-                }
-
                 if (channel != null) {
                     returnToPool(factoryName, channel, senderType);
                 }
@@ -220,10 +168,6 @@ public class RabbitMQSender extends AbstractTransportSender {
                                       RabbitMQUtils.getSoapAction(response.getProperties()), contentType);
             } else if (senderType == SenderType.PUBLISHER_CONFIRMS) {
                 MessageContext responseMsgCtx = createResponseMessageContext(msgCtx);
-                Object ackDecision = msgCtx.getProperty(RabbitMQConstants.ACKNOWLEDGEMENT_DECISION);
-                if (ackDecision != null) {
-                    responseMsgCtx.setProperty(RabbitMQConstants.ACKNOWLEDGEMENT_DECISION, ackDecision);
-                }
                 responseMsgCtx.setProperty(RabbitMQConstants.CORRELATION_ID,
                         msgCtx.getProperty(RabbitMQConstants.CORRELATION_ID));
                 responseMsgCtx.setEnvelope(msgCtx.getEnvelope());
