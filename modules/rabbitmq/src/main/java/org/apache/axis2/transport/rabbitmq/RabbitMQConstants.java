@@ -33,9 +33,6 @@ public class RabbitMQConstants {
     public static final String RABBITMQ_PUBLISHER_CONFIRMS_WAIT_TIMEOUT = "rabbitmq.publisher.confirms.wait.timeout";
     public static final String SOAP_ACTION = "SOAP_ACTION";
     public static final String SET_REQUEUE_ON_ROLLBACK = "SET_REQUEUE_ON_ROLLBACK";
-    public static final String MESSAGING_CALLBACK_CONFIGS = "messaging_callback";
-    public static final String CALLBACK_CONTROLLED_ACK = "callback_controlled_ack_enabled";
-    public static final String AVOID_DECLARING_EXCHANGE_QUEUE = "avoid_declaring_exchanges_queues";
 
     public static final String RABBITMQ_CON_FAC = "rabbitmq.connection.factory";
 
@@ -119,14 +116,6 @@ public class RabbitMQConstants {
 
     /** Default concurrent consumer count */
     public static final int CONCURRENT_CONSUMER_COUNT_DEFAULT = 1;
-    
-    // This is because, anyway the timeout handler will close the channel on endpoint timeout
-    public static final long DEFAULT_VALUE_FOR_PUBCON_WAIT_TIMEOUT_WHEN_CALLBACK = 180000;
-    public static final String DEFAULT_PUB_CON_WAIT_TIMEOUT_WHEN_CALLBACK_ENABLED =
-            "default_pub_confirm_timeout_for_callback_controlled_flow";
-    public static String RABBITMQ_INBOUND_ACK_MAX_WAIT_TIME = "rabbitmq_inbound_ack_max_wait_ms";
-    public static final long RABBITMQ_INBOUND_ACK_MAX_WAIT_TIME_DEFAULT = 180000;
-    public static final String ACKNOWLEDGEMENT_DECISION = "ACK_DECISION";
 
     public static final String SECURE_VAULT_NAMESPACE = "http://org.wso2.securevault/configuration";
     public static final String SECRET_ALIAS_ATTRIBUTE = "secretAlias";
