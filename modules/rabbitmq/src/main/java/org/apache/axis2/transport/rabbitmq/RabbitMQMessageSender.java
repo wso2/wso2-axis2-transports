@@ -145,7 +145,7 @@ public class RabbitMQMessageSender {
         builder.deliveryMode(deliveryMode);
 
             String replyTo = rabbitMQProperties.get(RabbitMQConstants.REPLY_TO_QUEUE_NAME);
-            if (StringUtils.isEmpty(replyTo)) {
+            if (StringUtils.isNotEmpty(replyTo)) {
                 builder.replyTo(replyTo);
             }
 
