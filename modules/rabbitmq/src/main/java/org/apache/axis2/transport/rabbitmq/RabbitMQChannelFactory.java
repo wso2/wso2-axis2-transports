@@ -20,6 +20,8 @@ package org.apache.axis2.transport.rabbitmq;
 
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.commons.pool2.BaseKeyedPooledObjectFactory;
 import org.apache.commons.pool2.PooledObject;
 import org.apache.commons.pool2.impl.DefaultPooledObject;
@@ -29,6 +31,7 @@ import org.apache.commons.pool2.impl.DefaultPooledObject;
  */
 public class RabbitMQChannelFactory extends BaseKeyedPooledObjectFactory<String, Channel> {
 
+    private static final Log log = LogFactory.getLog(RabbitMQChannelFactory.class);
     private RabbitMQConnectionPool rabbitMQConnectionPool;
 
     public RabbitMQChannelFactory(RabbitMQConnectionPool rabbitMQConnectionPool) {
@@ -45,9 +48,16 @@ public class RabbitMQChannelFactory extends BaseKeyedPooledObjectFactory<String,
     @Override
     public Channel create(String factoryName) throws Exception {
         Connection connection = rabbitMQConnectionPool.borrowObject(factoryName);
-        Channel channel = connection.createChannel();
-        rabbitMQConnectionPool.returnObject(factoryName, connection);
-        return channel;
+        try {
+            Channel channel = connection.createChannel();
+            return channel;
+        } catch (Exception ex) {
+            log.warn("Could not create a channel. Returning the connection to the pool for factory: "
+                    + factoryName + " Connection: " + connection);
+            throw ex;
+        } finally {
+            rabbitMQConnectionPool.returnObject(factoryName, connection);
+        }
     }
 
     /**
