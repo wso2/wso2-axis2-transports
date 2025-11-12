@@ -363,7 +363,19 @@ public class ServiceTaskManager {
                         } catch (InterruptedException e) {
                             Thread.currentThread().interrupt();
                         }
-                        channel.basicReject(envelope.getDeliveryTag(), true);
+                        /*
+                         * If the channel is already closed or closing due to shutdown,
+                         * basicReject may throw an exception (e.g., NullPointerException or AlreadyClosedException).
+                         *
+                         * This is safe to ignore because:
+                         * - The message is still unacked.
+                         * - RabbitMQ will automatically requeue it once the consumer connection is closed.
+                         */
+                        try {
+                            channel.basicReject(envelope.getDeliveryTag(), true);
+                        } catch (Exception e) {
+                            log.debug("Failed to reject message during shutdown (likely due to closed channel).", e);
+                        }
                         break;
                     case REQUEUE_FALSE:
                         List<HashMap<String, Object>> xDeathHeader =
@@ -372,7 +384,19 @@ public class ServiceTaskManager {
                         if (xDeathHeader != null && xDeathHeader.size() > 0 && maxDeadLetteredCount != -1) {
                             Long count = (Long) xDeathHeader.get(0).get("count");
                             if (count <= maxDeadLetteredCount) {
-                                channel.basicReject(envelope.getDeliveryTag(), false);
+                                /*
+                                 * If the channel is already closed or closing due to shutdown,
+                                 * basicReject may throw an exception (e.g., NullPointerException or AlreadyClosedException).
+                                 *
+                                 * This is safe to ignore because:
+                                 * - The message is still unacked.
+                                 * - RabbitMQ will automatically requeue it once the consumer connection is closed.
+                                 */
+                                try {
+                                    channel.basicReject(envelope.getDeliveryTag(), false);
+                                } catch (Exception e) {
+                                    log.debug("Failed to reject message during shutdown (likely due to closed channel).", e);
+                                }
                                 log.info("The rejected message with message id: " + properties.getMessageId() + " and " +
                                         "delivery tag: " + envelope.getDeliveryTag() + " on the queue: " +
                                         queueName + " is dead-lettered " + count + " time(s).");
@@ -382,10 +406,22 @@ public class ServiceTaskManager {
                             }
                         } else {
                             // the message might be dead-lettered or discard if an error occurred in the mediation flow
-                            channel.basicReject(envelope.getDeliveryTag(), false);
-                            log.info("The rejected message with message id: " + properties.getMessageId() + " and " +
-                                    "delivery tag: " + envelope.getDeliveryTag() + " on the queue: " +
-                                    queueName + " will discard or dead-lettered.");
+                            /*
+                             * If the channel is already closed or closing due to shutdown,
+                             * basicReject may throw an exception (e.g., NullPointerException or AlreadyClosedException).
+                             *
+                             * This is safe to ignore because:
+                             * - The message is still unacked.
+                             * - RabbitMQ will automatically requeue it once the consumer connection is closed.
+                             */
+                            try {
+                                channel.basicReject(envelope.getDeliveryTag(), false);
+                                log.info("The rejected message with message id: " + properties.getMessageId()
+                                        + " and " + "delivery tag: " + envelope.getDeliveryTag() + " on the queue: "
+                                        + queueName + " will discard or dead-lettered.");
+                            } catch (Exception e) {
+                                log.debug("Failed to reject message during shutdown (likely due to closed channel).", e);
+                            }
                         }
                         break;
                     default:
