@@ -65,6 +65,7 @@ public class ServiceTaskManager {
                 RabbitMQConstants.CONCURRENT_CONSUMER_COUNT_DEFAULT);
         connection = rabbitMQConnectionFactory.create(factoryName);
         ((Recoverable) this.connection).addRecoveryListener(new RabbitMQRecoveryListener());
+
         for (int i = 0; i < concurrentConsumers; i++) {
             workerPool.execute(new ServiceTaskManager.MessageListenerTask());
         }
@@ -85,8 +86,20 @@ public class ServiceTaskManager {
      */
     public void stop(boolean listenerShuttingDown) {
         synchronized (pollingTasks) {
-            for (MessageListenerTask listenerTask : pollingTasks) {
-                listenerTask.close(listenerShuttingDown);
+            try {
+                for (MessageListenerTask listenerTask : pollingTasks) {
+                    listenerTask.close(listenerShuttingDown);
+                }
+            } finally {
+                try {
+                    closeSharedConnectionGracefully();
+                    log.info("RabbitMQ connection closed gracefully for service: " + serviceName);
+                } catch (IOException e) {
+                    log.error("Error while closing RabbitMQ connection gracefully. Forcing abort.", e);
+                    closeSharedConnectionForcefully();
+                } finally {
+                    connection = null;
+                }
             }
         }
     }
@@ -284,10 +297,16 @@ public class ServiceTaskManager {
                      * - RabbitMQ will automatically requeue it once the consumer connection is closed.
                      */
                     try {
-                        channel.basicReject(envelope.getDeliveryTag(), true);
-                        log.info("The rejected message with message id: " + properties.getMessageId() + " and " +
-                                "delivery tag: " + envelope.getDeliveryTag() + " on the queue: " +
-                                queueName + " since the consumer is shutting down.");
+                        if (!autoAck) {
+                            channel.basicReject(envelope.getDeliveryTag(), true);
+                            log.debug("The rejected message with message id: " + properties.getMessageId() + " and " +
+                                    "delivery tag: " + envelope.getDeliveryTag() + " on the queue: " +
+                                    queueName + " since the consumer is shutting down.");
+                        } else {
+                            log.debug("Message with message id: " + properties.getMessageId() + " and " +
+                                    "delivery tag: " + envelope.getDeliveryTag() + " on the queue: " +
+                                    queueName + " received during shutdown with autoAck enabled. No action taken.");
+                        }
                     } catch (Exception e) {
                         log.debug("Failed to reject message during shutdown (likely due to closed channel).", e);
                     }
@@ -297,7 +316,6 @@ public class ServiceTaskManager {
             } finally {
                 readLock.unlock();
             }
-
             AcknowledgementMode acknowledgementMode =
                     rabbitMQMessageReceiver.processThroughAxisEngine(properties, body);
 
@@ -517,20 +535,15 @@ public class ServiceTaskManager {
                     }
                 } else {
                     long waitUntil = System.currentTimeMillis() + unDeploymentWaitTimeout;
-                    while (inflightMessages.get() > 0 && System.currentTimeMillis() < waitUntil) {
+                    while (!autoAck && (inflightMessages.get() > 0 && System.currentTimeMillis() < waitUntil)) {
                         try {
                             Thread.sleep(100); // wait until all in-flight messages are done
                         } catch (InterruptedException e) {}
                     }
                 }
-
                 if (channel != null && channel.isOpen()) {
                     channel.close();
                 }
-                if (connection != null && connection.isOpen()) {
-                    connection.close();
-                }
-
                 if (inflightMessages.get() > 0) {
                     log.warn("RABBITMQ Task Manager for service: " + serviceName + " stopped with "
                             + inflightMessages.get() + " active tasks remaining");
@@ -540,12 +553,15 @@ public class ServiceTaskManager {
             } catch (Exception e) {
                 log.error("An error occurred while stopping the RABBITMQ Task Manager for service: "
                                 + serviceName + ". Forcing abort.", e);
-                if (connection != null) {
-                    connection.abort();
+                if (channel != null) {
+                    try {
+                        channel.abort();
+                    } catch (IOException ex) {
+                        //ignore
+                    }
                 }
             } finally {
                 channel = null;
-                connection = null;
             }
         }
 
@@ -619,6 +635,26 @@ public class ServiceTaskManager {
                     remainingDuration = DateUtils.MILLIS_PER_MINUTE - consumptionDuration;
             }
             return remainingDuration;
+        }
+    }
+
+    /**
+     * Close the shared connection forcefully
+     */
+    private void closeSharedConnectionForcefully() {
+        if (connection != null) {
+            connection.abort();
+        }
+    }
+
+    /**
+     * Close the shared connection gracefully
+     *
+     * @throws IOException
+     */
+    private void closeSharedConnectionGracefully() throws IOException {
+        if (connection != null && connection.isOpen()) {
+            connection.close();
         }
     }
 
