@@ -49,7 +49,7 @@
                         </Export-Package>
                         <Import-Package>
                             !javax.xml.namespace,
-                            javax.activation.*;version="[0.0.0, 1.0.0)",
+                            javax.activation.*;version="[0.0.0, 1.0.0)"; resolution:=optional,
                             javax.xml.namespace; version=0.0.0,
                             *; resolution:=optional
                         </Import-Package>
