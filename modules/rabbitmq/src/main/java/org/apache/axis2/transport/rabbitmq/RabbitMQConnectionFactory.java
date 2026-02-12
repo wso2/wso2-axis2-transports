@@ -40,6 +40,14 @@ import java.security.KeyStore;
 import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import static org.apache.axis2.transport.rabbitmq.RabbitMQConstants.CONNECTION_FACTORY_EXECUTOR_POOL_SIZE;
+import static org.apache.axis2.transport.rabbitmq.RabbitMQConstants.DEFAULT_CONNECTION_FACTORY_EXECUTOR_POOL_SIZE;
 
 /**
  * The rabbitmq connection factory implementation for rabbitmq connection pool
@@ -48,6 +56,7 @@ public class RabbitMQConnectionFactory extends BaseKeyedPooledObjectFactory<Stri
 
     private static final Log log = LogFactory.getLog(RabbitMQConnectionFactory.class);
     private Map<String, Map<String, String>> connectionFactoryConfigurations = new HashMap<>();
+    private Map<String, ExecutorService> executorServices = new ConcurrentHashMap<>();
     private int retryInterval;
     private int retryCount;
     private Address[] addresses;
@@ -65,15 +74,17 @@ public class RabbitMQConnectionFactory extends BaseKeyedPooledObjectFactory<Stri
         if (null == parameters) {
             throw new AxisRabbitMQException("Configuration parameters not found");
         }
+        // Get or create executor service for this connection factory
+        ExecutorService executorService = getOrCreateExecutorService(factoryName, parameters);
         ConnectionFactory connectionFactory = loadConnectionFactory(parameters);
         Connection connection = null;
         try {
-            connection = RabbitMQUtils.createConnection(connectionFactory, addresses);
+            connection = RabbitMQUtils.createConnection(connectionFactory, addresses, executorService);
             log.info("[" + factoryName + "] Successfully connected to RabbitMQ Broker");
         } catch (IOException e) {
             log.error("[" + factoryName + "] Error creating connection to RabbitMQ Broker. " +
                     "Reattempting to connect.", e);
-            connection = retry(factoryName, connectionFactory, connection);
+            connection = retry(factoryName, connectionFactory, connection, executorService);
             if (connection == null) {
                 throw new AxisRabbitMQException("[" + factoryName + "] Could not connect to RabbitMQ Broker. " +
                         "Error while creating connection", e);
@@ -88,9 +99,11 @@ public class RabbitMQConnectionFactory extends BaseKeyedPooledObjectFactory<Stri
      * @param factoryName       the factory name used when constructing the connection
      * @param connectionFactory a {@link ConnectionFactory} object
      * @param connection        the failure connection {@link Connection} object
+     * @param executorService   the {@link ExecutorService} object to be used by the connection
      * @return the {@link Connection} object after retry completion
      */
-    private Connection retry(String factoryName, ConnectionFactory connectionFactory, Connection connection) {
+    private Connection retry(String factoryName, ConnectionFactory connectionFactory,
+                             Connection connection, ExecutorService executorService) {
         int retryC = 0;
         while ((connection == null) && ((retryCount == -1) || (retryC < retryCount))) {
             retryC++;
@@ -98,7 +111,7 @@ public class RabbitMQConnectionFactory extends BaseKeyedPooledObjectFactory<Stri
                     " in " + retryInterval + " ms");
             try {
                 Thread.sleep(retryInterval);
-                connection = RabbitMQUtils.createConnection(connectionFactory, addresses);
+                connection = RabbitMQUtils.createConnection(connectionFactory, addresses, executorService);
                 log.info("[" + factoryName + "] Successfully connected to RabbitMQ Broker");
             } catch (InterruptedException e1) {
                 Thread.currentThread().interrupt();
@@ -307,5 +320,40 @@ public class RabbitMQConnectionFactory extends BaseKeyedPooledObjectFactory<Stri
         } catch (Exception e) {
             log.warn("Format error in SSL enabled value. Proceeding without enabling SSL", e);
         }
+    }
+
+    /**
+     * Get or create an executor service for the specified connection factory
+     *
+     * @param factoryName the factory name
+     * @param parameters  the connection parameters
+     * @return ExecutorService for this connection factory
+     */
+    private ExecutorService getOrCreateExecutorService(String factoryName, Map<String, String> parameters) {
+        return executorServices.computeIfAbsent(factoryName, key -> {
+            // Get thread pool size from parameters
+            int threadPoolSize = NumberUtils.toInt(
+                    parameters.get(CONNECTION_FACTORY_EXECUTOR_POOL_SIZE),
+                    DEFAULT_CONNECTION_FACTORY_EXECUTOR_POOL_SIZE);
+
+            // Create a custom thread factory with meaningful names
+            ThreadFactory threadFactory = new ThreadFactory() {
+                private final AtomicInteger threadNumber = new AtomicInteger(1);
+
+                @Override
+                public Thread newThread(Runnable r) {
+                    Thread t = new Thread(r, "RabbitMQ-" + factoryName + "-" + threadNumber.getAndIncrement());
+                    t.setDaemon(false);
+                    if (t.getPriority() != Thread.NORM_PRIORITY) {
+                        t.setPriority(Thread.NORM_PRIORITY);
+                    }
+                    return t;
+                }
+            };
+
+            ExecutorService executor = Executors.newFixedThreadPool(threadPoolSize, threadFactory);
+            log.info("[" + factoryName + "] Created ExecutorService with thread pool size: " + threadPoolSize);
+            return executor;
+        });
     }
 }
