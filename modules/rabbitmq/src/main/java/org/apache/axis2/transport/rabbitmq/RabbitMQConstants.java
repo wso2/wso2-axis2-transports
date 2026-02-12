@@ -117,6 +117,7 @@ public class RabbitMQConstants {
     public static final int DEFAULT_RABBITMQ_TIMEOUT = 30000;
     public static final int DEFAULT_POOL_SIZE = 200;
     public static final int DEFAULT_CONSUMER_QOS = 0;
+    public static final int DEFAULT_CONNECTION_FACTORY_EXECUTOR_POOL_SIZE = 10;
 
     /** Default concurrent consumer count */
     public static final int CONCURRENT_CONSUMER_COUNT_DEFAULT = 1;
@@ -144,6 +145,7 @@ public class RabbitMQConstants {
     public static final String MAX_WAIT_MILLIS = "rabbitmq.max.wait.millis";
     public static final int DEFAULT_MAX_WAIT_MILLIS = 180000;
     public static final String CONNECTION_POOL_SIZE = "rabbitmq.connection.pool.size";
+    public static final String CONNECTION_FACTORY_EXECUTOR_POOL_SIZE = "rabbitmq.executor.thread.pool.size";
 
     public static final String EXCHANGE_TYPE_DEFAULT = BuiltinExchangeType.DIRECT.getType();
     public static final String EXCHANGE_DURABLE_DEFAULT = "true";

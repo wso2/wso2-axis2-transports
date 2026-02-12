@@ -40,6 +40,7 @@ import org.apache.axis2.transport.MessageFormatter;
 import org.apache.axis2.transport.TransportUtils;
 import org.apache.axis2.transport.base.BaseConstants;
 import org.apache.axis2.transport.base.BaseUtils;
+import org.apache.axis2.transport.base.threads.WorkerPool;
 import org.apache.axis2.util.MessageProcessorSelector;
 import org.apache.commons.lang.BooleanUtils;
 import org.apache.commons.lang.StringUtils;
@@ -61,6 +62,8 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeoutException;
 
 /**
@@ -86,6 +89,26 @@ public class RabbitMQUtils {
             //Since we are throwing a IOException, the createConnection method in RMQConnectionFactory will log error
             //Hence omitting logging the error here
             throw new IOException("Timeout occurred when creating the new connection", e);
+        }
+        return connection;
+    }
+
+    /**
+     * Create a connection from given connection factory and address array
+     *
+     * @param factory   a {@link ConnectionFactory} object
+     * @param addresses a {@link Address} object
+     * @param executorService the {@link ExecutorService} to be used by the connection
+     * @return a {@link Connection} object
+     * @throws IOException
+     */
+    public static Connection createConnection(ConnectionFactory factory, Address[] addresses,
+                                              ExecutorService executorService) throws IOException {
+        Connection connection = null;
+        try {
+            connection = factory.newConnection(executorService, addresses);
+        } catch (TimeoutException e) {
+            log.error("Error occurred while creating a connection", e);
         }
         return connection;
     }
