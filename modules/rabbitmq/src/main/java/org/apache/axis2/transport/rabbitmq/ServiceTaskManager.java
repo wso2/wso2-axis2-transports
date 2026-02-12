@@ -144,6 +144,7 @@ public class ServiceTaskManager {
         private int throttleCount;
         private long consumptionStartedTime;
         private int consumedMessageCount = 0;
+        private long lastMessageProcessedTime = 0;
 
         private String consumerTag;
         private long unDeploymentWaitTimeout;
@@ -344,12 +345,29 @@ public class ServiceTaskManager {
                         switch (throttleMode) {
                             case FIXED_INTERVAL: {
                                 long throttleSleepDelay = getSleepDelay();
-                                if (log.isDebugEnabled()) {
-                                    log.debug("Sleeping " + throttleSleepDelay
-                                            + " ms with Fixed-Interval throttling for service :" + serviceName);
+                                long currentTime = System.currentTimeMillis();
+
+                                // Calculate remaining sleep time based on elapsed time since last message
+                                long remainingSleepTime = throttleSleepDelay;
+                                if (lastMessageProcessedTime > 0) {
+                                    long elapsedTime = currentTime - lastMessageProcessedTime;
+                                    remainingSleepTime = throttleSleepDelay - elapsedTime;
                                 }
-                                Thread.sleep(throttleSleepDelay);
-                                break;
+                                if (remainingSleepTime > 0) {
+                                    if (log.isDebugEnabled()) {
+                                        log.debug("Sleeping " + remainingSleepTime
+                                                + " ms with Fixed-Interval throttling for service :" + serviceName);
+                                    }
+                                    Thread.sleep(remainingSleepTime);
+                                } else {
+                                    if (log.isDebugEnabled()) {
+                                        log.debug("No sleep needed for Fixed-Interval throttling - " +
+                                                        "sufficient time has elapsed for service :" + serviceName);
+                                    }
+                                }
+
+                                // Update last message processed time
+                                lastMessageProcessedTime = System.currentTimeMillis();
                             }
                             case BATCH: {
                                 if (consumedMessageCount == 0) {
