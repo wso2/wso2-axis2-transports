@@ -433,16 +433,18 @@ public class ServiceTaskManager {
                         }
                         break;
                     case REQUEUE_FALSE:
-                        List<HashMap<String, Object>> xDeathHeader = null;
+                        List<Map<String, Object>> xDeathHeader = null;
                         if (properties != null) {
                             Map<String, Object> headers = properties.getHeaders();
                             if (headers != null) {
-                                xDeathHeader = (ArrayList<HashMap<String, Object>>) headers.get("x-death");
+                                xDeathHeader = getValidXDeathHeader(headers.get("x-death"), properties.getMessageId(),
+                                        queueName);
                             }
                         }
                         // check if message has been already dead-lettered
                         if (xDeathHeader != null && xDeathHeader.size() > 0 && maxDeadLetteredCount != -1) {
-                            Long count = (Long) xDeathHeader.get(0).get("count");
+                            Number countNum = (Number) xDeathHeader.get(0).get("count");
+                            long count = countNum.longValue();
                             if (count <= maxDeadLetteredCount) {
                                 /*
                                  * If the channel is already closed or closing due to shutdown,
@@ -494,6 +496,56 @@ public class ServiceTaskManager {
             } finally {
                 inflightMessages.decrementAndGet();
             }
+        }
+
+        /**
+         * Validate the x-death header and return the valid header for further processing
+         *
+         * @param rawXDeath   the raw x-death header object
+         * @param messageId   the message id for logging purposes
+         * @param queueName   the queue name for logging purposes
+         * @return the valid x-death header or null if the header is invalid
+         */
+        private List<Map<String, Object>> getValidXDeathHeader(Object rawXDeath, String messageId, String queueName) {
+
+            if (rawXDeath == null) {
+                return null;
+            }
+            if (!(rawXDeath instanceof List)) {
+                log.warn("Invalid X-Death header value for message id: " + messageId
+                        + " on the queue: " + queueName
+                        + ". Expected a List but got: " + rawXDeath.getClass().getName());
+                return null;
+            }
+
+            List<?> rawList = (List<?>) rawXDeath;
+
+            if (rawList.isEmpty()) {
+                return null;
+            }
+
+            Object first = rawList.get(0);
+
+            if (!(first instanceof Map)) {
+                log.warn("Invalid X-Death header value for message id: " + messageId
+                        + " on the queue: " + queueName
+                        + ". Expected a List of Maps but got a List with first element of type: "
+                        + (first != null ? first.getClass().getName() : "null"));
+                return null;
+            }
+
+            Map<?, ?> firstMap = (Map<?, ?>) first;
+            Object countObj = firstMap.get("count");
+
+            if (!(countObj instanceof Number)) {
+                log.warn("Invalid X-Death header value for message id: " + messageId
+                        + " on the queue: " + queueName
+                        + ". Expected 'count' field to be a Number but got: "
+                        + (countObj != null ? countObj.getClass().getName() : "null"));
+                return null;
+            }
+
+            return (List<Map<String, Object>>) rawList;
         }
 
         /**
