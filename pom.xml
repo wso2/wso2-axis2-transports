@@ -313,12 +313,12 @@
             <dependency>
                 <groupId>org.aspectj</groupId>
                 <artifactId>aspectjrt</artifactId>
-                <version>1.8.5</version>
+                <version>1.9.21</version>
             </dependency>
             <dependency>
                 <groupId>org.aspectj</groupId>
                 <artifactId>aspectjweaver</artifactId>
-                <version>1.8.5</version>
+                <version>1.9.21</version>
             </dependency>
             <dependency>
                 <groupId>xmlunit</groupId>
@@ -326,42 +326,6 @@
                 <version>1.2</version>
             </dependency>
             <!--Mockito Dependency-->
-            <dependency>
-                <groupId>org.powermock</groupId>
-                <artifactId>powermock-api-mockito2</artifactId>
-                <version>${powermock.version}</version>
-                <scope>test</scope>
-            </dependency>
-            <dependency>
-                <groupId>org.powermock</groupId>
-                <artifactId>powermock-module-junit4</artifactId>
-                <version>${powermock.version}</version>
-                <scope>test</scope>
-            </dependency>
-            <dependency>
-                <groupId>org.powermock</groupId>
-                <artifactId>powermock-core</artifactId>
-                <version>${powermock.version}</version>
-                <scope>test</scope>
-            </dependency>
-            <dependency>
-                <groupId>org.powermock</groupId>
-                <artifactId>powermock-reflect</artifactId>
-                <version>${powermock.version}</version>
-                <scope>test</scope>
-            </dependency>
-            <dependency>
-                <groupId>org.powermock</groupId>
-                <artifactId>powermock-module-junit4-common</artifactId>
-                <version>${powermock.version}</version>
-                <scope>test</scope>
-            </dependency>
-            <dependency>
-                <groupId>org.powermock</groupId>
-                <artifactId>powermock-api-support</artifactId>
-                <version>${powermock.version}</version>
-                <scope>test</scope>
-            </dependency>
             <dependency>
                 <groupId>org.mockito</groupId>
                 <artifactId>mockito-core</artifactId>
@@ -541,6 +505,9 @@
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-surefire-plugin</artifactId>
                     <version>${maven.surefire.plugin.version}</version>
+                    <configuration>
+                        <argLine>@{argLine} --add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/java.util=ALL-UNNAMED --add-opens java.base/java.lang.reflect=ALL-UNNAMED</argLine>
+                    </configuration>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
@@ -552,8 +519,8 @@
                     <artifactId>maven-compiler-plugin</artifactId>
                     <version>${maven.compiler.plugin.version}</version>
                     <configuration>
-                        <source>1.8</source>
-                        <target>1.8</target>
+                        <source>21</source>
+                        <target>21</target>
                     </configuration>
                 </plugin>
                 <plugin>
@@ -604,7 +571,7 @@
                 <plugin>
                     <groupId>org.jacoco</groupId>
                     <artifactId>jacoco-maven-plugin</artifactId>
-                    <version>0.8.4</version>
+                    <version>0.8.11</version>
                     <executions>
                         <execution>
                             <id>default-prepare-agent-by-coverage-enforcer</id>
@@ -655,7 +622,7 @@
                     <artifactId>maven-javadoc-plugin</artifactId>
                     <version>${maven.javadoc.plugin.version}</version>
                     <configuration>
-                        <source>1.8</source>
+                        <source>21</source>
                     </configuration>
                     <executions>
                         <execution>
@@ -675,7 +642,7 @@
     </build>
     <properties>
         <axis2.transports.version>2.0.0-wso2v85-SNAPSHOT</axis2.transports.version>
-        <axis2.version>1.6.1-wso2v121</axis2.version>
+        <axis2.version>1.6.1-wso2v123</axis2.version>
         <carbon.kernel.version>4.6.2</carbon.kernel.version>
         <imp.pkg.version.axis2>[1.6.1, 1.7.0)</imp.pkg.version.axis2>
         <imp.pkg.version.axiom>[1.2.11, 1.3.0)</imp.pkg.version.axiom>
@@ -685,11 +652,10 @@
         <carbon.p2.plugin.version>1.5.3</carbon.p2.plugin.version>
         <maven.javadoc.plugin.version>3.4.1</maven.javadoc.plugin.version>
         <wagon.ssh.version>2.12</wagon.ssh.version>
-        <maven.surefire.plugin.version>2.4</maven.surefire.plugin.version>
-        <maven.bundle.plugin.version>4.2.1</maven.bundle.plugin.version>
+        <maven.surefire.plugin.version>3.2.5</maven.surefire.plugin.version>
+        <maven.bundle.plugin.version>5.1.9</maven.bundle.plugin.version>
         <maven.dependency.plugin.version>2.0</maven.dependency.plugin.version>
-        <maven.compiler.plugin.version>3.8.0</maven.compiler.plugin.version>
-        <maven.surefire.plugin.version>2.3</maven.surefire.plugin.version>
+        <maven.compiler.plugin.version>3.13.0</maven.compiler.plugin.version>
         <maven.jar.plugin.version>2.1</maven.jar.plugin.version>
         <config.mapper.version>1.0.20</config.mapper.version>
         <jms-1.1-spec.version>1.1</jms-1.1-spec.version>
@@ -699,8 +665,7 @@
         <jsmpp-version>2.0.1</jsmpp-version>
         <slf4j-version>1.7.25</slf4j-version>
         <paho.version>1.2.0</paho.version>
-        <mockito.version>3.0.0</mockito.version>
-        <powermock.version>2.0.9</powermock.version>
+        <mockito.version>5.10.0</mockito.version>
         <junit.version>4.12</junit.version>
         <version.org.wso2.orbit.javax.activation>1.1.1.wso2v2</version.org.wso2.orbit.javax.activation>
         <httpclient.wso2.version>4.5.13.wso2v1</httpclient.wso2.version>

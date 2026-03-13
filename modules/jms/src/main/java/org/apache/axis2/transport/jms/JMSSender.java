@@ -106,7 +106,7 @@ public class JMSSender extends AbstractTransportSender implements ManagementSupp
      * @param trpInfo the transport-out information
      * @return the corresponding JMS connection factory, if any
      */
-    private JMSConnectionFactory getJMSConnectionFactory(JMSOutTransportInfo trpInfo) {
+    protected JMSConnectionFactory getJMSConnectionFactory(JMSOutTransportInfo trpInfo) {
         Map<String,String> props = trpInfo.getProperties();
         if (trpInfo.getProperties() != null) {
             String jmsConnectionFactoryName = props.get(JMSConstants.PARAM_JMS_CONFAC);
@@ -476,7 +476,7 @@ public class JMSSender extends AbstractTransportSender implements ManagementSupp
     /**
      * Perform actual sending of the JMS message
      */
-    private JMSReplyMessage sendOverJMS(MessageContext msgCtx, JMSMessageSender messageSender,
+    protected JMSReplyMessage sendOverJMS(MessageContext msgCtx, JMSMessageSender messageSender,
         String contentTypeProperty, JMSConnectionFactory jmsConnectionFactory,
         JMSOutTransportInfo jmsOut) throws AxisFault {
 
