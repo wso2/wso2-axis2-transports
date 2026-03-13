@@ -368,6 +368,7 @@ public class ServiceTaskManager {
 
                                 // Update last message processed time
                                 lastMessageProcessedTime = System.currentTimeMillis();
+                                break;
                             }
                             case BATCH: {
                                 if (consumedMessageCount == 0) {
