@@ -21,19 +21,14 @@ import org.apache.axis2.context.ConfigurationContext;
 import org.apache.axis2.context.MessageContext;
 import org.apache.axis2.description.TransportOutDescription;
 import org.apache.axis2.engine.AxisConfiguration;
-import org.junit.runner.RunWith;
-import org.mockito.ArgumentMatchers;
+import org.mockito.MockedConstruction;
 import org.mockito.Mockito;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
-import org.powermock.reflect.Whitebox;
 
 import javax.jms.Destination;
 import javax.jms.Session;
 import javax.transaction.*;
 import javax.transaction.xa.XAResource;
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.List;
@@ -41,10 +36,6 @@ import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.any;
 
-@RunWith(PowerMockRunner.class)
-@PrepareForTest(JMSSender.class)
-@PowerMockIgnore({"com.sun.org.apache.xerces.*", "javax.xml.*", "org.xml.*", "javax.management.*", "javax.xml.parsers.*", "org.apache" +
-        ".xerces.jaxp.*", "javax.naming.spi.*", "javax.naming.*"})
 public class JMSSenderTestCase extends TestCase {
 
     private String assertErrorMessageForTrue = "waitForResponse is false and destination is null";
@@ -81,35 +72,41 @@ public class JMSSenderTestCase extends TestCase {
      * @throws Exception
      */
     public void testTransactionCommandParameter() throws Exception {
-        JMSSender jmsSender = PowerMockito.spy(new JMSSender());
-        JMSOutTransportInfo jmsOutTransportInfo = Mockito.mock(JMSOutTransportInfo.class);
+        JMSSender jmsSender = Mockito.spy(new JMSSender());
         JMSMessageSender jmsMessageSender = Mockito.mock(JMSMessageSender.class);
         Session session = Mockito.mock(Session.class);
 
         Mockito.doReturn(session).when(jmsMessageSender).getSession();
-        PowerMockito.whenNew(JMSOutTransportInfo.class).withArguments(any(String.class))
-                .thenReturn(jmsOutTransportInfo);
-        Mockito.doReturn(jmsMessageSender).when(jmsOutTransportInfo).createJMSSender(any(MessageContext.class));
-        PowerMockito.doReturn(new JMSReplyMessage())
-                .when(jmsSender, "sendOverJMS", ArgumentMatchers.any(), ArgumentMatchers.any(), ArgumentMatchers.any(),
-                        ArgumentMatchers.any(), ArgumentMatchers.any());
 
-        jmsSender.init(new ConfigurationContext(new AxisConfiguration()), new TransportOutDescription("jms"));
-        MessageContext messageContext = new MessageContext();
-        //append the transport.jms.TransactionCommand
-        String targetAddress = "jms:/SimpleStockQuoteService?transport.jms.ConnectionFactoryJNDIName="
-                + "QueueConnectionFactory&transport.jms.TransactionCommand=begin"
-                + "&java.naming.factory.initial=org.apache.activemq.jndi.ActiveMQInitialContextFactory";
-        Transaction transaction = new TestJMSTransaction();
-        messageContext.setProperty(JMSConstants.JMS_XA_TRANSACTION, transaction);
+        try (MockedConstruction<JMSOutTransportInfo> mockedJmsOut = Mockito.mockConstruction(JMSOutTransportInfo.class,
+                (mock, context) -> {
+                    Mockito.doReturn(jmsMessageSender).when(mock).createJMSSender(any(MessageContext.class));
+                })) {
 
-        jmsSender.sendMessage(messageContext, targetAddress, null);
-        Map<Transaction, ArrayList<JMSMessageSender>> jmsMessageSenderMap = Whitebox
-                .getInternalState(JMSSender.class, "jmsMessageSenderMap");
-        Assert.assertEquals("Transaction not added to map", 1, jmsMessageSenderMap.size());
-        List senderList = jmsMessageSenderMap.get(transaction);
-        Assert.assertNotNull("List is null", senderList );
-        Assert.assertEquals("List is empty", 1, senderList.size());
+            Mockito.doReturn(null).when(jmsSender).getJMSConnectionFactory(any(JMSOutTransportInfo.class));
+            Mockito.doReturn(new JMSReplyMessage())
+                    .when(jmsSender).sendOverJMS(any(), any(), any(), any(), any());
+
+            jmsSender.init(new ConfigurationContext(new AxisConfiguration()), new TransportOutDescription("jms"));
+            MessageContext messageContext = new MessageContext();
+            //append the transport.jms.TransactionCommand
+            String targetAddress = "jms:/SimpleStockQuoteService?transport.jms.ConnectionFactoryJNDIName="
+                    + "QueueConnectionFactory&transport.jms.TransactionCommand=begin"
+                    + "&java.naming.factory.initial=org.apache.activemq.jndi.ActiveMQInitialContextFactory";
+            Transaction transaction = new TestJMSTransaction();
+            messageContext.setProperty(JMSConstants.JMS_XA_TRANSACTION, transaction);
+
+            jmsSender.sendMessage(messageContext, targetAddress, null);
+
+            Field field = JMSSender.class.getDeclaredField("jmsMessageSenderMap");
+            field.setAccessible(true);
+            Map<Transaction, ArrayList<JMSMessageSender>> jmsMessageSenderMap =
+                    (Map<Transaction, ArrayList<JMSMessageSender>>) field.get(null);
+            Assert.assertEquals("Transaction not added to map", 1, jmsMessageSenderMap.size());
+            List senderList = jmsMessageSenderMap.get(transaction);
+            Assert.assertNotNull("List is null", senderList);
+            Assert.assertEquals("List is empty", 1, senderList.size());
+        }
     }
 
     public void testGetContentTypePropertyNameFromFactory() {
@@ -134,9 +131,7 @@ public class JMSSenderTestCase extends TestCase {
      * @throws Exception
      */
     public void testGettingHyphenModeFromJMSConnectionFactory() throws Exception {
-        JMSSender jmsSender = PowerMockito.spy(new JMSSender());
-        JMSOutTransportInfo jmsOutTransportInfo = Mockito.mock(JMSOutTransportInfo.class);
-        JMSMessageSender jmsMessageSender = Mockito.mock(JMSMessageSender.class);
+        JMSSender jmsSender = Mockito.spy(new JMSSender());
         Session session = Mockito.mock(Session.class);
 
         final String hyphenMode = "replace";
@@ -145,24 +140,24 @@ public class JMSSenderTestCase extends TestCase {
         paramTable.put(JMSConstants.PARAM_JMS_HYPHEN_MODE, hyphenMode);
         Mockito.when(jmsConnectionFactory.getParameters()).thenReturn(paramTable);
 
-        PowerMockito.whenNew(JMSMessageSender.class).withArguments(any(JMSConnectionFactory.class), any(String.class))
-                .thenReturn(jmsMessageSender);
-        Mockito.doReturn(session).when(jmsMessageSender).getSession();
-        PowerMockito.whenNew(JMSOutTransportInfo.class).withArguments(any(String.class))
-                    .thenReturn(jmsOutTransportInfo);
-        Mockito.doReturn(jmsMessageSender).when(jmsOutTransportInfo).createJMSSender(any(MessageContext.class));
-        PowerMockito.doReturn(jmsConnectionFactory).when(jmsSender, "getJMSConnectionFactory", ArgumentMatchers.any());
-        PowerMockito.doReturn(new JMSReplyMessage())
-                    .when(jmsSender, "sendOverJMS", ArgumentMatchers.any(), ArgumentMatchers.any(),
-                          ArgumentMatchers.any(), ArgumentMatchers.any(), ArgumentMatchers.any());
+        try (MockedConstruction<JMSOutTransportInfo> mockedJmsOut = Mockito.mockConstruction(JMSOutTransportInfo.class);
+             MockedConstruction<JMSMessageSender> mockedSender = Mockito.mockConstruction(JMSMessageSender.class,
+                     (mock, context) -> {
+                         Mockito.doReturn(session).when(mock).getSession();
+                     })) {
 
-        jmsSender.init(new ConfigurationContext(new AxisConfiguration()), new TransportOutDescription("jms"));
-        MessageContext messageContext = new MessageContext();
-        jmsSender.sendMessage(messageContext, "jms:/SimpleStockQuoteService", null);
+            Mockito.doReturn(jmsConnectionFactory).when(jmsSender).getJMSConnectionFactory(any(JMSOutTransportInfo.class));
+            Mockito.doReturn(new JMSReplyMessage())
+                    .when(jmsSender).sendOverJMS(any(), any(), any(), any(), any());
 
-        Assert.assertEquals("Hyphen mode provided by the JMSConnectionFactory has not been set " +
-                            "to the message context", hyphenMode,
-                            messageContext.getProperty(JMSConstants.PARAM_JMS_HYPHEN_MODE));
+            jmsSender.init(new ConfigurationContext(new AxisConfiguration()), new TransportOutDescription("jms"));
+            MessageContext messageContext = new MessageContext();
+            jmsSender.sendMessage(messageContext, "jms:/SimpleStockQuoteService", null);
+
+            Assert.assertEquals("Hyphen mode provided by the JMSConnectionFactory has not been set " +
+                                "to the message context", hyphenMode,
+                                messageContext.getProperty(JMSConstants.PARAM_JMS_HYPHEN_MODE));
+        }
     }
 
     /**

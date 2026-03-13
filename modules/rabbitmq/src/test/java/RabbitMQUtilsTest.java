@@ -27,12 +27,12 @@ import org.apache.axis2.transport.rabbitmq.RabbitMQUtils;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mockito;
-import org.powermock.modules.junit4.PowerMockRunner;
+import org.mockito.junit.MockitoJUnitRunner;
 import org.wso2.securevault.XMLSecretResolver;
 
 import java.util.ArrayList;
 
-@RunWith(PowerMockRunner.class)
+@RunWith(MockitoJUnitRunner.class)
 public class RabbitMQUtilsTest extends TestCase {
 
     @Test
