@@ -106,6 +106,12 @@ public class RabbitMQConstants {
     public static final String MESSAGE_ERROR_EXCHANGE_NAME = "rabbitmq.message.error.exchange.name";
     public static final String MESSAGE_ERROR_QUEUE_ROUTING_KEY = "rabbitmq.message.error.queue.routing.key";
     public static final String MESSAGE_REQUEUE_DELAY = "rabbitmq.message.requeue.delay";
+    public static final String MESSAGE_ERROR_QUEUE_PUBLISHER_CONFIRMS_ENABLED =
+            "rabbitmq.message.error.publish.with.confirms.enabled";
+    public static final String MESSAGE_ERROR_QUEUE_PUBLISHER_CONFIRMS_WAIT_TIMEOUT =
+            "rabbitmq.message.error.publish.confirm.timeout";
+    public static final String MESSAGE_ERROR_QUEUE_PUBLISHER_CONFIRMS_RETRY_COUNT =
+            "rabbitmq.message.error.publish.max.retry.count";
 
     public static final String PUBLISHER_CONFIRMS_ENABLED = "rabbitmq.publisher.confirms.enabled";
     public static final String UNDEPLOYMENT_GRACE_TIMEOUT = "rabbitmq.undeployment.grace.timeout";
