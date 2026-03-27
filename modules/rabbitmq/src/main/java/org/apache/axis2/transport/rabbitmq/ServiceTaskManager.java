@@ -132,10 +132,14 @@ public class ServiceTaskManager {
     private class MessageListenerTask implements Runnable, Consumer {
 
         private Channel channel;
+        private Channel errorQueuePubConfirmChannel;
         private String queueName;
         private boolean autoAck;
         private long maxDeadLetteredCount;
         private long requeueDelay;
+        private boolean isPublisherConfirmsEnabled;
+        private int publisherConfirmsRetryCount = 0;
+        private long publisherConfirmsTimeout = 5000L;
 
         // Throttling variables
         private boolean isThrottlingEnabled;
@@ -203,6 +207,17 @@ public class ServiceTaskManager {
 
             autoAck = BooleanUtils.toBooleanDefaultIfNull(BooleanUtils.toBooleanObject(rabbitMQProperties
                     .get(RabbitMQConstants.QUEUE_AUTO_ACK)), true);
+            isPublisherConfirmsEnabled = BooleanUtils.toBooleanDefaultIfNull(BooleanUtils.toBooleanObject(rabbitMQProperties
+                    .get(RabbitMQConstants.MESSAGE_ERROR_QUEUE_PUBLISHER_CONFIRMS_ENABLED)), false);
+            if (isPublisherConfirmsEnabled) {
+                this.errorQueuePubConfirmChannel = connection.createChannel();
+                this.errorQueuePubConfirmChannel.confirmSelect();
+                ((Recoverable) this.errorQueuePubConfirmChannel).addRecoveryListener(new RabbitMQRecoveryListener());
+                publisherConfirmsRetryCount = NumberUtils.toInt(rabbitMQProperties.get(
+                        RabbitMQConstants.MESSAGE_ERROR_QUEUE_PUBLISHER_CONFIRMS_RETRY_COUNT), 0);
+                publisherConfirmsTimeout = NumberUtils.toLong(rabbitMQProperties.get(
+                        RabbitMQConstants.MESSAGE_ERROR_QUEUE_PUBLISHER_CONFIRMS_WAIT_TIMEOUT), 5000L);
+            }
 
             // Get throttle configurations if throttling is enabled
             isThrottlingEnabled = Boolean.parseBoolean(rabbitMQProperties.getOrDefault(
@@ -337,7 +352,7 @@ public class ServiceTaskManager {
                 readLock.unlock();
             }
             AcknowledgementMode acknowledgementMode =
-                    rabbitMQMessageReceiver.processThroughAxisEngine(properties, body);
+                    rabbitMQMessageReceiver.processThroughAxisEngine(properties, body, autoAck);
 
             try {
                 if (isThrottlingEnabled) {
@@ -465,7 +480,11 @@ public class ServiceTaskManager {
                                         queueName + " is dead-lettered " + count + " time(s).");
                             } else {
                                 // handle the message after exceeding the max dead-lettered count
-                                proceedAfterMaxDeadLetteredCount(envelope, properties, body);
+                                if (isPublisherConfirmsEnabled) {
+                                    proceedAfterMaxDeadLetteredCountWithPublisherConfirms(envelope, properties, body);
+                                } else {
+                                    proceedAfterMaxDeadLetteredCount(envelope, properties, body);
+                                }
                             }
                         } else {
                             // the message might be dead-lettered or discard if an error occurred in the mediation flow
@@ -569,21 +588,193 @@ public class ServiceTaskManager {
                 channel.basicAck(envelope.getDeliveryTag(), false);
                 log.info("The max dead lettered count exceeded. Hence message with message id: " +
                         properties.getMessageId() + " and delivery tag: " + envelope.getDeliveryTag() +
-                        " publish to the exchange: " + exchangeName + " with the routing key: " + routingKey + ".");
+                        " publish to the exchange: " + exchangeName + " with the routing key: " + routingKey + "."
+                        + " For Service: " + serviceName);
             } else if (StringUtils.isNotEmpty(routingKey) && StringUtils.isEmpty(exchangeName)) {
                 // publish message to the default exchange with the routing key
                 channel.basicPublish("", routingKey, properties, body);
                 channel.basicAck(envelope.getDeliveryTag(), false);
                 log.info("The max dead lettered count exceeded. Hence message with message id: " +
                         properties.getMessageId() + " and delivery tag: " + envelope.getDeliveryTag() +
-                        " publish to the default exchange with the routing key: " + routingKey + ".");
+                        " publish to the default exchange with the routing key: " + routingKey + "."
+                        + " For Service: " + serviceName);
             } else {
                 // discard the message
                 channel.basicAck(envelope.getDeliveryTag(), false);
                 log.info("The max dead lettered count exceeded. " +
                         "No 'rabbitmq.message.error.queue.routing.key' specified for publishing the message. " +
                         "Hence the message with message id: " + properties.getMessageId() + " and delivery tag: " +
-                        envelope.getDeliveryTag() + " on the queue: " + queueName + " will discard.");
+                        envelope.getDeliveryTag() + " on the queue: " + queueName + " will discard."
+                        + " For Service: " + serviceName);
+            }
+        }
+
+        /**
+         * Publishes the message to the configured final error destination using a publisher-confirm-enabled
+         * channel and waits for broker confirmation before acknowledging the original message from the
+         * listening queue.
+         *
+         * <p>If publishing succeeds and the broker confirms the publish within the configured timeout,
+         * the original message is acknowledged and removed from the listening queue. If publishing fails
+         * or the confirmation does not arrive in time, publishing is retried up to the configured retry
+         * count. Once the retry count is exhausted, the original message is acknowledged and discarded to
+         * prevent unnecessary message looping in the main listening queue.</p>
+         *
+         * @param envelope delivery envelope of the original consumed message
+         * @param properties AMQP properties of the original message
+         * @param body payload of the original message
+         * @throws IOException if acknowledging the original message fails
+         */
+        private void proceedAfterMaxDeadLetteredCountWithPublisherConfirms(Envelope envelope, AMQP.BasicProperties properties, byte[] body)
+                throws IOException {
+            String routingKey =
+                    rabbitMQProperties.get(RabbitMQConstants.MESSAGE_ERROR_QUEUE_ROUTING_KEY);
+            String exchangeName =
+                    rabbitMQProperties.get(RabbitMQConstants.MESSAGE_ERROR_EXCHANGE_NAME);
+
+            if (StringUtils.isNotEmpty(routingKey) && StringUtils.isNotEmpty(exchangeName)) {
+                boolean published = false;
+
+                for (int attempt = 1; attempt <= publisherConfirmsRetryCount; attempt++) {
+                    try {
+                        // publish message to the given exchange with the routing key
+                        errorQueuePubConfirmChannel.basicPublish(exchangeName, routingKey, properties, body);
+
+                        boolean success = errorQueuePubConfirmChannel.waitForConfirms(publisherConfirmsTimeout);
+                        if (success) {
+                            published = true;
+                            break;
+                        }
+                        log.warn("Failed to publish message with message id: " + properties.getMessageId()
+                                + " and delivery tag: " + envelope.getDeliveryTag()
+                                + " to the exchange: " + exchangeName + " with the routing key: " + routingKey
+                                + ". Broker returned nack. Attempt " + attempt + " of "
+                                + publisherConfirmsRetryCount + "." + " For Service: " + serviceName);
+
+                    } catch (java.util.concurrent.TimeoutException e) {
+                        log.warn("Timed out while waiting for publisher confirm when publishing message with "
+                                + "message id: " + properties.getMessageId() + " and delivery tag: "
+                                + envelope.getDeliveryTag() + " to the exchange: " + exchangeName
+                                + " with the routing key: " + routingKey + ". Attempt " + attempt + " of "
+                                + publisherConfirmsRetryCount + ".", e);
+
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        log.warn("Interrupted while waiting for publisher confirm when publishing message with "
+                                + "message id: " + properties.getMessageId() + " and delivery tag: "
+                                + envelope.getDeliveryTag() + " to the exchange: " + exchangeName
+                                + " with the routing key: " + routingKey + ". Attempt " + attempt + " of "
+                                + publisherConfirmsRetryCount + ".", e);
+                        break;
+
+                    } catch (IllegalStateException e) {
+                        log.warn("Publisher confirms are not enabled on the error queue publish channel when "
+                                + "publishing message with message id: " + properties.getMessageId()
+                                + " and delivery tag: " + envelope.getDeliveryTag()
+                                + " to the exchange: " + exchangeName + " with the routing key: "
+                                + routingKey + ".", e);
+                        break;
+
+                    } catch (IOException e) {
+                        log.warn("Failed to publish message with message id: " + properties.getMessageId()
+                                + " and delivery tag: " + envelope.getDeliveryTag()
+                                + " to the exchange: " + exchangeName + " with the routing key: "
+                                + routingKey + ". Attempt " + attempt + " of "
+                                + publisherConfirmsRetryCount + ".", e);
+                    }
+                }
+
+                channel.basicAck(envelope.getDeliveryTag(), false);
+
+                if (published) {
+                    log.info("The max dead lettered count exceeded. Hence message with message id: "
+                            + properties.getMessageId() + " and delivery tag: " + envelope.getDeliveryTag()
+                            + " publish to the exchange: " + exchangeName + " with the routing key: "
+                            + routingKey + " after publisher confirm." + " For Service: " + serviceName);
+                } else {
+                    log.warn("The max dead lettered count exceeded. Failed to publish message with message id: "
+                            + properties.getMessageId() + " and delivery tag: " + envelope.getDeliveryTag()
+                            + " to the exchange: " + exchangeName + " with the routing key: " + routingKey
+                            + " after " + publisherConfirmsRetryCount + " publisher confirm attempts. "
+                            + "Hence the original message will be discarded to avoid unnecessary message "
+                            + "looping." + " For Service: " + serviceName);
+                }
+
+            } else if (StringUtils.isNotEmpty(routingKey) && StringUtils.isEmpty(exchangeName)) {
+                boolean published = false;
+
+                for (int attempt = 1; attempt <= publisherConfirmsRetryCount; attempt++) {
+                    try {
+                        // publish message to the default exchange with the routing key
+                        errorQueuePubConfirmChannel.basicPublish("", routingKey, properties, body);
+
+                        boolean success = errorQueuePubConfirmChannel.waitForConfirms(publisherConfirmsTimeout);
+                        if (success) {
+                            published = true;
+                            break;
+                        }
+
+                        log.warn("Failed to publish message with message id: " + properties.getMessageId()
+                                + " and delivery tag: " + envelope.getDeliveryTag()
+                                + " to the default exchange with the routing key: " + routingKey
+                                + ". Broker returned nack. Attempt " + attempt + " of "
+                                + publisherConfirmsRetryCount + "." + " For Service: " + serviceName);
+
+                    } catch (java.util.concurrent.TimeoutException e) {
+                        log.warn("Timed out while waiting for publisher confirm when publishing message with "
+                                + "message id: " + properties.getMessageId() + " and delivery tag: "
+                                + envelope.getDeliveryTag() + " to the default exchange with the routing key: "
+                                + routingKey + ". Attempt " + attempt + " of "
+                                + publisherConfirmsRetryCount + ".", e);
+
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        log.warn("Interrupted while waiting for publisher confirm when publishing message with "
+                                + "message id: " + properties.getMessageId() + " and delivery tag: "
+                                + envelope.getDeliveryTag() + " to the default exchange with the routing key: "
+                                + routingKey + ". Attempt " + attempt + " of "
+                                + publisherConfirmsRetryCount + ".", e);
+                        break;
+
+                    } catch (IllegalStateException e) {
+                        log.warn("Publisher confirms are not enabled on the error queue publish channel when "
+                                + "publishing message with message id: " + properties.getMessageId()
+                                + " and delivery tag: " + envelope.getDeliveryTag()
+                                + " to the default exchange with the routing key: " + routingKey + ".", e);
+                        break;
+
+                    } catch (IOException e) {
+                        log.warn("Failed to publish message with message id: " + properties.getMessageId()
+                                + " and delivery tag: " + envelope.getDeliveryTag()
+                                + " to the default exchange with the routing key: " + routingKey
+                                + ". Attempt " + attempt + " of " + publisherConfirmsRetryCount + ".", e);
+                    }
+                }
+
+                channel.basicAck(envelope.getDeliveryTag(), false);
+
+                if (published) {
+                    log.info("The max dead lettered count exceeded. Hence message with message id: "
+                            + properties.getMessageId() + " and delivery tag: " + envelope.getDeliveryTag()
+                            + " publish to the default exchange with the routing key: " + routingKey
+                            + " after publisher confirm." + " For Service: " + serviceName);
+                } else {
+                    log.warn("The max dead lettered count exceeded. Failed to publish message with message id: "
+                            + properties.getMessageId() + " and delivery tag: " + envelope.getDeliveryTag()
+                            + " to the default exchange with the routing key: " + routingKey
+                            + " after " + publisherConfirmsRetryCount + " publisher confirm attempts. "
+                            + "Hence the original message will be discarded"
+                            + " to avoid unnecessary message looping." + " For Service: " + serviceName);
+                }
+
+            } else {
+                // discard the message
+                channel.basicAck(envelope.getDeliveryTag(), false);
+                log.info("The max dead lettered count exceeded. "
+                        + "No 'rabbitmq.message.error.queue.routing.key' specified for publishing the message. "
+                        + "Hence the message with message id: " + properties.getMessageId() + " and delivery tag: "
+                        + envelope.getDeliveryTag() + " on the queue: " + queueName + " will discard."
+                        + " For Service: " + serviceName);
             }
         }
 
@@ -639,6 +830,7 @@ public class ServiceTaskManager {
                 if (channel != null && channel.isOpen()) {
                     channel.close();
                 }
+                closeChannelQuietly(errorQueuePubConfirmChannel, "error queue publish confirm channel");
                 if (inflightMessages.get() > 0) {
                     log.warn("RABBITMQ Task Manager for service: " + serviceName + " stopped with "
                             + inflightMessages.get() + " active tasks remaining");
@@ -657,6 +849,21 @@ public class ServiceTaskManager {
                 }
             } finally {
                 channel = null;
+            }
+        }
+
+        private void closeChannelQuietly(Channel channel, String channelName) {
+            if (channel != null && channel.isOpen()) {
+                try {
+                    channel.close();
+                } catch (Exception e) {
+                    log.warn("Failed to close " + channelName + " cleanly. Aborting it.", e);
+                    try {
+                        channel.abort();
+                    } catch (IOException ex) {
+                        // ignore
+                    }
+                }
             }
         }
 

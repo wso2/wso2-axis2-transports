@@ -58,7 +58,7 @@ public class RabbitMQMessageReceiver {
      * @return true if no mediation errors
      * @throws AxisFault on Axis2 errors
      */
-    AcknowledgementMode processThroughAxisEngine(AMQP.BasicProperties messageProperties, byte[] body) {
+    AcknowledgementMode processThroughAxisEngine(AMQP.BasicProperties messageProperties, byte[] body, boolean autoAck) {
         try {
             MessageContext msgContext = endpoint.createMessageContext();
             Map<String, String> serviceProperties = endpoint.getServiceTaskManager().getRabbitMQProperties();
@@ -73,6 +73,11 @@ public class RabbitMQMessageReceiver {
             }
             listener.handleIncomingMessage(msgContext, RabbitMQUtils.getTransportHeaders(messageProperties),
                                            RabbitMQUtils.getSoapAction(messageProperties), contentType);
+            if (autoAck) {
+                // If autoAck is enabled, we have already acknowledged the message when it was received
+                // so we can return early.
+                return AcknowledgementMode.ACKNOWLEDGE;
+            }
             if (RabbitMQAckConfig.isCallbackControlledAckEnabled()) {
                 // Wait for mediation to decide how to acknowledge the message.
                 AckDecision ackDecision;
@@ -97,6 +102,10 @@ public class RabbitMQMessageReceiver {
             return getAcknowledgementMode(msgContext);
         } catch (Throwable fault) {
             log.error("Error when trying to read incoming message.", fault);
+            if (autoAck) {
+                // If autoAck is enabled, we have already acknowledged the message when it was received
+                return AcknowledgementMode.ACKNOWLEDGE;
+            }
             return AcknowledgementMode.REQUEUE_FALSE;
         }
     }
