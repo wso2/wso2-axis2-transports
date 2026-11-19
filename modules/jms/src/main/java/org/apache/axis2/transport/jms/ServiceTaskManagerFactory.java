@@ -124,7 +124,7 @@ public class ServiceTaskManagerFactory {
             stm.setInitialReconnectDuration(value);
         }
         value = getOptionalIntProperty(JMSConstants.PARAM_RECON_MAX_DURATION, svc, cf);
-        if (value != null) {value = getOptionalIntProperty(JMSConstants.JMS_PROXY_THROTTLE_PER_MIN, svc, cf);
+        if (value != null) {
             stm.setMaxReconnectDuration(value);
         }
         Double dValue = getOptionalDoubleProperty(JMSConstants.PARAM_RECON_FACTOR, svc, cf);
